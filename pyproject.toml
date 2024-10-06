@@ -1,0 +1,73 @@
+[tool.poetry]
+name = "dir2text"
+version = "0.1.0"
+description = "A short description of dir2text"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+packages = [{include = "dir2text", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+anytree = "^2.8.0"
+pathspec = "^0.12.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.3"
+pytest-cov = "^4.1.0"
+flake8 = "^6.1.0"
+mypy = "^1.7.1"
+black = "^23.11.0"
+tox = "^4.11.3"
+importlib-metadata = "^6.8.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+test = "scripts:run_tests"
+lint = "scripts:run_lint"
+typecheck = "scripts:run_typecheck"
+format = "scripts:run_format"
+coverage = "scripts:run_coverage"
+dir2text = "dir2text.cli:main"
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-v -ra -q --doctest-modules"
+testpaths = [
+    "tests",
+    "src",
+]
+
+[tool.mypy]
+mypy_path = "src"
+check_untyped_defs = true
+disallow_any_generics = true
+ignore_missing_imports = true
+no_implicit_optional = true
+show_error_codes = true
+strict_equality = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unreachable = true
+warn_unused_configs = true
+no_implicit_reexport = true
+
+[tool.black]
+line-length = 120
+target-version = ['py38']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
