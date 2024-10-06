@@ -1,5 +1,5 @@
 import os
-from typing import Optional
+from typing import Iterator, Optional, Tuple
 from anytree import Node
 from .exclusion_rules import ExclusionRules
 
@@ -49,6 +49,20 @@ class FileSystemTree:
             except PermissionError:
                 pass
         return node
+
+    def iterate_files(self) -> Iterator[Tuple[str, str]]:
+        """
+        Yields tuples of (file_path, relative_path) for all files in the tree.
+        """
+
+        def _iterate(node: FileSystemNode, current_path: str):
+            if not node.is_dir:
+                yield (os.path.join(self.root_path, current_path), current_path)
+            else:
+                for child in node.children:
+                    yield from _iterate(child, os.path.join(current_path, child.name))
+
+        yield from _iterate(self._tree, "")
 
     def get_tree_representation(self) -> str:
         if self._tree is None:
