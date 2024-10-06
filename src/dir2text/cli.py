@@ -8,12 +8,10 @@ from .exclusion_rules import GitIgnoreExclusionRules
 def main():
     parser = argparse.ArgumentParser(
         description="Generate a tree representation of the given directory.",
-        epilog="If no DIRECTORY is provided, the current working directory is used.",
+        epilog="The DIRECTORY argument is required.",
     )
-    parser.add_argument(
-        "directory", nargs="?", type=Path, default=Path.cwd(), help="The directory to generate the tree for"
-    )
-    parser.add_argument("-g", "--gitignore", type=Path, metavar="FILE", help="Path to .gitignore file for exclusions")
+    parser.add_argument("directory", type=Path, help="The directory to generate the tree for (required)")
+    parser.add_argument("-e", "--exclude", type=Path, metavar="FILE", help="Path to exclusion file")
     parser.add_argument("-o", "--output", type=Path, metavar="FILE", help="Output file path")
 
     args = parser.parse_args()
@@ -23,10 +21,10 @@ def main():
             raise ValueError(f"'{args.directory}' is not a valid directory")
 
         exclusion_rules = None
-        if args.gitignore:
-            if not args.gitignore.is_file():
-                raise ValueError(f"'{args.gitignore}' is not a valid file")
-            exclusion_rules = GitIgnoreExclusionRules(args.gitignore)
+        if args.exclude:
+            if not args.exclude.is_file():
+                raise ValueError(f"'{args.exclude}' is not a valid file")
+            exclusion_rules = GitIgnoreExclusionRules(args.exclude)
 
         fs_tree = FileSystemTree(str(args.directory), exclusion_rules)
         tree_output = fs_tree.get_tree_representation()
