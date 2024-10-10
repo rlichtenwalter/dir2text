@@ -1,12 +1,74 @@
 import argparse
 import sys
+import signal
+import os
+import errno
+import atexit
 from pathlib import Path
+from threading import Event
+from types import FrameType
+from typing import Optional, Union
 from .file_system_tree import FileSystemTree
 from .exclusion_rules import GitIgnoreExclusionRules
 from .file_content_printer import FileContentPrinter
 
 
-def main():
+class SignalHandler:
+    def __init__(self):
+        self.sigpipe_received = Event()
+        self.sigint_received = Event()
+        self.original_sigpipe_handler = signal.getsignal(signal.SIGPIPE)
+        self.original_sigint_handler = signal.getsignal(signal.SIGINT)
+
+    def handle_sigpipe(self, signum: int, frame: Optional[FrameType]) -> None:
+        self.sigpipe_received.set()
+        signal.signal(signal.SIGPIPE, self.original_sigpipe_handler)
+
+    def handle_sigint(self, signum: int, frame: Optional[FrameType]) -> None:
+        self.sigint_received.set()
+        signal.signal(signal.SIGINT, self.original_sigint_handler)
+
+
+signal_handler = SignalHandler()
+
+
+def setup_signal_handling() -> None:
+    signal.signal(signal.SIGPIPE, signal_handler.handle_sigpipe)
+    signal.signal(signal.SIGINT, signal_handler.handle_sigint)
+
+
+class SafeWriter:
+    def __init__(self, file: Union[int, Path]):
+        self.file = file
+        self.fd = file if isinstance(file, int) else file.open("w").fileno()
+
+    def write(self, data: str) -> None:
+        if signal_handler.sigpipe_received.is_set() or signal_handler.sigint_received.is_set():
+            raise BrokenPipeError()
+        try:
+            os.write(self.fd, data.encode())
+        except OSError as e:
+            if e.errno == errno.EPIPE:
+                raise BrokenPipeError()
+            raise
+
+    def close(self) -> None:
+        if not isinstance(self.file, int):
+            os.close(self.fd)
+
+
+def cleanup() -> None:
+    if signal_handler.sigpipe_received.is_set() or signal_handler.sigint_received.is_set():
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull, sys.stdout.fileno())
+
+
+atexit.register(cleanup)
+
+
+def main() -> None:
+    setup_signal_handling()
+
     parser = argparse.ArgumentParser(
         description="Generate a tree representation and print contents of the given directory.",
         epilog="The DIRECTORY argument is required.",
@@ -31,32 +93,44 @@ def main():
             exclusion_rules = GitIgnoreExclusionRules(args.exclude)
 
         fs_tree = FileSystemTree(str(args.directory), exclusion_rules)
+        file_content_printer = FileContentPrinter(fs_tree, wrapper_format=args.format)
 
-        def print_output():
+        output_file = args.output if args.output else sys.stdout.fileno()
+        safe_writer = SafeWriter(output_file)
+
+        try:
             if not args.no_tree:
-                print(fs_tree.get_tree_representation())
+                tree_repr = fs_tree.get_tree_representation()
+                for line in tree_repr.splitlines():
+                    safe_writer.write(line + "\n")
+
                 if not args.no_contents:
-                    print()  # Add newline between tree and contents
+                    safe_writer.write("\n")
+
             if not args.no_contents:
-                printer = FileContentPrinter(fs_tree, wrapper_format=args.format)
-                printer.print_all_file_contents()
+                for i, (_, _, content_iterator) in enumerate(file_content_printer.yield_file_contents()):
+                    if i > 0:
+                        safe_writer.write("\n")
+                    for line in content_iterator:
+                        safe_writer.write(line)
 
-        if args.output:
-            with args.output.open("w") as f:
-                sys.stdout = f  # Redirect stdout to the file
-                print_output()
-                sys.stdout = sys.__stdout__  # Reset stdout
-            print(f"Output written to {args.output}")
-        else:
-            print_output()
+            if args.no_tree and args.no_contents:
+                print("Warning: Both tree and contents printing were disabled. No output generated.", file=sys.stderr)
 
-        # Check if no output was generated
-        if args.no_tree and args.no_contents:
-            print("Warning: Both tree and contents printing were disabled. No output generated.", file=sys.stderr)
+        except BrokenPipeError:
+            pass  # We'll handle the exit in the finally block
+        finally:
+            safe_writer.close()
 
     except Exception as e:
         print(f"Error: {str(e)}", file=sys.stderr)
         sys.exit(1)
+
+    # Handle exit codes here, after all cleanup has been performed
+    if signal_handler.sigpipe_received.is_set():
+        sys.exit(141)
+    elif signal_handler.sigint_received.is_set():
+        sys.exit(130)
 
 
 if __name__ == "__main__":
