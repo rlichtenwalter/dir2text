@@ -7,10 +7,11 @@ import atexit
 from pathlib import Path
 from threading import Event
 from types import FrameType
-from typing import Optional, Union
+from typing import Optional, Union, Dict, Any
 from .file_system_tree import FileSystemTree
 from .exclusion_rules import GitIgnoreExclusionRules
 from .file_content_printer import FileContentPrinter
+from .token_counter import TokenCounter
 
 
 class SignalHandler:
@@ -66,6 +67,16 @@ def cleanup() -> None:
 atexit.register(cleanup)
 
 
+def format_counts(counts: Dict[str, Any]) -> str:
+    return (
+        f"Directories: {counts['directories']}\n"
+        f"Files: {counts['files']}\n"
+        f"Lines: {counts['lines']}\n"
+        f"Characters: {counts['characters']}\n"
+        f"Tokens: {counts['tokens'] if counts['tokens'] is not None else 'N/A (tokenizer not available)'}"
+    )
+
+
 def main() -> None:
     setup_signal_handling()
 
@@ -79,6 +90,10 @@ def main() -> None:
     parser.add_argument("-T", "--no-tree", action="store_true", help="Do not print the directory tree")
     parser.add_argument("-C", "--no-contents", action="store_true", help="Do not print the contents of files")
     parser.add_argument("--format", choices=["xml", "json"], default="xml", help="Output format for file contents")
+    parser.add_argument(
+        "-c", "--count", action="store_true", help="Include counts of directories, files, lines, tokens, and characters"
+    )
+    parser.add_argument("-t", "--tokenizer", default="gpt-4o", help="Tokenizer model to use for counting tokens")
 
     args = parser.parse_args()
 
@@ -93,7 +108,8 @@ def main() -> None:
             exclusion_rules = GitIgnoreExclusionRules(args.exclude)
 
         fs_tree = FileSystemTree(str(args.directory), exclusion_rules)
-        file_content_printer = FileContentPrinter(fs_tree, wrapper_format=args.format)
+        token_counter = TokenCounter(model=args.tokenizer) if args.count else None
+        file_content_printer = FileContentPrinter(fs_tree, wrapper_format=args.format, tokenizer=token_counter)
 
         output_file = args.output if args.output else sys.stdout.fileno()
         safe_writer = SafeWriter(output_file)
@@ -101,21 +117,39 @@ def main() -> None:
         try:
             if not args.no_tree:
                 tree_repr = fs_tree.get_tree_representation()
-                for line in tree_repr.splitlines():
-                    safe_writer.write(line + "\n")
+                for line in tree_repr.splitlines(True):
+                    safe_writer.write(line)
+                    if token_counter:
+                        token_counter.count_tokens(line)
+                safe_writer.write("\n")
 
                 if not args.no_contents:
                     safe_writer.write("\n")
 
             if not args.no_contents:
-                for i, (_, _, content_iterator) in enumerate(file_content_printer.yield_file_contents()):
-                    if i > 0:
-                        safe_writer.write("\n")
-                    for line in content_iterator:
-                        safe_writer.write(line)
+                for _, _, content_iterator in file_content_printer.yield_file_contents():
+                    for chunk in content_iterator:
+                        safe_writer.write(chunk)
+                    safe_writer.write("\n")
 
-            if args.no_tree and args.no_contents:
-                print("Warning: Both tree and contents printing were disabled. No output generated.", file=sys.stderr)
+            if args.count:
+                counts = {
+                    "directories": fs_tree.get_directory_count(),
+                    "files": fs_tree.get_file_count(),
+                    "lines": token_counter.get_total_lines() if token_counter else None,
+                    "characters": token_counter.get_total_characters() if token_counter else None,
+                    "tokens": token_counter.get_total_tokens() if token_counter else None,
+                }
+                count_output_str = format_counts(counts)
+                safe_writer.write("\n" + count_output_str + "\n")
+
+            if args.no_tree and args.no_contents and not args.count:
+                print(
+                    "Warning: Both tree and contents printing were disabled, and counting was not enabled.",
+                    end="",
+                    file=sys.stderr,
+                )
+                print(" No output generated.", file=sys.stderr)
 
         except BrokenPipeError:
             pass  # We'll handle the exit in the finally block

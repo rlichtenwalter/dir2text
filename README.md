@@ -11,22 +11,30 @@ This project uses [Poetry](https://python-poetry.org/) for dependency management
 ### Using Poetry (Recommended)
 
 1. First, [install Poetry](https://python-poetry.org/docs/#installation) if you haven't already.
-
 2. Clone the repository:
    ```
    git clone https://github.com/yourusername/dir2text.git
    cd dir2text
    ```
-
 3. Install the project and its dependencies:
    ```
    poetry install
    ```
-
 4. Activate the virtual environment:
    ```
    poetry shell
    ```
+
+#### Optional Extras
+
+- To install with token counting functionality:
+  ```
+  poetry install --extras token_counting
+  ```
+- To install all optional dependencies:
+  ```
+  poetry install --extras all
+  ```
 
 ### Using pip
 
@@ -37,17 +45,32 @@ If you prefer not to use Poetry, you can install the project using pip:
    git clone https://github.com/yourusername/dir2text.git
    cd dir2text
    ```
-
 2. (Optional) Create and activate a virtual environment:
    ```
    python -m venv venv
    source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
    ```
-
 3. Install the project and its dependencies:
    ```
    pip install .
    ```
+
+#### Optional Extras
+
+- To install with token counting functionality:
+  ```
+  pip install .[token_counting]
+  ```
+- To install all optional dependencies:
+  ```
+  pip install .[all]
+  ```
+
+### Token Counting Functionality
+
+The `token_counting` extra enables an option to count tokens in the input. This feature requires the installation of additional dependencies, which may significantly increase the total package size.
+
+**Note:** The `tiktoken` package, used for token counting, requires a Rust compiler (e.g., `rustc`) and Cargo to be available and included in your system's PATH during installation.
 
 ## Development
 
@@ -93,6 +116,7 @@ If you're not using Poetry, you can run these commands directly (e.g., `pytest`,
 
 ## Usage
 
+[Your usage instructions here]
 
 ## Contributing
 

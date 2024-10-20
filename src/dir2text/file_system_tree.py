@@ -11,10 +11,12 @@ class FileSystemNode(Node):
 
 
 class FileSystemTree:
-    def __init__(self, root_path: str, exclusion_rules: Optional["ExclusionRules"] = None):
+    def __init__(self, root_path: str, exclusion_rules: Optional[ExclusionRules] = None):
         self.root_path = os.path.abspath(root_path)
         self.exclusion_rules = exclusion_rules
         self._tree: Optional[FileSystemNode] = None
+        self._file_count: int = 0
+        self._directory_count: int = 0
 
     def get_tree(self) -> Optional[FileSystemNode]:
         if self._tree is None:
@@ -27,6 +29,7 @@ class FileSystemTree:
         if not os.path.isdir(self.root_path):
             raise NotADirectoryError(f"Root path is not a directory: {self.root_path}")
         self._tree = self._create_node(self.root_path, "")
+        self._count_files_and_directories()
 
     def _create_node(
         self, path: str, relative_path: str, parent: Optional[FileSystemNode] = None
@@ -40,7 +43,7 @@ class FileSystemTree:
 
         if is_dir:
             try:
-                for child in os.listdir(path):
+                for child in sorted(os.listdir(path)):
                     child_path = os.path.join(path, child)
                     child_relative_path = os.path.join(relative_path, child).replace("\\", "/")
                     child_node = self._create_node(child_path, child_relative_path, parent=node)
@@ -50,10 +53,44 @@ class FileSystemTree:
                 pass
         return node
 
+    def _count_files_and_directories(self):
+        self._file_count = 0
+        self._directory_count = 0
+
+        def count(node: FileSystemNode):
+            if node.is_dir:
+                self._directory_count += 1
+                for child in node.children:
+                    count(child)
+            else:
+                self._file_count += 1
+
+        if self._tree:
+            count(self._tree)
+        self._directory_count -= 1  # Subtract 1 to exclude the root directory from the count
+
+    def get_file_count(self) -> int:
+        """
+        Returns the number of files in the tree, respecting exclusion rules.
+        """
+        if self._tree is None:
+            self._build_tree()
+        return self._file_count
+
+    def get_directory_count(self) -> int:
+        """
+        Returns the number of directories in the tree (excluding the root), respecting exclusion rules.
+        """
+        if self._tree is None:
+            self._build_tree()
+        return self._directory_count
+
     def iterate_files(self) -> Iterator[Tuple[str, str]]:
         """
         Yields tuples of (file_path, relative_path) for all files in the tree.
         """
+        if self._tree is None:
+            self._build_tree()
 
         def _iterate(node: FileSystemNode, current_path: str):
             if not node.is_dir:
@@ -92,4 +129,6 @@ class FileSystemTree:
 
     def refresh(self):
         self._tree = None
+        self._file_count = 0
+        self._directory_count = 0
         self._build_tree()
