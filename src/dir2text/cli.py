@@ -19,7 +19,7 @@ from dir2text.token_counter import TokenCounter
 
 
 class SignalHandler:
-    def __init__(self):
+    def __init__(self) -> None:
         self.sigpipe_received = Event()
         self.sigint_received = Event()
         self.original_sigpipe_handler = signal.getsignal(signal.SIGPIPE)

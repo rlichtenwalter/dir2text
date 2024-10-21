@@ -5,7 +5,7 @@ from .base_strategy import OutputStrategy
 
 
 class JSONOutputStrategy(OutputStrategy):
-    def __init__(self):
+    def __init__(self) -> None:
         self.encoder = json.JSONEncoder()
         self.is_first_chunk = True
 

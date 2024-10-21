@@ -1,19 +1,21 @@
 import os
-from typing import Iterator, Optional, Tuple
+from typing import Any, Iterator, Optional, Tuple
 
 from anytree import Node
 
 from dir2text.exclusion_rules.base_rules import BaseExclusionRules
 
 
-class FileSystemNode(Node):
-    def __init__(self, name, parent=None, is_dir=False, **kwargs):
+class FileSystemNode(Node):  # type: ignore
+    def __init__(
+        self, name: str, parent: Optional["FileSystemNode"] = None, is_dir: bool = False, **kwargs: Any
+    ) -> None:
         super().__init__(name, parent, **kwargs)
         self.is_dir = is_dir
 
 
 class FileSystemTree:
-    def __init__(self, root_path: str, exclusion_rules: Optional[BaseExclusionRules] = None):
+    def __init__(self, root_path: str, exclusion_rules: Optional[BaseExclusionRules] = None) -> None:
         self.root_path = os.path.abspath(root_path)
         self.exclusion_rules = exclusion_rules
         self._tree: Optional[FileSystemNode] = None
@@ -25,7 +27,7 @@ class FileSystemTree:
             self._build_tree()
         return self._tree
 
-    def _build_tree(self):
+    def _build_tree(self) -> None:
         if not os.path.exists(self.root_path):
             raise FileNotFoundError(f"Root path does not exist: {self.root_path}")
         if not os.path.isdir(self.root_path):
@@ -55,11 +57,11 @@ class FileSystemTree:
                 pass
         return node
 
-    def _count_files_and_directories(self):
+    def _count_files_and_directories(self) -> None:
         self._file_count = 0
         self._directory_count = 0
 
-        def count(node: FileSystemNode):
+        def count(node: FileSystemNode) -> None:
             if node.is_dir:
                 self._directory_count += 1
                 for child in node.children:
@@ -112,7 +114,7 @@ class FileSystemTree:
 
         output = []
 
-        def write_node(node: FileSystemNode, prefix: str = "", is_last: bool = True):
+        def write_node(node: FileSystemNode, prefix: str = "", is_last: bool = True) -> None:
             if not node.parent:  # Root node
                 output.append(f"{node.name}/")
             else:
@@ -130,7 +132,7 @@ class FileSystemTree:
         write_node(self._tree)
         return "\n".join(output)
 
-    def refresh(self):
+    def refresh(self) -> None:
         self._tree = None
         self._file_count = 0
         self._directory_count = 0

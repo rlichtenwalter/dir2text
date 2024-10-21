@@ -1,4 +1,5 @@
 import importlib.util
+from typing import Any, Optional
 
 from dir2text.exceptions import TokenizationError, TokenizerNotAvailableError
 
@@ -7,7 +8,7 @@ class TokenCounter:
     def __init__(self, model: str = "gpt-4o"):
         self.model = model
         self.tiktoken_available = self._check_tiktoken()
-        self.encoder = self._get_encoder() if self.tiktoken_available else None
+        self.encoder: Optional[Any] = self._get_encoder() if self.tiktoken_available else None
         self._total_tokens = 0
         self._total_lines = 0
         self._total_characters = 0
@@ -15,7 +16,7 @@ class TokenCounter:
     def _check_tiktoken(self) -> bool:
         return importlib.util.find_spec("tiktoken") is not None
 
-    def _get_encoder(self):
+    def _get_encoder(self) -> Optional[Any]:
         if not self.tiktoken_available:
             raise TokenizerNotAvailableError()
         import tiktoken

@@ -7,7 +7,6 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
-
     -   id: tox-lint
         name: Linting
         entry: tox -e lint
