@@ -1,17 +1,21 @@
 import argparse
-import sys
-import signal
-import os
-import errno
 import atexit
+import errno
+import os
+import signal
+import sys
 from pathlib import Path
 from threading import Event
 from types import FrameType
-from typing import Optional, Union, Dict, Any
-from .file_system_tree import FileSystemTree
-from .exclusion_rules import GitIgnoreExclusionRules
-from .file_content_printer import FileContentPrinter
-from .token_counter import TokenCounter
+from typing import Optional, Union
+
+from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
+from dir2text.file_content_printer import FileContentPrinter
+from dir2text.file_system_tree import FileSystemTree
+from dir2text.output_strategies.base_strategy import OutputStrategy
+from dir2text.output_strategies.json_strategy import JSONOutputStrategy
+from dir2text.output_strategies.xml_strategy import XMLOutputStrategy
+from dir2text.token_counter import TokenCounter
 
 
 class SignalHandler:
@@ -67,7 +71,7 @@ def cleanup() -> None:
 atexit.register(cleanup)
 
 
-def format_counts(counts: Dict[str, Any]) -> str:
+def format_counts(counts: dict[str, Optional[int]]) -> str:
     return (
         f"Directories: {counts['directories']}\n"
         f"Files: {counts['files']}\n"
@@ -93,7 +97,7 @@ def main() -> None:
     parser.add_argument(
         "-c", "--count", action="store_true", help="Include counts of directories, files, lines, tokens, and characters"
     )
-    parser.add_argument("-t", "--tokenizer", default="gpt-4o", help="Tokenizer model to use for counting tokens")
+    parser.add_argument("-t", "--tokenizer", default="gpt-4", help="Tokenizer model to use for counting tokens")
 
     args = parser.parse_args()
 
@@ -109,7 +113,16 @@ def main() -> None:
 
         fs_tree = FileSystemTree(str(args.directory), exclusion_rules)
         token_counter = TokenCounter(model=args.tokenizer) if args.count else None
-        file_content_printer = FileContentPrinter(fs_tree, wrapper_format=args.format, tokenizer=token_counter)
+
+        output_strategy: OutputStrategy
+        if args.format == "xml":
+            output_strategy = XMLOutputStrategy()
+        elif args.format == "json":
+            output_strategy = JSONOutputStrategy()
+        else:
+            raise ValueError(f"Unsupported output format: {args.format}")
+
+        file_content_printer = FileContentPrinter(fs_tree, output_strategy, tokenizer=token_counter)
 
         output_file = args.output if args.output else sys.stdout.fileno()
         safe_writer = SafeWriter(output_file)

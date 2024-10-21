@@ -1,8 +1,10 @@
-import pytest
-import tempfile
 import os
+import tempfile
 from pathlib import Path
-from dir2text.exclusion_rules import GitIgnoreExclusionRules
+
+import pytest
+
+from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
 
 
 @pytest.fixture

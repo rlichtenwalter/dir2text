@@ -1,6 +1,9 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
-from dir2text.token_counter import TokenCounter, TokenizerNotAvailableError, TokenizationError
+
+from dir2text.exceptions import TokenizationError, TokenizerNotAvailableError
+from dir2text.token_counter import TokenCounter
 
 
 @pytest.fixture
@@ -39,6 +42,9 @@ def test_count_tokens(mock_tiktoken_available, mock_encoder):
     with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
         counter = TokenCounter()
         assert counter.count_tokens("Hello, world!") == 13
+        assert counter.get_total_tokens() == 13
+        assert counter.get_total_lines() == 0
+        assert counter.get_total_characters() == 13
 
 
 def test_count_tokens_tiktoken_unavailable(mock_tiktoken_unavailable):
@@ -47,29 +53,36 @@ def test_count_tokens_tiktoken_unavailable(mock_tiktoken_unavailable):
         counter.count_tokens("Hello, world!")
 
 
-def test_count_tokens_batch(mock_tiktoken_available, mock_encoder):
+def test_get_total_tokens(mock_tiktoken_available, mock_encoder):
     with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
         counter = TokenCounter()
-        texts = ["Hello", "world", "!"]
-        assert counter.count_tokens_batch(texts) == [5, 5, 1]
+        counter.count_tokens("Hello")
+        counter.count_tokens("world!")
+        assert counter.get_total_tokens() == 11
 
 
-def test_count_tokens_batch_tiktoken_unavailable(mock_tiktoken_unavailable):
-    counter = TokenCounter()
-    with pytest.raises(TokenizerNotAvailableError):
-        counter.count_tokens_batch(["Hello", "world", "!"])
+def test_get_total_lines(mock_tiktoken_available, mock_encoder):
+    with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
+        counter = TokenCounter()
+        counter.count_tokens("Hello\nworld\n!")
+        assert counter.get_total_lines() == 2
 
 
-def test_count_lines():
-    counter = TokenCounter()
-    text = "Hello\nworld\n!"
-    assert counter.count_lines(text) == 3
+def test_get_total_characters(mock_tiktoken_available, mock_encoder):
+    with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
+        counter = TokenCounter()
+        counter.count_tokens("Hello, world!")
+        assert counter.get_total_characters() == 13
 
 
-def test_count_characters():
-    counter = TokenCounter()
-    text = "Hello, world!"
-    assert counter.count_characters(text) == 13
+def test_reset_counts(mock_tiktoken_available, mock_encoder):
+    with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
+        counter = TokenCounter()
+        counter.count_tokens("Hello, world!")
+        counter.reset_counts()
+        assert counter.get_total_tokens() == 0
+        assert counter.get_total_lines() == 0
+        assert counter.get_total_characters() == 0
 
 
 def test_tokenization_error(mock_tiktoken_available):

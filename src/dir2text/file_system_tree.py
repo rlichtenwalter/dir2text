@@ -1,7 +1,9 @@
 import os
 from typing import Iterator, Optional, Tuple
+
 from anytree import Node
-from .exclusion_rules import ExclusionRules
+
+from dir2text.exclusion_rules.base_rules import BaseExclusionRules
 
 
 class FileSystemNode(Node):
@@ -11,7 +13,7 @@ class FileSystemNode(Node):
 
 
 class FileSystemTree:
-    def __init__(self, root_path: str, exclusion_rules: Optional[ExclusionRules] = None):
+    def __init__(self, root_path: str, exclusion_rules: Optional[BaseExclusionRules] = None):
         self.root_path = os.path.abspath(root_path)
         self.exclusion_rules = exclusion_rules
         self._tree: Optional[FileSystemNode] = None
@@ -92,14 +94,15 @@ class FileSystemTree:
         if self._tree is None:
             self._build_tree()
 
-        def _iterate(node: FileSystemNode, current_path: str):
-            if not node.is_dir:
-                yield (os.path.join(self.root_path, current_path), current_path)
-            else:
-                for child in node.children:
-                    yield from _iterate(child, os.path.join(current_path, child.name))
+        if self._tree is not None:
+            yield from self._iterate(self._tree, "")
 
-        yield from _iterate(self._tree, "")
+    def _iterate(self, node: FileSystemNode, current_path: str) -> Iterator[Tuple[str, str]]:
+        if not node.is_dir:
+            yield (os.path.join(self.root_path, current_path), current_path)
+        else:
+            for child in node.children:
+                yield from self._iterate(child, os.path.join(current_path, child.name))
 
     def get_tree_representation(self) -> str:
         if self._tree is None:

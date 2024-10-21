@@ -1,6 +1,7 @@
 import pytest
+
+from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
 from dir2text.file_system_tree import FileSystemTree
-from dir2text.exclusion_rules import GitIgnoreExclusionRules
 
 
 @pytest.fixture
@@ -31,7 +32,9 @@ def test_file_system_tree_initialization(temp_directory):
 def test_file_system_tree_build(temp_directory):
     fs_tree = FileSystemTree(str(temp_directory))
     tree = fs_tree.get_tree()
+    assert tree is not None
     assert tree.name == temp_directory.name
+    assert tree.children is not None
     assert len(tree.children) == 2  # dir1 and dir2
 
 
@@ -39,7 +42,11 @@ def test_file_system_tree_with_exclusions(temp_directory, temp_gitignore):
     exclusion_rules = GitIgnoreExclusionRules(temp_gitignore)
     fs_tree = FileSystemTree(str(temp_directory), exclusion_rules)
     tree = fs_tree.get_tree()
-    dir2 = next(node for node in tree.children if node.name == "dir2")
+    assert tree is not None
+    assert tree.children is not None
+    dir2 = next((node for node in tree.children if node.name == "dir2"), None)
+    assert dir2 is not None
+    assert dir2.children is not None
     assert len(dir2.children) == 1  # Only file2.py, file2.pyc is excluded
 
 
@@ -49,6 +56,8 @@ def test_file_system_tree_refresh(temp_directory):
     (temp_directory / "new_file.txt").touch()
     fs_tree.refresh()
     tree = fs_tree.get_tree()
+    assert tree is not None
+    assert tree.children is not None
     assert any(node.name == "new_file.txt" for node in tree.children)
 
 

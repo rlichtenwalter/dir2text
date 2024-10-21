@@ -1,18 +1,7 @@
 import importlib.util
-from typing import Optional
 
-class TokenizerNotAvailableError(Exception):
-    """Raised when the tokenizer (tiktoken) is not installed."""
-    def __init__(self, message="Tokenizer (tiktoken) is not installed."):
-        self.message = (
-            f"{message} To enable token counting, install dir2text with the 'token_counting' "
-            "extra: 'pip install dir2text[token_counting]' or 'poetry install --extras token_counting'."
-        )
-        super().__init__(self.message)
+from dir2text.exceptions import TokenizationError, TokenizerNotAvailableError
 
-class TokenizationError(Exception):
-    """Raised when tokenization fails."""
-    pass
 
 class TokenCounter:
     def __init__(self, model: str = "gpt-4o"):
@@ -30,6 +19,7 @@ class TokenCounter:
         if not self.tiktoken_available:
             raise TokenizerNotAvailableError()
         import tiktoken
+
         try:
             return tiktoken.encoding_for_model(self.model)
         except KeyError:
@@ -42,7 +32,7 @@ class TokenCounter:
         try:
             token_count = len(self.encoder.encode(text))
             self._total_tokens += token_count
-            self._total_lines += text.count('\n')
+            self._total_lines += text.count("\n")
             self._total_characters += len(text)
             return token_count
         except Exception as e:
