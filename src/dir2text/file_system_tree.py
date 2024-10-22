@@ -106,31 +106,50 @@ class FileSystemTree:
             for child in node.children:
                 yield from self._iterate(child, os.path.join(current_path, child.name))
 
-    def get_tree_representation(self) -> str:
+    def stream_tree_representation(self) -> Iterator[str]:
+        """
+        Generate a tree representation of the filesystem, yielding one line at a time.
+        Similar to the Unix 'tree' command output.
+
+        Returns:
+            Iterator[str]: Yields lines of the tree representation
+        """
         if self._tree is None:
             self._build_tree()
-        if self._tree is None:  # If the root is excluded
-            return ""
+        if self._tree is None:
+            return
 
-        output = []
-
-        def write_node(node: FileSystemNode, prefix: str = "", is_last: bool = True) -> None:
-            if not node.parent:  # Root node
-                output.append(f"{node.name}/")
+        def write_node(node: FileSystemNode, prefix: str = "", is_last: bool = True) -> Iterator[str]:
+            # Handle root node
+            if not node.parent:
+                yield f"{node.name}/"
             else:
+                # Handle child nodes
                 connector = "└── " if is_last else "├── "
-                output.append(f"{prefix}{connector}{node.name}{'/' if node.is_dir else ''}")
+                yield f"{prefix}{connector}{node.name}{'/' if node.is_dir else ''}"
 
             if node.children:
                 new_prefix = prefix + ("    " if is_last else "│   ")
                 # Sort children: directories first, then files, both alphabetically
                 sorted_children = sorted(node.children, key=lambda n: (not n.is_dir, n.name.lower()))
+
+                # Process each child
                 for i, child in enumerate(sorted_children):
                     is_last_child = i == len(sorted_children) - 1
-                    write_node(child, new_prefix, is_last_child)
+                    yield from write_node(child, new_prefix, is_last_child)
 
-        write_node(self._tree)
-        return "\n".join(output)
+        yield from write_node(self._tree)
+
+    def get_tree_representation(self) -> str:
+        """
+        Get a string representation of the filesystem tree.
+        This is implemented in terms of stream_tree_representation for consistency
+        and to avoid code duplication.
+
+        Returns:
+            str: The complete tree representation as a string
+        """
+        return "\n".join(self.stream_tree_representation())
 
     def refresh(self) -> None:
         self._tree = None

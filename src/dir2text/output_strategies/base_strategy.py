@@ -4,7 +4,7 @@ from typing import Optional
 
 class OutputStrategy(ABC):
     @abstractmethod
-    def format_start(self, relative_path: str, file_token_count: Optional[int]) -> str:
+    def format_start(self, relative_path: str, file_token_count: Optional[int] = None) -> str:
         """Format the start of a file's content representation."""
         pass
 
@@ -14,7 +14,7 @@ class OutputStrategy(ABC):
         pass
 
     @abstractmethod
-    def format_end(self, file_token_count: Optional[int]) -> str:
+    def format_end(self, file_token_count: Optional[int] = None) -> str:
         """Format the end of a file's content representation."""
         pass
 

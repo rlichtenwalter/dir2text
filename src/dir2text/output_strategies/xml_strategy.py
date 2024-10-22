@@ -5,7 +5,7 @@ from .base_strategy import OutputStrategy
 
 
 class XMLOutputStrategy(OutputStrategy):
-    def format_start(self, relative_path: str, file_token_count: Optional[int]) -> str:
+    def format_start(self, relative_path: str, file_token_count: Optional[int] = None) -> str:
         wrapper_start = f'<file path="{xml_escape(relative_path)}"'
         if file_token_count is not None:
             wrapper_start += f' tokens="{file_token_count}"'
@@ -15,7 +15,9 @@ class XMLOutputStrategy(OutputStrategy):
     def format_content(self, content: str) -> str:
         return xml_escape(content)
 
-    def format_end(self, file_token_count: Optional[int]) -> str:
+    def format_end(self, file_token_count: Optional[int] = None) -> str:
+        if file_token_count is not None:
+            raise ValueError("`file_token_count` may not be specified in `format_end` of XMLOutputStrategy")
         return "</file>\n"
 
     def get_file_extension(self) -> str:

@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
@@ -69,3 +71,99 @@ def test_file_system_tree_non_existent_directory():
 def test_file_system_tree_file_as_root():
     with pytest.raises(NotADirectoryError):
         FileSystemTree(__file__).get_tree()
+
+
+def test_file_system_tree_empty_directory(temp_directory):
+    # Test handling of empty directories
+    empty_dir = temp_directory / "empty_dir"
+    empty_dir.mkdir()
+    fs_tree = FileSystemTree(str(temp_directory))
+    tree = fs_tree.get_tree()
+    empty_node = next((node for node in tree.children if node.name == "empty_dir"), None)
+    assert empty_node is not None
+    assert empty_node.children == ()
+
+
+def test_file_system_tree_symlinks(temp_directory):
+    # Test handling of symbolic links
+    target_file = temp_directory / "target.txt"
+    target_file.touch()
+    symlink = temp_directory / "link.txt"
+    try:
+        symlink.symlink_to(target_file)
+        fs_tree = FileSystemTree(str(temp_directory))
+        tree = fs_tree.get_tree()
+        assert any(node.name == "link.txt" for node in tree.children)
+    except OSError:  # Handles cases where symlink creation requires privileges
+        pytest.skip("Symbolic link creation not supported")
+
+
+def test_file_system_tree_special_chars(temp_directory):
+    # Test handling of special characters in file names
+    special_names = [
+        "file with spaces.txt",
+        "file_with_उनिकोड.txt",
+        "!special!.txt",
+        "#hashtag.txt",
+        "file.with.dots.txt",
+        "-leading-dash.txt",
+        ".hidden_file",
+    ]
+
+    for name in special_names:
+        (temp_directory / name).touch()
+
+    fs_tree = FileSystemTree(str(temp_directory))
+    tree = fs_tree.get_tree()
+
+    for name in special_names:
+        assert any(node.name == name for node in tree.children)
+
+
+def test_file_system_tree_deep_recursion(temp_directory):
+    # Test handling of deeply nested directories
+    current = temp_directory
+    depth = 50  # Deep enough to test recursion but not too deep to cause issues
+
+    for i in range(depth):
+        current = current / f"dir_{i}"
+        current.mkdir()
+        (current / f"file_{i}.txt").touch()
+
+    fs_tree = FileSystemTree(str(temp_directory))
+    tree = fs_tree.get_tree()
+
+    # Verify we can traverse to the deepest level
+    current_node = tree
+    for i in range(depth):
+        current_node = next((node for node in current_node.children if node.name == f"dir_{i}"), None)
+        assert current_node is not None
+        assert any(node.name == f"file_{i}.txt" for node in current_node.children)
+
+
+def test_file_system_tree_permission_denied(temp_directory):
+    # Test handling of permission-denied directories
+    restricted_dir = temp_directory / "restricted"
+    restricted_dir.mkdir()
+    (restricted_dir / "file.txt").touch()
+
+    try:
+        os.chmod(restricted_dir, 0o000)  # Remove all permissions
+        fs_tree = FileSystemTree(str(temp_directory))
+        tree = fs_tree.get_tree()
+        # Should still see the directory but might not access its contents
+        assert any(node.name == "restricted" for node in tree.children)
+    except OSError:  # Handles cases where permission changes require privileges
+        pytest.skip("Permission modification not supported")
+    finally:
+        os.chmod(restricted_dir, 0o755)  # Restore permissions for cleanup
+
+
+def test_file_system_tree_zero_byte_files(temp_directory):
+    # Test handling of zero-byte files
+    zero_byte_file = temp_directory / "empty.txt"
+    zero_byte_file.touch()
+
+    fs_tree = FileSystemTree(str(temp_directory))
+    tree = fs_tree.get_tree()
+    assert any(node.name == "empty.txt" for node in tree.children)

@@ -106,3 +106,86 @@ def test_model_not_found_fallback(mock_tiktoken_available):
 
         counter = TokenCounter(model="non_existent_model")
         assert counter.count_tokens("Hello, world!") == 13
+
+
+def test_count_tokens_empty_string(mock_tiktoken_available, mock_encoder):
+    with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
+        counter = TokenCounter()
+        assert counter.count_tokens("") == 0
+        assert counter.get_total_tokens() == 0
+        assert counter.get_total_lines() == 0
+        assert counter.get_total_characters() == 0
+
+
+def test_count_tokens_whitespace(mock_tiktoken_available, mock_encoder):
+    with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
+        counter = TokenCounter()
+        assert counter.count_tokens("   \n\t\r  ") == 8
+        assert counter.get_total_lines() == 1
+        assert counter.get_total_characters() == 8
+
+
+def test_count_tokens_unicode(mock_tiktoken_available, mock_encoder):
+    with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
+        counter = TokenCounter()
+        text = "Hello 世界! 🌍"  # Mixed ASCII, Unicode, and emoji
+        assert counter.count_tokens(text) == len(text)
+        assert counter.get_total_characters() == len(text)
+
+
+def test_count_tokens_control_chars(mock_tiktoken_available, mock_encoder):
+    with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
+        counter = TokenCounter()
+        text = "Hello\x00World\x1F!"  # Text with control characters
+        assert counter.count_tokens(text) == len(text)
+        assert counter.get_total_characters() == len(text)
+
+
+def test_count_tokens_very_long_text(mock_tiktoken_available, mock_encoder):
+    with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
+        counter = TokenCounter()
+        long_text = "x" * 1_000_000  # Test with a million characters
+        assert counter.count_tokens(long_text) == 1_000_000
+        assert counter.get_total_characters() == 1_000_000
+
+
+def test_multiple_model_fallbacks(mock_tiktoken_available):
+    # Test multiple model fallback scenarios
+    with patch("tiktoken.encoding_for_model") as mock_encoding_for_model, patch(
+        "tiktoken.get_encoding"
+    ) as mock_get_encoding:
+
+        # First call raises KeyError, second succeeds
+        mock_encoding_for_model.side_effect = [KeyError("Model not found"), MagicMock(encode=lambda x: [0] * len(x))]
+        mock_get_encoding.return_value = MagicMock(encode=lambda x: [0] * len(x))
+
+        counter = TokenCounter(model="nonexistent_model")
+        assert counter.count_tokens("test") == 4
+
+
+def test_consecutive_counts_accumulation(mock_tiktoken_available, mock_encoder):
+    with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
+        counter = TokenCounter()
+
+        # Test that counts accumulate correctly across multiple calls
+        counter.count_tokens("Hello\n")  # 6 chars, 1 line
+        counter.count_tokens("World\n")  # 6 chars, 1 line
+        counter.count_tokens("!")  # 1 char, 0 lines
+
+        assert counter.get_total_tokens() == 13
+        assert counter.get_total_lines() == 2
+        assert counter.get_total_characters() == 13
+
+
+def test_reset_counts_between_uses(mock_tiktoken_available, mock_encoder):
+    with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
+        counter = TokenCounter()
+
+        # First use
+        counter.count_tokens("Hello\n")
+        assert counter.get_total_tokens() == 6
+
+        # Reset and second use
+        counter.reset_counts()
+        counter.count_tokens("World")
+        assert counter.get_total_tokens() == 5  # Should not include previous counts
