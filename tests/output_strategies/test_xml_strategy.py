@@ -64,6 +64,6 @@ def test_complete_file_output():
     output.append(strategy.format_content('def test():\n    print("Hello")'))
     output.append(strategy.format_end())
 
-    expected = '<file path="test.py" tokens="100">\n' 'def test():\n    print("Hello")' "</file>\n"
+    expected = '<file path="test.py" tokens="100">\ndef test():\n    print(&quot;Hello&quot;)</file>\n'
 
     assert "".join(output) == expected
