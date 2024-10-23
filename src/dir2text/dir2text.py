@@ -8,6 +8,7 @@ and complete processing implementations.
 from pathlib import Path
 from typing import Iterator, Optional, Union
 
+from dir2text.exceptions import TokenizationError
 from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
 from dir2text.file_content_printer import FileContentPrinter
 from dir2text.file_system_tree import FileSystemTree
@@ -31,13 +32,18 @@ class StreamingDir2Text:
     - Metrics reflect only processed content until streaming_complete is True
     - Each type of content (tree, file contents) must be either fully streamed or not at all
 
+    Note:
+        The doctest examples are marked with SKIP because they require a specific
+        filesystem structure that can't be guaranteed in the test environment. The
+        examples are still valid and demonstrate proper usage.
+
     Attributes:
         directory (Path): Directory being processed.
         exclude_file (Optional[Path]): Path to exclusion rules file.
         streaming_complete (bool): Whether all streaming operations have finished.
 
     Example:
-        >>> # Initialize analyzer (with skip to avoid filesystem dependency)
+        >>> # Initialize analyzer (requires actual filesystem structure)
         >>> analyzer = StreamingDir2Text("src")  # doctest: +SKIP
         >>> # Stream tree first - partial metrics available
         >>> for line in analyzer.stream_tree():  # doctest: +SKIP
@@ -64,7 +70,7 @@ class StreamingDir2Text:
             directory: Directory to process
             exclude_file: Optional path to exclusion rules file (e.g., .gitignore)
             output_format: Format for output ('xml' or 'json')
-            tokenizer_model: Model to use for token counting. If None, token counting is disabled.
+            tokenizer_model: Model to use for counting. If None, token counting is disabled.
 
         Raises:
             ValueError: If directory is invalid or output format is unsupported
@@ -86,8 +92,8 @@ class StreamingDir2Text:
         self._exclusion_rules = GitIgnoreExclusionRules(str(self.exclude_file)) if self.exclude_file else None
         self._fs_tree = FileSystemTree(str(self.directory), self._exclusion_rules)
 
-        # Only create token counter if model is specified
-        self._token_counter = TokenCounter(model=tokenizer_model) if tokenizer_model is not None else None
+        # Create counter if counting is enabled
+        self._counter = TokenCounter(model=tokenizer_model) if tokenizer_model is not None else None
 
         # Setup output strategy
         self._strategy: OutputStrategy
@@ -96,32 +102,15 @@ class StreamingDir2Text:
         else:
             self._strategy = JSONOutputStrategy()
 
-        self._content_printer = FileContentPrinter(self._fs_tree, self._strategy, tokenizer=self._token_counter)
+        self._content_printer = FileContentPrinter(self._fs_tree, self._strategy, tokenizer=self._counter)
 
-        # Initialize metrics - these are immediately available
+        # Initialize metrics that are immediately available
         self._directory_count = self._fs_tree.get_directory_count()
         self._file_count = self._fs_tree.get_file_count()
-
-        # These accumulate during streaming
-        self._line_count = 0
-        self._character_count = 0
-        self._token_count = 0
 
         # Track streaming state
         self._tree_complete = False
         self._contents_complete = False
-
-    def _update_metrics(self, text: str, token_count: Optional[int] = None) -> None:
-        """Update metrics with new content.
-
-        Args:
-            text: The text content to update metrics for.
-            token_count: Optional token count if already calculated.
-        """
-        self._line_count += text.count("\n")
-        self._character_count += len(text)
-        if token_count is not None:
-            self._token_count += token_count
 
     @property
     def directory_count(self) -> int:
@@ -131,6 +120,11 @@ class StreamingDir2Text:
 
         Returns:
             int: Number of directories in the tree, excluding the root directory.
+
+        Example:
+            >>> tree = StreamingDir2Text("src")  # doctest: +SKIP
+            >>> tree.directory_count  # doctest: +SKIP
+            5
         """
         return self._directory_count
 
@@ -142,6 +136,11 @@ class StreamingDir2Text:
 
         Returns:
             int: Number of files in the tree.
+
+        Example:
+            >>> tree = StreamingDir2Text("src")  # doctest: +SKIP
+            >>> tree.file_count  # doctest: +SKIP
+            42
         """
         return self._file_count
 
@@ -158,40 +157,74 @@ class StreamingDir2Text:
         return self._tree_complete and self._contents_complete
 
     @property
-    def line_count(self) -> int:
-        """Number of lines processed in the current streaming operation.
-
-        This count accumulates during streaming. The value is partial until
-        streaming_complete is True.
+    def token_count(self) -> int:
+        """Number of tokens processed across all operations.
 
         Returns:
-            int: Current count of lines processed.
+            int: Total count of tokens processed. Returns 0 if token counting is disabled
+                (i.e., if tokenizer_model was None during initialization).
+
+        Example:
+            >>> tree = StreamingDir2Text("src")  # doctest: +SKIP
+            >>> tree.token_count  # doctest: +SKIP
+            1500
         """
-        return self._line_count
+        return self._counter.get_total_tokens() if self._counter is not None else 0
+
+    @property
+    def line_count(self) -> int:
+        """Number of lines processed across all operations.
+
+        This count accumulates during streaming. The value is partial until
+        streaming_complete is True. Returns 0 if token counting is disabled.
+
+        Returns:
+            int: Total count of lines processed. Returns 0 if token counting is disabled
+                (i.e., if tokenizer_model was None during initialization).
+
+        Example:
+            >>> tree = StreamingDir2Text("src")  # doctest: +SKIP
+            >>> tree.line_count  # doctest: +SKIP
+            250
+        """
+        return self._counter.get_total_lines() if self._counter is not None else 0
 
     @property
     def character_count(self) -> int:
-        """Number of characters processed in the current streaming operation.
+        """Number of characters processed across all operations.
 
         This count accumulates during streaming. The value is partial until
-        streaming_complete is True.
+        streaming_complete is True. Returns 0 if token counting is disabled.
 
         Returns:
-            int: Current count of characters processed.
+            int: Total count of characters processed. Returns 0 if token counting is disabled
+                (i.e., if tokenizer_model was None during initialization).
+
+        Example:
+            >>> tree = StreamingDir2Text("src")  # doctest: +SKIP
+            >>> tree.character_count  # doctest: +SKIP
+            15000
         """
-        return self._character_count
+        return self._counter.get_total_characters() if self._counter is not None else 0
 
-    @property
-    def token_count(self) -> int:
-        """Number of tokens processed in the current streaming operation.
+    def _count_and_yield(self, text: str) -> str:
+        """Count text and return it for yielding.
 
-        This count accumulates during streaming. The value is partial until
-        streaming_complete is True.
+        Helper method to ensure consistent counting of output text.
+
+        Args:
+            text: Text to count and yield.
 
         Returns:
-            int: Current count of tokens processed.
+            The input text, unchanged.
         """
-        return self._token_count
+        if self._counter is not None:
+            try:
+                self._counter.count(text)
+            except TokenizationError:
+                # Continue even if token counting fails
+                pass
+        return text
 
     def stream_tree(self) -> Iterator[str]:
         """Stream the directory tree representation line by line.
@@ -220,14 +253,10 @@ class StreamingDir2Text:
 
         for line in self._fs_tree.stream_tree_representation():
             line_with_newline = line + "\n"
-            token_count = self._token_counter.count_tokens(line_with_newline) if self._token_counter else None
-            self._update_metrics(line_with_newline, token_count)
-            yield line_with_newline
+            yield self._count_and_yield(line_with_newline)
 
         final_newline = "\n"
-        token_count = self._token_counter.count_tokens(final_newline) if self._token_counter else None
-        self._update_metrics(final_newline, token_count)
-        yield final_newline
+        yield self._count_and_yield(final_newline)
         self._tree_complete = True
 
     def stream_contents(self) -> Iterator[str]:
@@ -251,11 +280,22 @@ class StreamingDir2Text:
         if self._contents_complete:
             raise RuntimeError("Contents have already been streamed")
 
-        for _, _, content_iter in self._content_printer.yield_file_contents():
+        for file_path, relative_path, content_iter in self._content_printer.yield_file_contents():
+            # Output start tag
+            start_content = self._strategy.format_start(relative_path, None)
+            yield self._count_and_yield(start_content)
+
+            # Output file content
             for chunk in content_iter:
-                self._update_metrics(chunk)
-                yield chunk
-            yield "\n"
+                yield self._count_and_yield(self._strategy.format_content(chunk))
+
+            # Output end tag
+            end_content = self._strategy.format_end(None)
+            yield self._count_and_yield(end_content)
+
+            # Add separator newline
+            yield self._count_and_yield("\n")
+
         self._contents_complete = True
 
 
@@ -272,7 +312,7 @@ class Dir2Text(StreamingDir2Text):
         usage is a concern, use the StreamingDir2Text parent class instead.
 
     Example:
-        >>> # Everything is processed during initialization (doctest skipped for filesystem)
+        >>> # Everything is processed during initialization (requires filesystem)
         >>> analyzer = Dir2Text("src")  # doctest: +SKIP
         >>> print(analyzer.tree_string)  # doctest: +SKIP
         src/

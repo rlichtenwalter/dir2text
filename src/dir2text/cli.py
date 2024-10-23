@@ -8,14 +8,14 @@ Key Features:
     - Directory tree visualization
     - File content output in XML or JSON format
     - Token counting with model selection
-    - Signal handling (SIGPIPE, SIGINT)
+    - Signal handling (SIGPIPE on Unix systems, SIGINT)
     - Exclusion rule support (e.g., .gitignore patterns)
     - Output redirection and file writing
     - Various output format options and combinations
 
 Signal Handling Notes:
     The module implements careful signal handling to ensure proper cleanup on interruption:
-    - SIGPIPE: Handled when output pipe is closed (e.g., when piping to `head`)
+    - SIGPIPE: Handled when output pipe is closed (e.g., when piping to `head`) on Unix-like systems
     - SIGINT: Handled for clean exit on Ctrl+C
     Both cases ensure proper cleanup and appropriate exit codes.
 
@@ -24,7 +24,7 @@ Exit Codes:
     1: Runtime error during execution
     2: Command-line syntax error
     130: Interrupted by SIGINT (Ctrl+C)
-    141: Broken pipe (SIGPIPE)
+    141: Broken pipe (SIGPIPE) on Unix-like systems
 
 Example:
     # Basic usage to process a directory
@@ -148,7 +148,7 @@ class SafeWriter:
 def cleanup() -> None:
     """Cleanup function registered with atexit.
 
-    Redirects stdout to /dev/null if we received SIGPIPE or SIGINT to prevent
+    Redirects stdout to the null device if we received SIGPIPE or SIGINT to prevent
     additional error messages during shutdown.
     """
     if signal_handler.sigpipe_received.is_set() or signal_handler.sigint_received.is_set():
@@ -167,9 +167,9 @@ def format_counts(counts: Mapping[str, Optional[int]]) -> str:
             - 'directories': Number of directories (int).
             - 'files': Number of files (int).
             - 'lines': Number of lines (int).
-            - 'characters': Number of characters (int).
             - 'tokens': Optional number of tokens (Optional[int]).
                 May be None if token counting is not available.
+            - 'characters': Number of characters (int).
 
     Returns:
         A formatted string showing all counts with appropriate labels.
@@ -179,23 +179,36 @@ def format_counts(counts: Mapping[str, Optional[int]]) -> str:
         ...     'directories': 10,
         ...     'files': 50,
         ...     'lines': 1000,
-        ...     'characters': 50000,
-        ...     'tokens': 8000
+        ...     'tokens': None,
+        ...     'characters': 50000
         ... }
         >>> print(format_counts(counts))
         Directories: 10
         Files: 50
         Lines: 1000
         Characters: 50000
+        >>> counts_with_tokens = {
+        ...     'directories': 10,
+        ...     'files': 50,
+        ...     'lines': 1000,
+        ...     'tokens': 8000,
+        ...     'characters': 50000
+        ... }
+        >>> print(format_counts(counts_with_tokens))
+        Directories: 10
+        Files: 50
+        Lines: 1000
         Tokens: 8000
+        Characters: 50000
     """
-    return (
-        f"Directories: {counts['directories']}\n"
-        f"Files: {counts['files']}\n"
-        f"Lines: {counts['lines']}\n"
-        f"Characters: {counts['characters']}\n"
-        f"Tokens: {counts['tokens'] if counts['tokens'] is not None else 'N/A (tokenizer not available)'}"
-    )
+    result = [f"Directories: {counts['directories']}", f"Files: {counts['files']}", f"Lines: {counts['lines']}"]
+
+    if counts["tokens"] is not None:
+        result.append(f"Tokens: {counts['tokens']}")
+
+    result.append(f"Characters: {counts['characters']}")
+
+    return "\n".join(result)
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -325,7 +338,7 @@ def main() -> None:
         1: Runtime error during execution
         2: Command-line syntax error
         130: Interrupted by SIGINT (Ctrl+C)
-        141: Broken pipe (SIGPIPE)
+        141: Broken pipe (SIGPIPE) on Unix-like systems
     """
     setup_signal_handling()
 

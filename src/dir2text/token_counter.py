@@ -1,56 +1,76 @@
 """Counter for tokens, lines, and characters in text content.
 
-This module provides token counting functionality using OpenAI's tiktoken library,
-with support for tracking lines and characters as well.
+This module implements token counting using OpenAI's tiktoken library,
+with support for counting lines and characters as well. Tokenization
+uses either the cl100k_base or p50k_base encodings, which provide good
+approximations for most modern language models.
+
+Primary models and their encodings:
+- GPT-4 models (gpt-4, gpt-4-32k) - cl100k_base encoding
+- GPT-3.5-Turbo models (gpt-3.5-turbo) - cl100k_base encoding
+- Text Davinci models (text-davinci-003) - p50k_base encoding
+
+For other models, using a similar model's tokenizer (like gpt-4) can provide
+useful approximations of token counts, though they may not exactly match
+the target model's tokenization.
 """
 
 import importlib.util
+from collections import namedtuple
 from typing import Any, Optional
 
 from dir2text.exceptions import TokenizationError, TokenizerNotAvailableError
+
+CountResult = namedtuple("CountResult", ["lines", "tokens", "characters"])
 
 
 class TokenCounter:
     """Counter for tokens, lines, and characters in text content.
 
-    Uses OpenAI's tiktoken library to count tokens in a way that matches specific model
-    tokenizers (e.g., GPT-4, GPT-3.5). Also tracks total lines and characters processed.
-    The tiktoken library is an optional dependency that must be installed separately
-    using the 'token_counting' extra.
+    Basic line and character counting is always available. Token counting requires the
+    tiktoken library to be installed via the 'token_counting' extra.
 
-    The counter maintains running totals of all metrics, allowing for incremental
-    processing of content in chunks.
+    The counter primarily supports models using OpenAI's cl100k_base encoding (like gpt-4
+    and gpt-3.5-turbo) and p50k_base encoding (like text-davinci-003). When working with
+    other models, using a similar model's tokenizer can provide useful approximations,
+    though the exact token counts may vary slightly from the target model.
 
     Attributes:
-        model (str): Name of the model whose tokenizer to emulate.
+        model (str): Name of the model whose tokenizer to use.
         tiktoken_available (bool): Whether the tiktoken library is available.
         encoder (Optional[Any]): The tiktoken encoder if available, else None.
 
     Example:
         >>> counter = TokenCounter(model="gpt-4")
-        >>> counter.count_tokens("Hello")  # doctest: +SKIP
-        1
-        >>> counter.get_total_tokens()  # doctest: +SKIP
-        1
-        >>> counter.get_total_characters()  # doctest: +SKIP
-        5
+        >>> _ = counter.count("Hello\\nworld!")  # Count lines and characters (and tokens if available)
+
+    Raises:
+        ValueError: If the specified model's tokenizer cannot be loaded.
+        TokenizerNotAvailableError: If token counting is requested but tiktoken is not installed.
     """
 
     def __init__(self, model: str = "gpt-4"):
-        """Initialize the token counter.
+        """Initialize the counter.
 
         Args:
-            model: The model whose tokenizer to emulate. If the model
-                is not found, falls back to 'cl100k_base' encoding.
-                Defaults to "gpt-4".
+            model: The model whose tokenizer to use. Defaults to "gpt-4", which provides
+                a good general-purpose tokenization using the cl100k_base encoding.
+                While primarily designed for OpenAI models, the tokenizers can provide
+                useful approximations for similar models.
 
-        Example:
-            >>> counter = TokenCounter()  # Uses gpt-4 tokenizer
-            >>> counter = TokenCounter("gpt-3.5-turbo")  # Uses gpt-3.5 tokenizer
+        Raises:
+            ValueError: If the specified model's tokenizer cannot be loaded.
+            TokenizerNotAvailableError: If tiktoken is not installed.
         """
         self.model = model
         self.tiktoken_available = self._check_tiktoken()
-        self.encoder: Optional[Any] = self._get_encoder() if self.tiktoken_available else None
+        self.encoder: Optional[Any] = None
+        if self.tiktoken_available:
+            try:
+                self.encoder = self._get_encoder()
+            except TokenizerNotAvailableError:
+                self.tiktoken_available = False
+
         self._total_tokens = 0
         self._total_lines = 0
         self._total_characters = 0
@@ -64,16 +84,19 @@ class TokenCounter:
         return importlib.util.find_spec("tiktoken") is not None
 
     def _get_encoder(self) -> Optional[Any]:
-        """Get the appropriate tiktoken encoder for the specified model.
+        """Get the tiktoken encoder for the specified model.
 
         Returns:
             The tiktoken encoder instance.
 
         Raises:
             TokenizerNotAvailableError: If tiktoken is not installed.
+            ValueError: If the specified model's tokenizer cannot be loaded.
 
         Note:
-            Falls back to 'cl100k_base' encoding if the specified model is not found.
+            The cl100k_base encoding (used by models like gpt-4) provides a good
+            general-purpose tokenization that can approximate token counts for
+            many modern language models.
         """
         if not self.tiktoken_available:
             raise TokenizerNotAvailableError()
@@ -82,39 +105,59 @@ class TokenCounter:
         try:
             return tiktoken.encoding_for_model(self.model)
         except KeyError:
-            # Fallback to cl100k_base if the model is not found
-            return tiktoken.get_encoding("cl100k_base")
+            raise ValueError(
+                f"Could not load tokenizer for model '{self.model}'. Consider using a "
+                "well-supported model like 'gpt-4' (cl100k_base encoding) or 'text-davinci-003' "
+                "(p50k_base encoding) for token counting. While token counts may not exactly "
+                "match your target model, they can provide useful approximations."
+            )
 
-    def count_tokens(self, text: str) -> int:
-        """Count tokens in the provided text and update running totals.
+    def count(self, text: str) -> CountResult:
+        """Count lines, tokens, and characters in text.
+
+        This method always counts lines and characters. It will also count tokens
+        if the tiktoken library is available. All counts are added to running totals
+        and also returned.
 
         Args:
-            text: The text to tokenize and count.
+            text: The text to analyze.
 
         Returns:
-            Number of tokens in the text.
+            CountResult: Named tuple containing:
+                - lines: Number of newlines in this text
+                - tokens: Number of tokens in this text (0 if token counting unavailable)
+                - characters: Number of characters in this text
 
         Raises:
-            TokenizerNotAvailableError: If tiktoken is not installed.
-            TokenizationError: If tokenization fails for any reason.
+            TokenizationError: If token counting is available but fails.
 
         Example:
             >>> counter = TokenCounter()
-            >>> counter.count_tokens("Hello\\nworld!")  # doctest: +SKIP
-            3  # Tokens: ["Hello", "\\n", "world!"]
-            >>> counter.get_total_lines()  # doctest: +SKIP
-            1  # One newline character found
+            >>> result = counter.count("Hello\\nworld!")
+            >>> result.lines
+            1
+            >>> result.characters
+            12
+            >>> result.tokens  # doctest: +SKIP
+            3
         """
-        if not self.tiktoken_available or self.encoder is None:
-            raise TokenizerNotAvailableError()
-        try:
-            token_count = len(self.encoder.encode(text))
-            self._total_tokens += token_count
-            self._total_lines += text.count("\n")
-            self._total_characters += len(text)
-            return token_count
-        except Exception as e:
-            raise TokenizationError(f"Failed to tokenize text: {str(e)}")
+        lines = text.count("\n")
+        chars = len(text)
+        tokens = 0
+
+        self._total_lines += lines
+        self._total_characters += chars
+
+        if self.tiktoken_available and self.encoder is not None:
+            try:
+                tokens = len(self.encoder.encode(text))
+                self._total_tokens += tokens
+            except Exception as e:
+                # If token counting fails, we still keep the line and character counts
+                # but we need to let the caller know about the tokenization failure
+                raise TokenizationError(f"Failed to tokenize text: {str(e)}")
+
+        return CountResult(lines=lines, tokens=tokens, characters=chars)
 
     def get_total_tokens(self) -> int:
         """Get the total number of tokens counted so far.
@@ -124,29 +167,23 @@ class TokenCounter:
 
         Example:
             >>> counter = TokenCounter()
-            >>> counter.count_tokens("Hello")  # doctest: +SKIP
-            1
-            >>> counter.count_tokens("world!")  # doctest: +SKIP
-            2
+            >>> _ = counter.count("Hello")
             >>> counter.get_total_tokens()  # doctest: +SKIP
-            3
+            1
         """
         return self._total_tokens
 
     def get_total_lines(self) -> int:
         """Get the total number of lines counted so far.
 
-        A line is counted for each newline character encountered.
-
         Returns:
             Total number of lines across all processed text.
 
         Example:
             >>> counter = TokenCounter()
-            >>> counter.count_tokens("line 1\\nline 2\\nline 3")  # doctest: +SKIP
-            6
-            >>> counter.get_total_lines()  # doctest: +SKIP
-            2  # Two newline characters
+            >>> _ = counter.count("line 1\\nline 2\\nline 3")
+            >>> counter.get_total_lines()
+            2
         """
         return self._total_lines
 
@@ -158,10 +195,9 @@ class TokenCounter:
 
         Example:
             >>> counter = TokenCounter()
-            >>> counter.count_tokens("Hello\\n")  # doctest: +SKIP
-            2  # Tokens: ["Hello", "\\n"]
-            >>> counter.get_total_characters()  # doctest: +SKIP
-            6  # Five letters plus newline
+            >>> _ = counter.count("Hello\\n")
+            >>> counter.get_total_characters()
+            6
         """
         return self._total_characters
 
@@ -173,10 +209,9 @@ class TokenCounter:
 
         Example:
             >>> counter = TokenCounter()
-            >>> counter.count_tokens("Some text")  # doctest: +SKIP
-            2
-            >>> counter.reset_counts()  # All counts return to 0
-            >>> counter.get_total_tokens()  # doctest: +SKIP
+            >>> _ = counter.count("Some text")
+            >>> counter.reset_counts()
+            >>> counter.get_total_characters()
             0
         """
         self._total_tokens = 0
