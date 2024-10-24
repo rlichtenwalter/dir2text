@@ -6,11 +6,24 @@ specified rules.
 """
 
 import os
+from enum import Enum
 from typing import Any, Iterator, Optional, Tuple
 
 from anytree import Node
 
 from dir2text.exclusion_rules.base_rules import BaseExclusionRules
+
+
+class PermissionAction(str, Enum):
+    """Action to take when encountering permission errors during directory traversal.
+
+    Values:
+        IGNORE: Continue traversal silently, skipping inaccessible items (default behavior)
+        RAISE: Raise a PermissionError immediately when access is denied
+    """
+
+    IGNORE = "ignore"
+    RAISE = "raise"
 
 
 class FileSystemNode(Node):  # type: ignore
@@ -68,9 +81,22 @@ class FileSystemTree:
     The tree is built lazily on first access and can be refreshed to reflect filesystem
     changes. Both full tree access and iterative file listing are supported.
 
+    Symbolic Link Behavior:
+        The current implementation follows symbolic links during traversal without
+        detecting or preventing symlink loops. Users should be cautious when processing
+        directories containing circular symbolic links, as this could lead to infinite
+        recursion. Future versions may add configuration options for controlling
+        symlink handling.
+
+    Permission Handling:
+        Permission errors during traversal can be handled in two ways:
+        - IGNORE (default): Silently skip inaccessible files/directories
+        - RAISE: Immediately raise PermissionError when access is denied
+
     Attributes:
         root_path (str): The absolute path to the root directory.
         exclusion_rules (Optional[BaseExclusionRules]): Rules for excluding files/directories.
+        permission_action (PermissionAction): How to handle permission errors.
 
     Example:
         >>> # Create a tree for the current directory without exclusions
@@ -83,12 +109,19 @@ class FileSystemTree:
             └── file2.txt
     """
 
-    def __init__(self, root_path: str, exclusion_rules: Optional[BaseExclusionRules] = None) -> None:
+    def __init__(
+        self,
+        root_path: str,
+        exclusion_rules: Optional[BaseExclusionRules] = None,
+        permission_action: PermissionAction = PermissionAction.IGNORE,
+    ) -> None:
         """Initialize a FileSystemTree.
 
         Args:
             root_path: Path to the root directory to represent.
             exclusion_rules: Rules for excluding files and directories. Defaults to None.
+            permission_action: How to handle permission errors during traversal.
+                Defaults to IGNORE.
 
         Example:
             >>> tree = FileSystemTree(".")  # doctest: +SKIP
@@ -98,6 +131,7 @@ class FileSystemTree:
         """
         self.root_path = os.path.abspath(root_path)
         self.exclusion_rules = exclusion_rules
+        self.permission_action = permission_action
         self._tree: Optional[FileSystemNode] = None
         self._file_count: int = 0
         self._directory_count: int = 0
@@ -114,6 +148,7 @@ class FileSystemTree:
         Raises:
             FileNotFoundError: If the root path doesn't exist.
             NotADirectoryError: If the root path isn't a directory.
+            PermissionError: If permission is denied and permission_action is RAISE.
 
         Example:
             >>> tree = FileSystemTree(".")  # doctest: +SKIP
@@ -135,6 +170,7 @@ class FileSystemTree:
         Raises:
             FileNotFoundError: If the root path doesn't exist.
             NotADirectoryError: If the root path isn't a directory.
+            PermissionError: If permission is denied and permission_action is RAISE.
         """
         if not os.path.exists(self.root_path):
             raise FileNotFoundError(f"Root path does not exist: {self.root_path}")
@@ -155,6 +191,9 @@ class FileSystemTree:
 
         Returns:
             The created node, or None if the path should be excluded.
+
+        Raises:
+            PermissionError: If access is denied and permission_action is RAISE.
         """
         name = os.path.basename(path)
         if self.exclusion_rules and self.exclusion_rules.exclude(relative_path):
@@ -171,8 +210,10 @@ class FileSystemTree:
                     child_node = self._create_node(child_path, child_relative_path, parent=node)
                     if child_node is None:
                         node.children = [c for c in node.children if c is not child_node]
-            except PermissionError:
-                pass
+            except PermissionError as e:
+                if self.permission_action == PermissionAction.RAISE:
+                    raise PermissionError(f"Access denied to {path}: {e}")
+                # For IGNORE, we keep the directory node but skip its contents
         return node
 
     def _count_files_and_directories(self) -> None:
@@ -235,6 +276,9 @@ class FileSystemTree:
         Yields:
             Pairs of (absolute_path, relative_path) for each file.
 
+        Raises:
+            PermissionError: If access is denied and permission_action is RAISE.
+
         Example:
             >>> tree = FileSystemTree("src")  # doctest: +SKIP
             >>> for abs_path, rel_path in tree.iterate_files():  # doctest: +SKIP
@@ -272,6 +316,9 @@ class FileSystemTree:
 
         Yields:
             Lines of the tree representation, including the connecting lines.
+
+        Raises:
+            PermissionError: If access is denied and permission_action is RAISE.
 
         Example:
             >>> tree = FileSystemTree("src")  # doctest: +SKIP
@@ -313,6 +360,9 @@ class FileSystemTree:
 
         Returns:
             The complete tree representation as a string.
+
+        Raises:
+            PermissionError: If access is denied and permission_action is RAISE.
 
         Example:
             >>> tree = FileSystemTree("src")  # doctest: +SKIP

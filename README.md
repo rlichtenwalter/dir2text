@@ -212,6 +212,12 @@ This project is actively maintained. Issues and pull requests are welcome.
 **Q: Why use streaming processing?**  
 A: Streaming allows processing of large directories and files with constant memory usage, making it suitable for processing repositories of any size.
 
+**Q: How does dir2text handle symbolic links?**  
+A: dir2text follows symbolic links to both files and directories. While this enables complete directory traversal, no symlink loop detection is currently implemented. Users should be cautious when processing directories with circular symlinks, as this could lead to infinite recursion. Future versions may add configuration options for symlink handling and loop prevention.
+
+**Q: Can I use this with binary files?**  
+A: The tool is designed for text files. Binary files should be excluded using the exclusion rules feature.
+
 **Q: What models are supported for token counting?**  
 A: The token counting feature uses OpenAI's tiktoken library with the following primary models and encodings:
 - cl100k_base encoding:
@@ -224,12 +230,6 @@ For other language models, using a similar model's tokenizer (like gpt-4) can pr
 
 **Q: What happens if I specify a model that doesn't have a dedicated tokenizer?**  
 A: The library will suggest using a well-supported model like 'gpt-4' or 'text-davinci-003' for token counting. While token counts may not exactly match your target model, they can provide useful approximations for most modern language models.
-
-
-
-
-**Q: Can I use this with binary files?**  
-A: The tool is designed for text files. Binary files should be excluded using the exclusion rules feature.
 
 ## Contact
 

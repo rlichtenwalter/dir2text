@@ -12,6 +12,7 @@ Key Features:
     - Exclusion rule support (e.g., .gitignore patterns)
     - Output redirection and file writing
     - Various output format options and combinations
+    - Permission error handling (ignore/warn/fail)
 
 Signal Handling Notes:
     The module implements careful signal handling to ensure proper cleanup on interruption:
@@ -23,6 +24,7 @@ Exit Codes:
     0: Successful completion
     1: Runtime error during execution
     2: Command-line syntax error
+    126: Permission denied
     130: Interrupted by SIGINT (Ctrl+C)
     141: Broken pipe (SIGPIPE) on Unix-like systems
 
@@ -30,8 +32,8 @@ Example:
     # Basic usage to process a directory
     $ dir2text /path/to/dir
 
-    # With exclusions and token counting
-    $ dir2text /path/to/dir -e .gitignore -c -t gpt-4
+    # With exclusions and permissive error handling
+    $ dir2text /path/to/dir -e .gitignore -P warn
 """
 
 import argparse
@@ -47,6 +49,7 @@ from types import FrameType
 from typing import Optional, Union
 
 from dir2text.dir2text import StreamingDir2Text
+from dir2text.file_system_tree import PermissionAction
 
 
 class SignalHandler:
@@ -163,43 +166,10 @@ def format_counts(counts: Mapping[str, Optional[int]]) -> str:
     """Format the counts into a human-readable string.
 
     Args:
-        counts: Mapping containing various count metrics. Expected keys are:
-            - 'directories': Number of directories (int).
-            - 'files': Number of files (int).
-            - 'lines': Number of lines (int).
-            - 'tokens': Optional number of tokens (Optional[int]).
-                May be None if token counting is not available.
-            - 'characters': Number of characters (int).
+        counts: Mapping containing various count metrics.
 
     Returns:
         A formatted string showing all counts with appropriate labels.
-
-    Example:
-        >>> counts = {
-        ...     'directories': 10,
-        ...     'files': 50,
-        ...     'lines': 1000,
-        ...     'tokens': None,
-        ...     'characters': 50000
-        ... }
-        >>> print(format_counts(counts))
-        Directories: 10
-        Files: 50
-        Lines: 1000
-        Characters: 50000
-        >>> counts_with_tokens = {
-        ...     'directories': 10,
-        ...     'files': 50,
-        ...     'lines': 1000,
-        ...     'tokens': 8000,
-        ...     'characters': 50000
-        ... }
-        >>> print(format_counts(counts_with_tokens))
-        Directories: 10
-        Files: 50
-        Lines: 1000
-        Tokens: 8000
-        Characters: 50000
     """
     result = [f"Directories: {counts['directories']}", f"Files: {counts['files']}", f"Lines: {counts['lines']}"]
 
@@ -232,12 +202,7 @@ def create_parser() -> argparse.ArgumentParser:
     - Optional token counting for LLM context management
     - Memory-efficient streaming processing
     - Multiple output formats (XML, JSON)
-
-    The tool is particularly useful for:
-    - Submitting codebases to LLMs for analysis
-    - Documentation generation
-    - Codebase visualization
-    - Repository archiving in a human and machine-readable format
+    - Configurable permission error handling
 
     Memory Usage:
     The tool processes files in a streaming fashion, maintaining constant memory usage
@@ -258,6 +223,11 @@ def create_parser() -> argparse.ArgumentParser:
 
       # Generate JSON output and save to file
       dir2text --format json -o output.json /path/to/project
+
+      # Process with different permission handling
+      dir2text -P warn /path/to/project    # Continue with warnings
+      dir2text -P fail /path/to/project    # Stop on permission errors
+      dir2text -P ignore /path/to/project  # Skip silently (default)
 
       # Process only specific aspects
       dir2text -T /path/to/project     # Skip tree visualization
@@ -319,6 +289,13 @@ def create_parser() -> argparse.ArgumentParser:
         default="gpt-4",
         help="Tokenizer model to use for counting tokens (default: gpt-4)",
     )
+    parser.add_argument(
+        "-P",
+        "--permission-action",
+        choices=["ignore", "warn", "fail"],
+        default="ignore",
+        help="How to handle permission errors (default: ignore)",
+    )
 
     return parser
 
@@ -329,14 +306,11 @@ def main() -> None:
     This function handles command-line argument parsing and orchestrates the
     directory analysis process. It manages output generation and error handling.
 
-    Raises:
-        Exception: Any exception that occurs during processing will be caught,
-            logged to stderr, and result in an exit code of 1.
-
     Exit codes:
         0: Successful completion
         1: Runtime error during execution
         2: Command-line syntax error
+        126: Permission denied
         130: Interrupted by SIGINT (Ctrl+C)
         141: Broken pipe (SIGPIPE) on Unix-like systems
     """
@@ -350,49 +324,65 @@ def main() -> None:
             # argparse calls sys.exit(2) for argument errors
             raise
 
-        # Initialize StreamingDir2Text with appropriate configuration
-        analyzer = StreamingDir2Text(
-            directory=args.directory,
-            exclude_file=args.exclude,
-            output_format=args.format,
-            tokenizer_model=args.tokenizer if args.count else None,
-        )
-
-        output_file = args.output if args.output else sys.stdout.fileno()
-        safe_writer = SafeWriter(output_file)
+        # Map CLI permission actions to internal enum
+        perm_action = {
+            "ignore": PermissionAction.IGNORE,
+            "warn": PermissionAction.RAISE,
+            "fail": PermissionAction.RAISE,
+        }[args.permission_action]
 
         try:
-            if not args.no_tree:
-                for line in analyzer.stream_tree():
-                    safe_writer.write(line)
+            # Initialize StreamingDir2Text with appropriate configuration
+            analyzer = StreamingDir2Text(
+                directory=args.directory,
+                exclude_file=args.exclude,
+                output_format=args.format,
+                tokenizer_model=args.tokenizer if args.count else None,
+                permission_action=perm_action,
+            )
 
-            if not args.no_contents:
-                for chunk in analyzer.stream_contents():
-                    safe_writer.write(chunk)
+            output_file = args.output if args.output else sys.stdout.fileno()
+            safe_writer = SafeWriter(output_file)
 
-            if args.count:
-                counts = {
-                    "directories": analyzer.directory_count,
-                    "files": analyzer.file_count,
-                    "lines": analyzer.line_count,
-                    "tokens": analyzer.token_count,
-                    "characters": analyzer.character_count,
-                }
-                count_output_str = format_counts(counts)
-                safe_writer.write("\n" + count_output_str + "\n")
+            try:
+                if not args.no_tree:
+                    for line in analyzer.stream_tree():
+                        safe_writer.write(line)
 
-            if args.no_tree and args.no_contents and not args.count:
-                print(
-                    "Warning: Both tree and contents printing were disabled, and counting was not enabled.",
-                    end="",
-                    file=sys.stderr,
-                )
-                print(" No output generated.", file=sys.stderr)
+                if not args.no_contents:
+                    for chunk in analyzer.stream_contents():
+                        safe_writer.write(chunk)
 
-        except BrokenPipeError:
-            pass  # We'll handle the exit in the finally block
-        finally:
-            safe_writer.close()
+                if args.count:
+                    counts = {
+                        "directories": analyzer.directory_count,
+                        "files": analyzer.file_count,
+                        "lines": analyzer.line_count,
+                        "tokens": analyzer.token_count,
+                        "characters": analyzer.character_count,
+                    }
+                    count_output_str = format_counts(counts)
+                    safe_writer.write("\n" + count_output_str + "\n")
+
+                if args.no_tree and args.no_contents and not args.count:
+                    print(
+                        "Warning: Both tree and contents printing were disabled, and counting was not enabled.",
+                        end="",
+                        file=sys.stderr,
+                    )
+                    print(" No output generated.", file=sys.stderr)
+
+            except BrokenPipeError:
+                pass  # We'll handle the exit in the finally block
+            finally:
+                safe_writer.close()
+
+        except PermissionError as e:
+            if args.permission_action == "warn":
+                print(f"Warning: {str(e)}", file=sys.stderr)
+            elif args.permission_action == "fail":
+                sys.exit(126)
+            # For "ignore", we simply continue
 
     except Exception as e:
         print(f"Error: {str(e)}", file=sys.stderr)

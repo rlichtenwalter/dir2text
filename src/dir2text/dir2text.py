@@ -11,7 +11,7 @@ from typing import Iterator, Optional, Union
 from dir2text.exceptions import TokenizationError
 from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
 from dir2text.file_content_printer import FileContentPrinter
-from dir2text.file_system_tree import FileSystemTree
+from dir2text.file_system_tree import FileSystemTree, PermissionAction
 from dir2text.output_strategies.base_strategy import OutputStrategy
 from dir2text.output_strategies.json_strategy import JSONOutputStrategy
 from dir2text.output_strategies.xml_strategy import XMLOutputStrategy
@@ -63,6 +63,7 @@ class StreamingDir2Text:
         exclude_file: Optional[Union[str, Path]] = None,
         output_format: str = "xml",
         tokenizer_model: Optional[str] = None,
+        permission_action: Union[str, PermissionAction] = PermissionAction.IGNORE,
     ):
         """Initialize streaming directory analysis.
 
@@ -71,10 +72,14 @@ class StreamingDir2Text:
             exclude_file: Optional path to exclusion rules file (e.g., .gitignore)
             output_format: Format for output ('xml' or 'json')
             tokenizer_model: Model to use for counting. If None, token counting is disabled.
+            permission_action: How to handle permission errors during traversal.
+                Can be either "ignore" or "raise", or a PermissionAction enum value.
+                Defaults to "ignore".
 
         Raises:
             ValueError: If directory is invalid or output format is unsupported
             FileNotFoundError: If directory or exclude_file doesn't exist
+            PermissionError: If access is denied and permission_action is "raise"
         """
         # Validate inputs
         self.directory = Path(directory)
@@ -88,9 +93,18 @@ class StreamingDir2Text:
         if output_format not in ("xml", "json"):
             raise ValueError(f"Unsupported output format: {output_format}")
 
+        # Handle permission_action input
+        if isinstance(permission_action, str):
+            try:
+                permission_action = PermissionAction(permission_action.lower())
+            except ValueError:
+                raise ValueError(
+                    f"Invalid permission_action: {permission_action}. " "Must be one of: 'ignore', 'raise'"
+                )
+
         # Initialize components
         self._exclusion_rules = GitIgnoreExclusionRules(str(self.exclude_file)) if self.exclude_file else None
-        self._fs_tree = FileSystemTree(str(self.directory), self._exclusion_rules)
+        self._fs_tree = FileSystemTree(str(self.directory), self._exclusion_rules, permission_action=permission_action)
 
         # Create counter if counting is enabled
         self._counter = TokenCounter(model=tokenizer_model) if tokenizer_model is not None else None
@@ -234,6 +248,7 @@ class StreamingDir2Text:
 
         Raises:
             RuntimeError: If tree has already been streamed.
+            PermissionError: If access is denied and permission_action is "raise".
 
         Note:
             - Can only be called once
@@ -267,6 +282,7 @@ class StreamingDir2Text:
 
         Raises:
             RuntimeError: If contents have already been streamed.
+            PermissionError: If access is denied and permission_action is "raise".
 
         Note:
             - Can only be called once
@@ -327,6 +343,7 @@ class Dir2Text(StreamingDir2Text):
         exclude_file: Optional[Union[str, Path]] = None,
         output_format: str = "xml",
         tokenizer_model: str = "gpt-4",
+        permission_action: Union[str, PermissionAction] = PermissionAction.IGNORE,
     ):
         """Initialize and immediately process the entire directory.
 
@@ -335,13 +352,21 @@ class Dir2Text(StreamingDir2Text):
             exclude_file: Optional path to exclusion rules file (e.g., .gitignore)
             output_format: Format for output ('xml' or 'json')
             tokenizer_model: Model to use for token counting
+            permission_action: How to handle permission errors during traversal.
+                Can be either "ignore" or "raise", or a PermissionAction enum value.
+                Defaults to "ignore".
 
         Raises:
             ValueError: If directory is invalid or output format is unsupported
             FileNotFoundError: If directory or exclude_file doesn't exist
+            PermissionError: If access is denied and permission_action is "raise"
         """
         super().__init__(
-            directory, exclude_file=exclude_file, output_format=output_format, tokenizer_model=tokenizer_model
+            directory,
+            exclude_file=exclude_file,
+            output_format=output_format,
+            tokenizer_model=tokenizer_model,
+            permission_action=permission_action,
         )
 
         # Process everything immediately
