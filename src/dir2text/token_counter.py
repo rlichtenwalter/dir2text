@@ -27,13 +27,23 @@ CountResult = namedtuple("CountResult", ["lines", "tokens", "characters"])
 class TokenCounter:
     """Counter for tokens, lines, and characters in text content.
 
-    Basic line and character counting is always available. Token counting requires the
-    tiktoken library to be installed via the 'token_counting' extra.
+    This module implements token counting using OpenAI's tiktoken library,
+    with support for counting lines and characters as well. If tiktoken is not
+    installed, the counter will still function but will only count lines and
+    characters, returning 0 for token counts.
 
-    The counter primarily supports models using OpenAI's cl100k_base encoding (like gpt-4
-    and gpt-3.5-turbo) and p50k_base encoding (like text-davinci-003). When working with
-    other models, using a similar model's tokenizer can provide useful approximations,
-    though the exact token counts may vary slightly from the target model.
+    Tokenization uses either the cl100k_base or p50k_base encodings, which provide good
+    approximations for most modern language models.
+
+    Primary models and their encodings:
+    - GPT-4 models (gpt-4, gpt-4-32k) - cl100k_base encoding
+    - GPT-3.5-Turbo models (gpt-3.5-turbo) - cl100k_base encoding
+    - Text Davinci models (text-davinci-003) - p50k_base encoding
+
+    For other language models, using a similar model's tokenizer (like gpt-4) can provide
+    useful approximations of token counts, though they may not exactly match
+    the target model's tokenization. The default model 'gpt-4' uses cl100k_base encoding,
+    which provides good general-purpose tokenization suitable for most modern LLMs.
 
     Attributes:
         model (str): Name of the model whose tokenizer to use.
@@ -44,9 +54,17 @@ class TokenCounter:
         >>> counter = TokenCounter(model="gpt-4")
         >>> _ = counter.count("Hello\\nworld!")  # Count lines and characters (and tokens if available)
 
+    Note:
+        Token counting requires the tiktoken library to be installed via the 'token_counting'
+        extra. If tiktoken is not installed, the counter will still function but will only
+        count lines and characters, returning 0 for token counts. This behavior allows the
+        counter to operate in environments where token counting is not required or where
+        tiktoken cannot be installed.
+
     Raises:
         ValueError: If the specified model's tokenizer cannot be loaded.
-        TokenizerNotAvailableError: If token counting is requested but tiktoken is not installed.
+        TokenizerNotAvailableError: If token counting is explicitly requested (by passing
+            a model) but tiktoken is not installed.
     """
 
     def __init__(self, model: str = "gpt-4"):

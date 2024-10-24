@@ -54,6 +54,12 @@ class StreamingDir2Text:
             └── file2.txt
         >>> print(f"Tree metrics: {analyzer.line_count}")  # doctest: +SKIP
         Tree metrics: 4
+
+    Raises:
+        ValueError: If directory is invalid or output format is unsupported.
+        FileNotFoundError: If directory or exclude_file doesn't exist.
+        PermissionError: If access is denied and permission_action is "raise".
+        TokenizationError: If token counting is enabled but tokenizer initialization fails.
     """
 
     def __init__(
@@ -221,6 +227,19 @@ class StreamingDir2Text:
         """
         return self._counter.get_total_characters() if self._counter is not None else 0
 
+    def _yield(self, text: str) -> str:
+        """Return text for yielding.
+
+        Helper method to provide a means of outputting text.
+
+        Args:
+            text: Text to count and yield.
+
+        Returns:
+            The input text, unchanged.
+        """
+        return text
+
     def _count_and_yield(self, text: str) -> str:
         """Count text and return it for yielding.
 
@@ -238,7 +257,7 @@ class StreamingDir2Text:
             except TokenizationError:
                 # Continue even if token counting fails
                 pass
-        return text
+        return self._yield(text)
 
     def stream_tree(self) -> Iterator[str]:
         """Stream the directory tree representation line by line.
@@ -297,17 +316,9 @@ class StreamingDir2Text:
             raise RuntimeError("Contents have already been streamed")
 
         for file_path, relative_path, content_iter in self._content_printer.yield_file_contents():
-            # Output start tag
-            start_content = self._strategy.format_start(relative_path, None)
-            yield self._count_and_yield(start_content)
-
             # Output file content
             for chunk in content_iter:
-                yield self._count_and_yield(self._strategy.format_content(chunk))
-
-            # Output end tag
-            end_content = self._strategy.format_end(None)
-            yield self._count_and_yield(end_content)
+                yield self._yield(chunk)
 
             # Add separator newline
             yield self._count_and_yield("\n")

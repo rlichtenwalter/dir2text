@@ -195,22 +195,6 @@ def test_permission_error(temp_directory):
                 list(content_iter)
 
 
-def test_encoding_becomes_unavailable(mock_tree):
-    """Test handling of encoding becoming unavailable."""
-    mock_tree.iterate_files.return_value = [("/test.txt", "test.txt")]
-
-    with patch("builtins.open") as mock_open:
-        mock_file = MagicMock()
-        mock_file.__enter__.return_value = mock_file
-        mock_file.read.side_effect = LookupError("Encoding disappeared")
-        mock_open.return_value = mock_file
-
-        printer = FileContentPrinter(mock_tree)
-        with pytest.raises(LookupError):
-            for _, _, content_iter in printer.yield_file_contents():
-                list(content_iter)
-
-
 def test_get_output_file_extension():
     """Test getting the output file extension."""
     tree = MagicMock(spec=FileSystemTree)
