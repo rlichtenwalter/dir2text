@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "dir2text"
 version = "1.0.0"
-description = "A short description of dir2text"
+description = "A Python library and command-line tool for expressing directory structures and file contents in formats suitable for Large Language Models (LLMs). It combines directory tree visualization with file contents in a memory-efficient, streaming format."
 repository = "https://github.com/rlichtenwalter/dir2text.git"
 authors = ["Ryan N. Lichtenwalter <rlichtenwalter@gmail.com>"]
 maintainers = ["Ryan N. Lichtenwalter <rlichtenwalter@gmail.com>"]
