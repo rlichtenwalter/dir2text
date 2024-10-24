@@ -1,15 +1,21 @@
 repos:
--   repo: https://github.com/psf/black
-    rev: 22.6.0
+-   repo: local
     hooks:
-    -   id: black
-        language_version: python3.8
--   repo: https://github.com/pycqa/flake8
-    rev: 5.0.4
-    hooks:
-    -   id: flake8
--   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v0.991
-    hooks:
-    -   id: mypy
-        additional_dependencies: [types-all]
+    -   id: tox-format
+        name: Formatting
+        entry: tox -e format
+        language: system
+        types: [python]
+        pass_filenames: false
+    -   id: tox-lint
+        name: Linting
+        entry: tox -e lint
+        language: system
+        types: [python]
+        pass_filenames: false
+    -   id: tox-test
+        name: Unit Tests
+        entry: tox -e test
+        language: system
+        types: [python]
+        pass_filenames: false
