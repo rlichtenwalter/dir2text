@@ -59,7 +59,7 @@ dir2text -e .gitignore /path/to/project
 dir2text -c /path/to/project
 
 # Generate JSON output and save to file
-dir2text --format json -o output.json /path/to/project
+dir2text -f json -o output.json /path/to/project
 
 # Skip tree or content sections
 dir2text -T /path/to/project     # Skip tree visualization

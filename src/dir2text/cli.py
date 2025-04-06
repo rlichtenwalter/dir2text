@@ -272,6 +272,7 @@ def create_parser() -> argparse.ArgumentParser:
         help="Disable file content inclusion in the output",
     )
     parser.add_argument(
+        "-f",
         "--format",
         choices=["xml", "json"],
         default="xml",
