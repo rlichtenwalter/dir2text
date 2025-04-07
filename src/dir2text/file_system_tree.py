@@ -96,7 +96,7 @@ class FileSystemTree:
         - RAISE: Immediately raise PermissionError when access is denied
 
     Attributes:
-        root_path (Path): The absolute path to the root directory.
+        root_path (PathType): The absolute path to the root directory.
         exclusion_rules (Optional[BaseExclusionRules]): Rules for excluding files/directories.
         permission_action (PermissionAction): How to handle permission errors.
 
