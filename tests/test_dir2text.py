@@ -38,6 +38,12 @@ def temp_directory():
         # Create .gitignore
         (base_dir / ".gitignore").write_text("*.pyc\n")
 
+        # Create .npmignore
+        (base_dir / ".npmignore").write_text("*.md\n")
+
+        # Create custom ignore file
+        (base_dir / "custom.ignore").write_text("src/utils/\n!src/utils/helpers.py\n")
+
         yield base_dir
 
 
@@ -46,12 +52,18 @@ def test_streaming_dir2text_initialization(temp_directory):
     # Test default initialization
     analyzer = StreamingDir2Text(temp_directory)
     assert analyzer.directory == temp_directory
-    assert analyzer.exclude_file is None
+    assert analyzer.exclude_files is None
 
-    # Test with gitignore
+    # Test with one exclusion file
     gitignore = temp_directory / ".gitignore"
-    analyzer = StreamingDir2Text(temp_directory, exclude_file=gitignore)
-    assert analyzer.exclude_file == gitignore
+    analyzer = StreamingDir2Text(temp_directory, exclude_files=gitignore)
+    assert analyzer.exclude_files == [gitignore]
+
+    # Test with a list of exclusion files
+    gitignore = temp_directory / ".gitignore"
+    npmignore = temp_directory / ".npmignore"
+    analyzer = StreamingDir2Text(temp_directory, exclude_files=[gitignore, npmignore])
+    assert analyzer.exclude_files == [gitignore, npmignore]
 
 
 def test_streaming_dir2text_invalid_directory():
@@ -108,14 +120,74 @@ def test_streaming_dir2text_content_output(temp_directory):
     assert "# Test Project" in content_output
 
 
-def test_streaming_dir2text_with_exclusions(temp_directory):
-    """Test exclusion rules processing."""
+def test_streaming_dir2text_with_single_exclusion(temp_directory):
+    """Test with a single exclusion file."""
     gitignore = temp_directory / ".gitignore"
-    analyzer = StreamingDir2Text(temp_directory, exclude_file=gitignore)
+    analyzer = StreamingDir2Text(temp_directory, exclude_files=gitignore)
     content_output = "".join(analyzer.stream_contents())
 
     # Verify .pyc file is excluded
     assert "compiled python" not in content_output
+
+    # Verify other files are included
+    assert "def main():" in content_output
+    assert "# Test Project" in content_output
+
+
+def test_streaming_dir2text_with_multiple_exclusions(temp_directory):
+    """Test with multiple exclusion files working together."""
+    gitignore = temp_directory / ".gitignore"
+    npmignore = temp_directory / ".npmignore"
+    analyzer = StreamingDir2Text(temp_directory, exclude_files=[gitignore, npmignore])
+    content_output = "".join(analyzer.stream_contents())
+
+    # Verify .pyc file is excluded (from gitignore)
+    assert "compiled python" not in content_output
+
+    # Verify .md file is excluded (from npmignore)
+    assert "# Test Project" not in content_output
+
+    # Verify other files are included
+    assert "def main():" in content_output
+
+
+def test_streaming_dir2text_exclusion_order(temp_directory):
+    """Test that exclusion order matters for overriding patterns."""
+    # Create files for testing negation patterns
+    custom_ignore_a = temp_directory / "custom_a.ignore"
+    custom_ignore_a.write_text("src/*.py\n")  # Exclude all Python files in src
+
+    custom_ignore_b = temp_directory / "custom_b.ignore"
+    custom_ignore_b.write_text("!src/main.py\n")  # But allow main.py
+
+    # Order 1: exclude all .py, then allow main.py
+    analyzer1 = StreamingDir2Text(temp_directory, exclude_files=[custom_ignore_a, custom_ignore_b])
+    content_output1 = "".join(analyzer1.stream_contents())
+
+    # Order 2: allow main.py, then exclude all .py (this won't work as expected)
+    analyzer2 = StreamingDir2Text(temp_directory, exclude_files=[custom_ignore_b, custom_ignore_a])
+    content_output2 = "".join(analyzer2.stream_contents())
+
+    # With order 1, main.py should be included
+    assert "def main():" in content_output1
+
+    # With order 2, main.py will be excluded (negation first doesn't work)
+    assert "def main():" not in content_output2
+
+
+def test_streaming_dir2text_with_complex_exclusions(temp_directory):
+    """Test with more complex exclusion patterns including negations."""
+    gitignore = temp_directory / ".gitignore"
+    custom_ignore = temp_directory / "custom.ignore"
+
+    analyzer = StreamingDir2Text(temp_directory, exclude_files=[gitignore, custom_ignore])
+    content_output = "".join(analyzer.stream_contents())
+
+    # Verify .pyc file is excluded (from gitignore)
+    assert "compiled python" not in content_output
+
+    # Verify utils/ is excluded but helpers.py is included (custom.ignore with negation)
+    assert "def helper():" in content_output
 
 
 def test_streaming_dir2text_with_token_counting(temp_directory, mock_token_counter):
@@ -150,6 +222,21 @@ def test_dir2text_complete_processing(temp_directory):
     assert analyzer.tree_string
     assert analyzer.content_string
     assert analyzer.streaming_complete
+
+
+def test_dir2text_with_multiple_exclusions(temp_directory):
+    """Test Dir2Text with multiple exclusion files."""
+    gitignore = temp_directory / ".gitignore"
+    npmignore = temp_directory / ".npmignore"
+
+    analyzer = Dir2Text(temp_directory, exclude_files=[gitignore, npmignore])
+
+    # Verify .pyc file and .md file are excluded
+    assert "compiled python" not in analyzer.content_string
+    assert "# Test Project" not in analyzer.content_string
+
+    # Verify Python files are included
+    assert "def main():" in analyzer.content_string
 
 
 def test_streaming_reuse_prevention(temp_directory):
@@ -192,3 +279,14 @@ def test_unicode_handling(temp_directory):
 
     assert "测试.txt" in tree_output
     assert "Hello 世界!" in content_output
+
+
+def test_nonexistent_exclusion_files(temp_directory):
+    """Test that nonexistent exclusion files raise errors."""
+    with pytest.raises(FileNotFoundError):
+        StreamingDir2Text(temp_directory, exclude_files=["nonexistent.ignore"])
+
+    # Test with mix of valid and invalid files
+    with pytest.raises(FileNotFoundError):
+        gitignore = temp_directory / ".gitignore"
+        StreamingDir2Text(temp_directory, exclude_files=[gitignore, "nonexistent.ignore"])

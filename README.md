@@ -52,8 +52,9 @@ Basic usage:
 ```bash
 dir2text /path/to/project
 
-# Exclude files matching .gitignore patterns
+# Exclude files matching patterns from one or more exclusion files
 dir2text -e .gitignore /path/to/project
+dir2text -e .gitignore -e .npmignore -e custom-ignore /path/to/project
 
 # Count tokens for LLM context management
 dir2text -c /path/to/project
@@ -87,14 +88,14 @@ for chunk in analyzer.stream_contents():
 print(f"Processed {analyzer.file_count} files in {analyzer.directory_count} directories")
 ```
 
-Memory-efficient processing with exclusions and token counting:
+Memory-efficient processing with multiple exclusions and token counting:
 ```python
 from dir2text import StreamingDir2Text
 
 # Initialize with options
 analyzer = StreamingDir2Text(
     directory="path/to/project",
-    exclude_file=".gitignore",
+    exclude_files=[".gitignore", ".npmignore", "custom.ignore"],  # Multiple exclusion files
     output_format="json",
     tokenizer_model="gpt-4"
 )

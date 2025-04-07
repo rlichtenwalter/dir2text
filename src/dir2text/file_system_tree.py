@@ -7,11 +7,13 @@ specified rules.
 
 import os
 from enum import Enum
+from pathlib import Path
 from typing import Any, Iterator, Optional, Tuple
 
 from anytree import Node
 
 from dir2text.exclusion_rules.base_rules import BaseExclusionRules
+from dir2text.types import PathType
 
 
 class PermissionAction(str, Enum):
@@ -94,7 +96,7 @@ class FileSystemTree:
         - RAISE: Immediately raise PermissionError when access is denied
 
     Attributes:
-        root_path (str): The absolute path to the root directory.
+        root_path (PathType): The absolute path to the root directory.
         exclusion_rules (Optional[BaseExclusionRules]): Rules for excluding files/directories.
         permission_action (PermissionAction): How to handle permission errors.
 
@@ -111,14 +113,14 @@ class FileSystemTree:
 
     def __init__(
         self,
-        root_path: str,
+        root_path: PathType,
         exclusion_rules: Optional[BaseExclusionRules] = None,
         permission_action: PermissionAction = PermissionAction.IGNORE,
     ) -> None:
         """Initialize a FileSystemTree.
 
         Args:
-            root_path: Path to the root directory to represent.
+            root_path: Path to the root directory to represent. Can be any path-like object.
             exclusion_rules: Rules for excluding files and directories. Defaults to None.
             permission_action: How to handle permission errors during traversal.
                 Defaults to IGNORE.
@@ -129,7 +131,7 @@ class FileSystemTree:
             >>> tree.get_file_count()  # doctest: +SKIP
             42
         """
-        self.root_path = os.path.abspath(root_path)
+        self.root_path = Path(root_path)
         self.exclusion_rules = exclusion_rules
         self.permission_action = permission_action
         self._tree: Optional[FileSystemNode] = None
@@ -172,15 +174,15 @@ class FileSystemTree:
             NotADirectoryError: If the root path isn't a directory.
             PermissionError: If permission is denied and permission_action is RAISE.
         """
-        if not os.path.exists(self.root_path):
+        if not self.root_path.exists():
             raise FileNotFoundError(f"Root path does not exist: {self.root_path}")
-        if not os.path.isdir(self.root_path):
+        if not self.root_path.is_dir():
             raise NotADirectoryError(f"Root path is not a directory: {self.root_path}")
         self._tree = self._create_node(self.root_path, "")
         self._count_files_and_directories()
 
     def _create_node(
-        self, path: str, relative_path: str, parent: Optional[FileSystemNode] = None
+        self, path: Path, relative_path: str, parent: Optional[FileSystemNode] = None
     ) -> Optional[FileSystemNode]:
         """Recursively create tree nodes for a path and its children.
 
@@ -195,17 +197,17 @@ class FileSystemTree:
         Raises:
             PermissionError: If access is denied and permission_action is RAISE.
         """
-        name = os.path.basename(path)
+        name = path.name
         if self.exclusion_rules and self.exclusion_rules.exclude(relative_path):
             return None
 
-        is_dir = os.path.isdir(path)
+        is_dir = path.is_dir()
         node = FileSystemNode(name, parent=parent, is_dir=is_dir)
 
         if is_dir:
             try:
                 for child in sorted(os.listdir(path)):
-                    child_path = os.path.join(path, child)
+                    child_path = path / child
                     child_relative_path = os.path.join(relative_path, child).replace("\\", "/")
                     child_node = self._create_node(child_path, child_relative_path, parent=node)
                     if child_node is None:
@@ -303,7 +305,8 @@ class FileSystemTree:
             Pairs of (absolute_path, relative_path) for each file.
         """
         if not node.is_dir:
-            yield (os.path.join(self.root_path, current_path), current_path)
+            abs_path = self.root_path / current_path
+            yield (str(abs_path), current_path)
         else:
             for child in node.children:
                 yield from self._iterate(child, os.path.join(current_path, child.name))
