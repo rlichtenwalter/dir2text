@@ -15,7 +15,7 @@ dir2text [OPTIONS] DIRECTORY
 | Option | Description | Example |
 |--------|-------------|---------|
 | `-o, --output FILE` | Output file path | `dir2text dir -o output.txt` |
-| `-e, --exclude FILE` | Path to exclusion file | `dir2text dir -e .gitignore` |
+| `-e, --exclude FILE` | Path to exclusion file (can be specified multiple times) | `dir2text dir -e .gitignore -e .npmignore` |
 | `-f FORMAT` | Output format (xml/json) | `dir2text dir -f json` |
 | `-T, --no-tree` | Skip directory tree | `dir2text dir -T` |
 | `-C, --no-contents` | Skip file contents | `dir2text dir -C` |
@@ -65,9 +65,14 @@ project/
 
 ### Using Exclusion Files
 ```bash
-# Use .gitignore patterns
+# Use single exclusion file
 dir2text /path/to/project -e .gitignore
+
+# Combine multiple exclusion files
+dir2text /path/to/project -e .gitignore -e .npmignore -e custom.ignore
 ```
+
+When using multiple exclusion files, they are processed in the order specified on the command line. This is important when using negation patterns (starting with `!`), as later rules can override earlier ones.
 
 Common exclusion patterns:
 ```gitignore

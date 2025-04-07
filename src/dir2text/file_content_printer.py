@@ -5,6 +5,7 @@ and optional content counting. It provides configurable encoding support
 for reading files while maintaining memory-efficient streaming behavior.
 """
 
+from pathlib import Path
 from typing import Iterator, Optional, Tuple, Union
 
 from .file_system_tree import FileSystemTree
@@ -13,6 +14,7 @@ from .output_strategies.base_strategy import OutputStrategy
 from .output_strategies.json_strategy import JSONOutputStrategy
 from .output_strategies.xml_strategy import XMLOutputStrategy
 from .token_counter import TokenCounter
+from .types import PathType
 
 
 class FileContentPrinter:
@@ -108,11 +110,11 @@ class FileContentPrinter:
         else:
             raise TypeError("output_format must be either a string ('xml' or 'json') or " "an OutputStrategy instance")
 
-    def _count_file_tokens(self, file_path: str, relative_path: str) -> int:
+    def _count_file_tokens(self, file_path: PathType, relative_path: str) -> int:
         """Count tokens in a file without storing its content.
 
         Args:
-            file_path: Absolute path to the file.
+            file_path: Absolute path to the file. Can be any path-like object.
             relative_path: Path relative to the root directory.
 
         Returns:
@@ -127,8 +129,9 @@ class FileContentPrinter:
             return 0
 
         token_count = 0
+        path_obj = Path(file_path)
         try:
-            with open(file_path, "r", encoding=self.encoding, errors=self.errors) as file:
+            with open(path_obj, "r", encoding=self.encoding, errors=self.errors) as file:
                 reader = ChunkedFileReader(file)
                 for chunk in reader:
                     token_count += self.tokenizer.count(self.output_strategy.format_content(chunk)).tokens
@@ -142,11 +145,11 @@ class FileContentPrinter:
 
         return token_count
 
-    def _yield_wrapped_content(self, file_path: str, relative_path: str) -> Iterator[str]:
+    def _yield_wrapped_content(self, file_path: PathType, relative_path: str) -> Iterator[str]:
         """Stream a single file's content with appropriate formatting.
 
         Args:
-            file_path: Absolute path to the file.
+            file_path: Absolute path to the file. Can be any path-like object.
             relative_path: Path relative to the root directory.
 
         Yields:
@@ -159,8 +162,10 @@ class FileContentPrinter:
             LookupError: If the specified encoding is not available.
         """
         token_count = None
+        path_obj = Path(file_path)
+
         if self.tokenizer is not None and self.output_strategy.requires_tokens_in_start:
-            token_count = self._count_file_tokens(file_path, relative_path)
+            token_count = self._count_file_tokens(path_obj, relative_path)
 
         # Output start tag with token count if available
         yield self.output_strategy.format_start(relative_path, token_count)
@@ -169,7 +174,7 @@ class FileContentPrinter:
             token_count = 0
 
         try:
-            with open(file_path, "r", encoding=self.encoding, errors=self.errors) as file:
+            with open(path_obj, "r", encoding=self.encoding, errors=self.errors) as file:
                 reader = ChunkedFileReader(file)
                 for chunk in reader:
                     formatted_chunk = self.output_strategy.format_content(chunk)

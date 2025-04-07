@@ -215,8 +215,9 @@ def create_parser() -> argparse.ArgumentParser:
       # Basic directory processing
       dir2text /path/to/project
 
-      # Exclude files matching .gitignore patterns
+      # Exclude files matching patterns from one or more exclusion files
       dir2text -e .gitignore /path/to/project
+      dir2text -e .gitignore -e .npmignore -e custom-ignore /path/to/project
 
       # Count tokens for LLM context management
       dir2text -c /path/to/project
@@ -250,52 +251,56 @@ def create_parser() -> argparse.ArgumentParser:
         "--exclude",
         type=Path,
         metavar="FILE",
-        help="Path to exclusion file (e.g., .gitignore) for filtering files and directories",
+        action="append",
+        help=(
+            "Path to exclusion file (e.g., .gitignore) for filtering files and directories "
+            "(can be specified multiple times)."
+        ),
     )
     parser.add_argument(
         "-o",
         "--output",
         type=Path,
         metavar="FILE",
-        help="Output file path. If not specified, output is written to stdout",
+        help="Output file path. If not specified, output is written to stdout.",
     )
     parser.add_argument(
         "-T",
         "--no-tree",
         action="store_true",
-        help="Disable directory tree visualization in the output",
+        help="Disable directory tree visualization in the output.",
     )
     parser.add_argument(
         "-C",
         "--no-contents",
         action="store_true",
-        help="Disable file content inclusion in the output",
+        help="Disable file content inclusion in the output.",
     )
     parser.add_argument(
         "-f",
         "--format",
         choices=["xml", "json"],
         default="xml",
-        help="Output format for file contents (default: xml)",
+        help="Output format for file contents (default: xml).",
     )
     parser.add_argument(
         "-c",
         "--count",
         action="store_true",
-        help="Include counts of directories, files, lines, tokens, and characters",
+        help="Include counts of directories, files, lines, tokens, and characters.",
     )
     parser.add_argument(
         "-t",
         "--tokenizer",
         default="gpt-4",
-        help="Tokenizer model to use for counting tokens (default: gpt-4)",
+        help="Tokenizer model to use for counting tokens (default: gpt-4).",
     )
     parser.add_argument(
         "-P",
         "--permission-action",
         choices=["ignore", "warn", "fail"],
         default="ignore",
-        help="How to handle permission errors (default: ignore)",
+        help="How to handle permission errors (default: ignore).",
     )
 
     return parser
@@ -336,7 +341,7 @@ def main() -> None:
             # Initialize StreamingDir2Text with appropriate configuration
             analyzer = StreamingDir2Text(
                 directory=args.directory,
-                exclude_file=args.exclude,
+                exclude_files=args.exclude,
                 output_format=args.format,
                 tokenizer_model=args.tokenizer if args.count else None,
                 permission_action=perm_action,

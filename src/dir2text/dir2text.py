@@ -5,8 +5,9 @@ with support for streaming output and token counting. It includes both streaming
 and complete processing implementations.
 """
 
+from os import PathLike
 from pathlib import Path
-from typing import Iterator, Optional, Union
+from typing import Iterator, Optional, Sequence, Union
 
 from dir2text.exceptions import TokenizationError
 from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
@@ -16,6 +17,7 @@ from dir2text.output_strategies.base_strategy import OutputStrategy
 from dir2text.output_strategies.json_strategy import JSONOutputStrategy
 from dir2text.output_strategies.xml_strategy import XMLOutputStrategy
 from dir2text.token_counter import TokenCounter
+from dir2text.types import PathType
 
 
 class StreamingDir2Text:
@@ -38,8 +40,8 @@ class StreamingDir2Text:
         examples are still valid and demonstrate proper usage.
 
     Attributes:
-        directory (Path): Directory being processed.
-        exclude_file (Optional[Path]): Path to exclusion rules file.
+        directory (PathType): Directory being processed.
+        exclude_files (Optional[Union[PathType, Sequence[PathType]]]): Paths to exclusion rules files.
         streaming_complete (bool): Whether all streaming operations have finished.
 
     Example:
@@ -57,16 +59,16 @@ class StreamingDir2Text:
 
     Raises:
         ValueError: If directory is invalid or output format is unsupported.
-        FileNotFoundError: If directory or exclude_file doesn't exist.
+        FileNotFoundError: If directory or exclude_files doesn't exist.
         PermissionError: If access is denied and permission_action is "raise".
         TokenizationError: If token counting is enabled but tokenizer initialization fails.
     """
 
     def __init__(
         self,
-        directory: Union[str, Path],
+        directory: PathType,
         *,
-        exclude_file: Optional[Union[str, Path]] = None,
+        exclude_files: Optional[Union[PathType, Sequence[PathType]]] = None,
         output_format: str = "xml",
         tokenizer_model: Optional[str] = None,
         permission_action: Union[str, PermissionAction] = PermissionAction.IGNORE,
@@ -74,8 +76,9 @@ class StreamingDir2Text:
         """Initialize streaming directory analysis.
 
         Args:
-            directory: Directory to process
-            exclude_file: Optional path to exclusion rules file (e.g., .gitignore)
+            directory: Directory to process. Can be any path-like object.
+            exclude_files: Optional path(s) to exclusion rule file(s) (e.g., .gitignore)
+                      Can be a single path-like object or a sequence of path-like objects.
             output_format: Format for output ('xml' or 'json')
             tokenizer_model: Model to use for counting. If None, token counting is disabled.
             permission_action: How to handle permission errors during traversal.
@@ -84,7 +87,7 @@ class StreamingDir2Text:
 
         Raises:
             ValueError: If directory is invalid or output format is unsupported
-            FileNotFoundError: If directory or exclude_file doesn't exist
+            FileNotFoundError: If directory or any exclude file doesn't exist
             PermissionError: If access is denied and permission_action is "raise"
         """
         # Validate inputs
@@ -92,9 +95,19 @@ class StreamingDir2Text:
         if not self.directory.is_dir():
             raise ValueError(f"'{directory}' is not a valid directory")
 
-        self.exclude_file = Path(exclude_file) if exclude_file else None
-        if self.exclude_file and not self.exclude_file.is_file():
-            raise FileNotFoundError(f"Exclusion file not found: {self.exclude_file}")
+        # Handle exclude_files parameter - convert to list of Path objects
+        self.exclude_files = None
+        if exclude_files is not None:
+            if isinstance(exclude_files, (str, PathLike)):
+                # Single file
+                exclude_files = [exclude_files]
+
+            self.exclude_files = []
+            for file_path in exclude_files:
+                path = Path(file_path)
+                if not path.is_file():
+                    raise FileNotFoundError(f"Exclusion file not found: {path}")
+                self.exclude_files.append(path)
 
         if output_format not in ("xml", "json"):
             raise ValueError(f"Unsupported output format: {output_format}")
@@ -109,8 +122,8 @@ class StreamingDir2Text:
                 )
 
         # Initialize components
-        self._exclusion_rules = GitIgnoreExclusionRules(str(self.exclude_file)) if self.exclude_file else None
-        self._fs_tree = FileSystemTree(str(self.directory), self._exclusion_rules, permission_action=permission_action)
+        self._exclusion_rules = GitIgnoreExclusionRules(self.exclude_files) if self.exclude_files else None
+        self._fs_tree = FileSystemTree(self.directory, self._exclusion_rules, permission_action=permission_action)
 
         # Create counter if counting is enabled
         self._counter = TokenCounter(model=tokenizer_model) if tokenizer_model is not None else None
@@ -349,9 +362,9 @@ class Dir2Text(StreamingDir2Text):
 
     def __init__(
         self,
-        directory: Union[str, Path],
+        directory: PathType,
         *,
-        exclude_file: Optional[Union[str, Path]] = None,
+        exclude_files: Optional[Union[PathType, Sequence[PathType]]] = None,
         output_format: str = "xml",
         tokenizer_model: str = "gpt-4",
         permission_action: Union[str, PermissionAction] = PermissionAction.IGNORE,
@@ -359,8 +372,9 @@ class Dir2Text(StreamingDir2Text):
         """Initialize and immediately process the entire directory.
 
         Args:
-            directory: Directory to process
-            exclude_file: Optional path to exclusion rules file (e.g., .gitignore)
+            directory: Directory to process. Can be any path-like object.
+            exclude_files: Optional path(s) to exclusion rule file(s) (e.g., .gitignore)
+                      Can be a single path-like object or a sequence of path-like objects.
             output_format: Format for output ('xml' or 'json')
             tokenizer_model: Model to use for token counting
             permission_action: How to handle permission errors during traversal.
@@ -374,7 +388,7 @@ class Dir2Text(StreamingDir2Text):
         """
         super().__init__(
             directory,
-            exclude_file=exclude_file,
+            exclude_files=exclude_files,
             output_format=output_format,
             tokenizer_model=tokenizer_model,
             permission_action=permission_action,

@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import pytest
 
@@ -27,7 +28,7 @@ def temp_gitignore(temp_directory):
 
 def test_file_system_tree_initialization(temp_directory):
     fs_tree = FileSystemTree(str(temp_directory))
-    assert fs_tree.root_path == str(temp_directory)
+    assert fs_tree.root_path == Path(temp_directory)
     assert fs_tree._tree is None
 
 
