@@ -20,6 +20,23 @@ This release focuses on usability enhancements, particularly in exclusion rule s
 - Nothing.
 
 ## Version 1.0.1 (2024-10-24)
+Added a project description for better presentation on PyPI.
+
+### Added
+- Project description in pyproject.toml.
+
+### Changed
+- Nothing.
+
+### Fixed
+- Nothing.
+
+### Known Issues
+- Symbolic link loop protection is not implemented. Application on structures with loops will hang.
+- Unit test design and converage is fair but not great. Better design and coverage are desirable.
+- Documentation is also fair but not great.
+
+## Version 1.0.0 (2024-10-24)
 This is the initial public release of dir2text. It is largely tested and stable but should still be regarded as beta.
 
 ### Added
