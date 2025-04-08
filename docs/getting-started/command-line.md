@@ -19,7 +19,9 @@ dir2text [OPTIONS] DIRECTORY
 | `-f, --format FORMAT` | Output format (xml/json) | `dir2text dir -f json` |
 | `-T, --no-tree` | Skip directory tree | `dir2text dir -T` |
 | `-C, --no-contents` | Skip file contents | `dir2text dir -C` |
-| `-t, --tokenizer MODEL` | Model for token counting | `dir2text dir -t gpt-4` |
+| `-c, --count` | Enable token counting and embed token counts in file metadata output | `dir2text dir -c` |
+| `-s, --stats` | Print statistics report (stderr, stdout, or file) | `dir2text dir -s` |
+| `-t, --tokenizer MODEL` | Model for token counting | `dir2text dir -c -t gpt-4` |
 | `-P, --permission-action ACTION` | Permission error handling | `dir2text dir -P warn` |
 
 ## Output Formats
@@ -108,8 +110,11 @@ Token counting requires the token_counting extra:
 # Install with token counting
 pip install "dir2text[token_counting]"
 
+# Enable token counting (embeds counts in output)
+dir2text -c /path/to/project
+
 # Use specific model for counting
-dir2text /path/to/project -t gpt-4
+dir2text -c -t gpt-4 /path/to/project
 
 # Example output:
 <file path="src/main.py" tokens="42">
@@ -122,6 +127,26 @@ Supported models:
 - `gpt-4` (default)
 - `gpt-3.5-turbo`
 - `text-davinci-003`
+
+## Statistics Reporting
+
+Control whether and where statistics are displayed:
+
+```bash
+# Print statistics to stderr (default)
+dir2text -s stderr /path/to/project
+
+# Print statistics to stdout
+dir2text -s stdout /path/to/project
+
+# Include statistics in the output file
+dir2text -s file -o output.txt /path/to/project
+
+# Show token counts in statistics (combined with -c)
+dir2text -s stderr -c /path/to/project
+```
+
+Statistics include counts of directories, files, lines, and characters. Token counts are only included when `-c` is also specified.
 
 ## Common Use Cases
 
@@ -139,10 +164,19 @@ dir2text /path/to/project \
 ### LLM Analysis
 ```bash
 # Prepare for LLM with token counting
-dir2text /path/to/project \
+dir2text \
     -e .gitignore \
-    -t gpt-4 \
-    -o project_for_llm.txt
+    -c \
+    -o project_for_llm.txt \
+    /path/to/project
+
+# Include statistics in a separate file
+dir2text \
+    -e .gitignore \
+    -c \
+    -s stderr \
+    /path/to/project \
+    > project_for_llm.txt 2> stats.txt
 ```
 
 ## Exit Codes
@@ -154,6 +188,7 @@ dir2text /path/to/project \
 | 2 | Command-line syntax error |
 | 126 | Permission denied |
 | 130 | Interrupted by SIGINT (Ctrl+C) |
+| 141 | Broken pipe (SIGPIPE) on Unix-like systems |
 
 ## Error Handling
 

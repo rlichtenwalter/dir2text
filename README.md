@@ -11,6 +11,7 @@ A Python library and command-line tool for expressing directory structures and f
 - Easy extensibility for new formats
 - Support for exclusion patterns (e.g., .gitignore rules)
 - Optional token counting for LLM context management
+- Statistics reporting with configurable output destination
 - Safe handling of large files and directories
 
 ## Installation
@@ -56,7 +57,7 @@ dir2text /path/to/project
 dir2text -e .gitignore /path/to/project
 dir2text -e .gitignore -e .npmignore -e custom-ignore /path/to/project
 
-# Count tokens for LLM context management
+# Enable token counting for LLM context management
 dir2text -c /path/to/project
 
 # Generate JSON output and save to file
@@ -66,6 +67,30 @@ dir2text -f json -o output.json /path/to/project
 dir2text -T /path/to/project     # Skip tree visualization
 dir2text -C /path/to/project     # Skip file contents
 ```
+
+### Statistics Reporting
+
+Dir2text can generate statistics about the processed directory including file counts, line counts, and optionally token counts. You can control where these statistics are displayed:
+
+```bash
+# Print statistics to stderr (default)
+dir2text -s /path/to/project
+
+# Print statistics to stdout
+dir2text -s stdout /path/to/project
+
+# Include statistics in the output file
+dir2text -s file -o output.txt /path/to/project
+
+# Show token counts in statistics by enabling token counting
+dir2text -s -c /path/to/project
+```
+
+Statistics include counts of directories, files, lines, and characters. Token counts are only included when token counting is enabled with the `-c` option.
+
+Note that token counting (`-c`) and statistics reporting (`-s`) are separate concerns:
+- `-c` enables token counting and embeds token counts in the output markup
+- `-s` controls whether statistics are generated and where they are displayed
 
 ### Python API
 
@@ -231,6 +256,15 @@ For other language models, using a similar model's tokenizer (like gpt-4) can pr
 
 **Q: What happens if I specify a model that doesn't have a dedicated tokenizer?**  
 A: The library will suggest using a well-supported model like 'gpt-4' or 'text-davinci-003' for token counting. While token counts may not exactly match your target model, they can provide useful approximations for most modern language models.
+
+**Q: How can I control where statistics are displayed?**  
+A: Use the `-s/--stats` option to control where statistics are displayed:
+  - `-s` or `-s stderr`: Print statistics to stderr (default)
+  - `-s stdout`: Print statistics to stdout
+  - `-s file`: Include statistics in the output file (requires `-o`)
+
+**Q: Is token counting required for statistics reporting?**  
+A: No. Basic statistics (file count, directory count, etc.) are available without token counting. Including token counts in statistics requires the `-c/--count` option to be specified in addition to `-s/--stats`.
 
 ## Contact
 

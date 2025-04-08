@@ -1,5 +1,6 @@
 """Integration tests for the command-line interface."""
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -107,6 +108,84 @@ def test_cli_multiple_exclusions(temp_project):
     assert "main.py" in result.stdout
     assert "helpers.py" in result.stdout
     assert "package.json" in result.stdout
+
+
+def test_cli_stats_options(temp_project):
+    """Test the new -s/--stats options."""
+
+    # Test default stats behavior (stderr output)
+    # -s/--stats requires an argument, so use 'stderr' explicitly
+    result_default = run_cli(["-s", "stderr", str(temp_project)])
+    assert result_default.returncode == 0
+    assert "Directories:" in result_default.stderr
+    assert "Files:" in result_default.stderr
+    assert "Lines:" in result_default.stderr
+    assert "Characters:" in result_default.stderr
+    # No token counts without -c
+    assert "Tokens:" not in result_default.stderr
+    # Make sure stats aren't in stdout
+    assert "Directories:" not in result_default.stdout
+
+    # Test stdout stats
+    result_stdout = run_cli(["-s", "stdout", str(temp_project)])
+    assert result_stdout.returncode == 0
+    assert "Directories:" in result_stdout.stdout
+    assert "Files:" in result_stdout.stdout
+    assert "Lines:" in result_stdout.stdout
+    assert "Characters:" in result_stdout.stdout
+    # Make sure stats aren't in stderr
+    assert "Directories:" not in result_stdout.stderr
+
+    # Test stats with token counting
+    result_with_tokens = run_cli(["-s", "stderr", "-c", str(temp_project)])
+    assert result_with_tokens.returncode == 0
+    assert "Directories:" in result_with_tokens.stderr
+    assert "Files:" in result_with_tokens.stderr
+    assert "Lines:" in result_with_tokens.stderr
+    assert "Characters:" in result_with_tokens.stderr
+    assert "Tokens:" in result_with_tokens.stderr
+
+    # Test count without stats (should not print stats report)
+    result_count_only = run_cli(["-c", str(temp_project)])
+    assert result_count_only.returncode == 0
+    assert "Tokens:" not in result_count_only.stderr
+    assert "Directories:" not in result_count_only.stderr
+
+
+def test_cli_stats_to_file(temp_project):
+    """Test the -s file option with output file."""
+    # Create a regular output file instead of using NamedTemporaryFile
+    output_path = str(temp_project / "output.txt")
+
+    try:
+        # Test stats to file
+        result = run_cli(["-s", "file", "-o", output_path, str(temp_project)])
+        assert result.returncode == 0, f"Command failed with stderr: {result.stderr}"
+
+        # Verify stats appear in the output file
+        with open(output_path, "r") as f:
+            content = f.read()
+            assert "Directories:" in content
+            assert "Files:" in content
+            assert "Lines:" in content
+            assert "Characters:" in content
+
+        # Verify stats don't appear in stderr
+        assert "Directories:" not in result.stderr
+    finally:
+        # Clean up
+        try:
+            if os.path.exists(output_path):
+                os.unlink(output_path)
+        except Exception:
+            pass  # Ignore cleanup errors
+
+
+def test_cli_stats_to_file_without_output(temp_project):
+    """Test that specifying -s file without -o fails."""
+    result = run_cli(["-s", "file", str(temp_project)])
+    assert result.returncode != 0
+    assert "--stats=file requires" in result.stderr
 
 
 def test_cli_exclusion_order(temp_project):
@@ -238,3 +317,6 @@ def test_cli_help():
     assert result.returncode == 0
     assert "-e FILE, --exclude FILE" in result.stdout
     assert "can be specified multiple times" in result.stdout
+
+    # Look for -s/--stats option with DEST metavar, matching the format from the error
+    assert "-s DEST, --stats DEST" in result.stdout
