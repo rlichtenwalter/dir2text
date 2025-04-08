@@ -30,6 +30,9 @@ class GitIgnoreExclusionRules(BaseExclusionRules):
     with load_rules(). Rules from all files are combined, with later rules potentially
     overriding earlier ones (particularly for negation patterns with !).
 
+    Individual rules can also be added directly using add_rule(), which accepts the same
+    pattern syntax as .gitignore files.
+
     Attributes:
         spec (PathSpec): Compiled pattern matcher from the pathspec library.
 
@@ -42,6 +45,10 @@ class GitIgnoreExclusionRules(BaseExclusionRules):
         >>> # Create rules with our temporary gitignore
         >>> rules = GitIgnoreExclusionRules(f.name)
         >>> rules.exclude("node_modules/package.json")
+        True
+        >>> # Add individual rules directly
+        >>> rules.add_rule("*.log")
+        >>> rules.exclude("app.log")
         True
         >>> # Clean up the temporary file
         >>> os.unlink(f.name)
@@ -172,3 +179,40 @@ class GitIgnoreExclusionRules(BaseExclusionRules):
                 self.spec.patterns = list(self.spec.patterns)
 
             self.spec.patterns.extend(new_patterns)
+
+    def add_rule(self, rule: str) -> None:
+        """Add a single .gitignore pattern directly.
+
+        This method adds an individual .gitignore pattern to the existing rules.
+        The pattern follows the same syntax as a line in a .gitignore file.
+        Patterns are processed in the order they are added, with later patterns
+        potentially overriding earlier ones.
+
+        Args:
+            rule: A single .gitignore pattern to add (e.g., "*.pyc", "node_modules/",
+                 "!important.txt").
+
+        Example:
+            >>> rules = GitIgnoreExclusionRules()
+            >>> rules.add_rule("*.pyc")
+            >>> rules.exclude("test.pyc")
+            True
+            >>> rules.exclude("test.py")
+            False
+            >>> # Negation works too
+            >>> rules.add_rule("!important.pyc")
+            >>> rules.exclude("important.pyc")
+            False
+            >>> # Directory patterns
+            >>> rules.add_rule("build/")
+            >>> rules.exclude("build/output.txt")
+            True
+        """
+        # Create a new pattern from the rule and add it to the existing patterns
+        new_pattern = GitWildMatchPattern(rule)
+
+        # Ensure patterns is a list that supports append
+        if not hasattr(self.spec.patterns, "append"):
+            self.spec.patterns = list(self.spec.patterns)
+
+        self.spec.patterns.append(new_pattern)
