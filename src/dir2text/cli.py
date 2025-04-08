@@ -121,7 +121,18 @@ class SafeWriter:
             file: Either a file descriptor (int) or Path object for writing output.
         """
         self.file = file
-        self.fd = file if isinstance(file, int) else file.open("w").fileno()
+        self._closed = False
+
+        if isinstance(file, int):
+            # It's already a file descriptor
+            self.fd = file
+            self._file_obj = None
+        elif isinstance(file, (str, os.PathLike)):
+            path = Path(file)
+            self._file_obj = path.open("w")
+            self.fd = self._file_obj.fileno()
+        else:
+            raise TypeError(f"Expected int, str, or PathLike, got {type(file).__name__}")
 
     def write(self, data: str) -> None:
         """Safely write data with signal checking.
@@ -133,10 +144,14 @@ class SafeWriter:
             BrokenPipeError: If SIGPIPE received or pipe is broken.
             OSError: If an I/O error occurs during writing.
         """
+        if self._closed:
+            raise ValueError("Cannot write to closed SafeWriter")
+
         if signal_handler.sigpipe_received.is_set() or signal_handler.sigint_received.is_set():
             raise BrokenPipeError()
+
         try:
-            os.write(self.fd, data.encode())
+            os.write(self.fd, data.encode("utf-8"))
         except OSError as e:
             if e.errno == errno.EPIPE:
                 raise BrokenPipeError()
@@ -144,8 +159,13 @@ class SafeWriter:
 
     def close(self) -> None:
         """Close the file descriptor if it was opened by this class."""
-        if not isinstance(self.file, int):
-            os.close(self.fd)
+        if self._closed:
+            return
+
+        if self._file_obj is not None:
+            self._file_obj.close()
+
+        self._closed = True
 
 
 def cleanup() -> None:
@@ -233,6 +253,15 @@ def create_parser() -> argparse.ArgumentParser:
       # Process only specific aspects
       dir2text -T /path/to/project     # Skip tree visualization
       dir2text -C /path/to/project     # Skip file contents
+
+      # Print statistics to stderr
+      dir2text -s stderr /path/to/project
+
+      # Print statistics to stdout
+      dir2text -s stdout /path/to/project
+
+      # Include statistics in the output file
+      dir2text -s file -o output.txt /path/to/project
     """
 
     parser = argparse.ArgumentParser(
@@ -287,7 +316,14 @@ def create_parser() -> argparse.ArgumentParser:
         "-c",
         "--count",
         action="store_true",
-        help="Include counts of directories, files, lines, tokens, and characters.",
+        help="Enable token counting and embed token counts in file metadata output.",
+    )
+    parser.add_argument(
+        "-s",
+        "--stats",
+        metavar="DEST",
+        choices=["stderr", "stdout", "file"],
+        help="Print statistics report. Valid destinations: stderr, stdout, file (requires -o)",
     )
     parser.add_argument(
         "-t",
@@ -330,6 +366,10 @@ def main() -> None:
             # argparse calls sys.exit(2) for argument errors
             raise
 
+        # Validate that if stats=file is specified, -o must also be provided
+        if args.stats == "file" and not args.output:
+            parser.error("--stats=file requires -o/--output to be specified")
+
         # Map CLI permission actions to internal enum
         perm_action = {
             "ignore": PermissionAction.IGNORE,
@@ -359,18 +399,29 @@ def main() -> None:
                     for chunk in analyzer.stream_contents():
                         safe_writer.write(chunk)
 
-                if args.count:
+                # Handle statistics reporting based on the --stats argument
+                if args.stats:
                     counts = {
                         "directories": analyzer.directory_count,
                         "files": analyzer.file_count,
                         "lines": analyzer.line_count,
-                        "tokens": analyzer.token_count,
+                        "tokens": analyzer.token_count if args.count else None,
                         "characters": analyzer.character_count,
                     }
                     count_output_str = format_counts(counts)
-                    safe_writer.write("\n" + count_output_str + "\n")
 
-                if args.no_tree and args.no_contents and not args.count:
+                    # Determine where to print the statistics
+                    if args.stats == "stdout":
+                        # Print to stdout (after content)
+                        safe_writer.write("\n" + count_output_str + "\n")
+                    elif args.stats == "file":
+                        # Include in the output file
+                        safe_writer.write("\n" + count_output_str + "\n")
+                    elif args.stats == "stderr":
+                        # Print to stderr
+                        print("\n" + count_output_str, file=sys.stderr)
+
+                if args.no_tree and args.no_contents and not args.stats:
                     print(
                         "Warning: Both tree and contents printing were disabled, and counting was not enabled.",
                         end="",
