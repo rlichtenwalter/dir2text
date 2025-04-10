@@ -5,12 +5,11 @@ with support for streaming output and token counting. It includes both streaming
 and complete processing implementations.
 """
 
-from os import PathLike
 from pathlib import Path
-from typing import Iterator, Optional, Sequence, Union
+from typing import Iterator, Optional, Union
 
 from dir2text.exceptions import TokenizationError
-from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
+from dir2text.exclusion_rules.base_rules import BaseExclusionRules
 from dir2text.file_content_printer import FileContentPrinter
 from dir2text.file_system_tree import FileSystemTree, PermissionAction
 from dir2text.output_strategies.base_strategy import OutputStrategy
@@ -41,7 +40,6 @@ class StreamingDir2Text:
 
     Attributes:
         directory (PathType): Directory being processed.
-        exclude_files (Optional[Union[PathType, Sequence[PathType]]]): Paths to exclusion rules files.
         streaming_complete (bool): Whether all streaming operations have finished.
 
     Example:
@@ -59,7 +57,7 @@ class StreamingDir2Text:
 
     Raises:
         ValueError: If directory is invalid or output format is unsupported.
-        FileNotFoundError: If directory or exclude_files doesn't exist.
+        FileNotFoundError: If directory is deleted after object creation but before streaming begins.
         PermissionError: If access is denied and permission_action is "raise".
         TokenizationError: If token counting is enabled but tokenizer initialization fails.
     """
@@ -68,7 +66,7 @@ class StreamingDir2Text:
         self,
         directory: PathType,
         *,
-        exclude_files: Optional[Union[PathType, Sequence[PathType]]] = None,
+        exclusion_rules: Optional[BaseExclusionRules] = None,
         output_format: str = "xml",
         tokenizer_model: Optional[str] = None,
         permission_action: Union[str, PermissionAction] = PermissionAction.IGNORE,
@@ -77,8 +75,8 @@ class StreamingDir2Text:
 
         Args:
             directory: Directory to process. Can be any path-like object.
-            exclude_files: Optional path(s) to exclusion rule file(s) (e.g., .gitignore)
-                      Can be a single path-like object or a sequence of path-like objects.
+            exclusion_rules: Optional exclusion rules object to filter files and directories.
+                      If None, no files will be excluded.
             output_format: Format for output ('xml' or 'json')
             tokenizer_model: Model to use for counting. If None, token counting is disabled.
             permission_action: How to handle permission errors during traversal.
@@ -86,28 +84,14 @@ class StreamingDir2Text:
                 Defaults to "ignore".
 
         Raises:
-            ValueError: If directory is invalid or output format is unsupported
-            FileNotFoundError: If directory or any exclude file doesn't exist
-            PermissionError: If access is denied and permission_action is "raise"
+            ValueError: If directory is invalid or output format is unsupported.
+            FileNotFoundError: If directory is deleted after object creation but before streaming begins.
+            PermissionError: If access is denied and permission_action is "raise".
         """
         # Validate inputs
         self.directory = Path(directory)
         if not self.directory.is_dir():
             raise ValueError(f"'{directory}' is not a valid directory")
-
-        # Handle exclude_files parameter - convert to list of Path objects
-        self.exclude_files = None
-        if exclude_files is not None:
-            if isinstance(exclude_files, (str, PathLike)):
-                # Single file
-                exclude_files = [exclude_files]
-
-            self.exclude_files = []
-            for file_path in exclude_files:
-                path = Path(file_path)
-                if not path.is_file():
-                    raise FileNotFoundError(f"Exclusion file not found: {path}")
-                self.exclude_files.append(path)
 
         if output_format not in ("xml", "json"):
             raise ValueError(f"Unsupported output format: {output_format}")
@@ -121,8 +105,10 @@ class StreamingDir2Text:
                     f"Invalid permission_action: {permission_action}. " "Must be one of: 'ignore', 'raise'"
                 )
 
+        # Initialize exclusion rules if not provided
+        self._exclusion_rules = exclusion_rules
+
         # Initialize components
-        self._exclusion_rules = GitIgnoreExclusionRules(self.exclude_files) if self.exclude_files else None
         self._fs_tree = FileSystemTree(self.directory, self._exclusion_rules, permission_action=permission_action)
 
         # Create counter if counting is enabled
@@ -364,7 +350,7 @@ class Dir2Text(StreamingDir2Text):
         self,
         directory: PathType,
         *,
-        exclude_files: Optional[Union[PathType, Sequence[PathType]]] = None,
+        exclusion_rules: Optional[BaseExclusionRules] = None,
         output_format: str = "xml",
         tokenizer_model: str = "gpt-4",
         permission_action: Union[str, PermissionAction] = PermissionAction.IGNORE,
@@ -373,8 +359,8 @@ class Dir2Text(StreamingDir2Text):
 
         Args:
             directory: Directory to process. Can be any path-like object.
-            exclude_files: Optional path(s) to exclusion rule file(s) (e.g., .gitignore)
-                      Can be a single path-like object or a sequence of path-like objects.
+            exclusion_rules: Optional exclusion rules object to filter files and directories.
+                      If None, no files will be excluded.
             output_format: Format for output ('xml' or 'json')
             tokenizer_model: Model to use for token counting
             permission_action: How to handle permission errors during traversal.
@@ -382,13 +368,13 @@ class Dir2Text(StreamingDir2Text):
                 Defaults to "ignore".
 
         Raises:
-            ValueError: If directory is invalid or output format is unsupported
-            FileNotFoundError: If directory or exclude_file doesn't exist
-            PermissionError: If access is denied and permission_action is "raise"
+            ValueError: If directory is invalid or output format is unsupported.
+            FileNotFoundError: If directory is deleted after object creation but before processing begins.
+            PermissionError: If access is denied and permission_action is "raise".
         """
         super().__init__(
             directory,
-            exclude_files=exclude_files,
+            exclusion_rules=exclusion_rules,
             output_format=output_format,
             tokenizer_model=tokenizer_model,
             permission_action=permission_action,

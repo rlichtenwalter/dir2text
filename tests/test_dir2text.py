@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from dir2text.dir2text import Dir2Text, StreamingDir2Text
+from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
 
 
 @pytest.fixture
@@ -52,18 +53,12 @@ def test_streaming_dir2text_initialization(temp_directory):
     # Test default initialization
     analyzer = StreamingDir2Text(temp_directory)
     assert analyzer.directory == temp_directory
-    assert analyzer.exclude_files is None
 
-    # Test with one exclusion file
-    gitignore = temp_directory / ".gitignore"
-    analyzer = StreamingDir2Text(temp_directory, exclude_files=gitignore)
-    assert analyzer.exclude_files == [gitignore]
-
-    # Test with a list of exclusion files
-    gitignore = temp_directory / ".gitignore"
-    npmignore = temp_directory / ".npmignore"
-    analyzer = StreamingDir2Text(temp_directory, exclude_files=[gitignore, npmignore])
-    assert analyzer.exclude_files == [gitignore, npmignore]
+    # Test with exclusion rules
+    rules = GitIgnoreExclusionRules()
+    rules.add_rule("*.pyc")
+    analyzer = StreamingDir2Text(temp_directory, exclusion_rules=rules)
+    assert analyzer._exclusion_rules is rules
 
 
 def test_streaming_dir2text_invalid_directory():
@@ -120,10 +115,13 @@ def test_streaming_dir2text_content_output(temp_directory):
     assert "# Test Project" in content_output
 
 
-def test_streaming_dir2text_with_single_exclusion(temp_directory):
-    """Test with a single exclusion file."""
-    gitignore = temp_directory / ".gitignore"
-    analyzer = StreamingDir2Text(temp_directory, exclude_files=gitignore)
+def test_streaming_dir2text_with_exclusion_rules(temp_directory):
+    """Test with exclusion rules to filter files."""
+    # Create rules from .gitignore content
+    rules = GitIgnoreExclusionRules()
+    rules.add_rule("*.pyc")
+
+    analyzer = StreamingDir2Text(temp_directory, exclusion_rules=rules)
     content_output = "".join(analyzer.stream_contents())
 
     # Verify .pyc file is excluded
@@ -134,17 +132,20 @@ def test_streaming_dir2text_with_single_exclusion(temp_directory):
     assert "# Test Project" in content_output
 
 
-def test_streaming_dir2text_with_multiple_exclusions(temp_directory):
-    """Test with multiple exclusion files working together."""
-    gitignore = temp_directory / ".gitignore"
-    npmignore = temp_directory / ".npmignore"
-    analyzer = StreamingDir2Text(temp_directory, exclude_files=[gitignore, npmignore])
+def test_streaming_dir2text_with_multiple_exclusion_rules(temp_directory):
+    """Test with multiple exclusion patterns."""
+    # Create rules with multiple patterns
+    rules = GitIgnoreExclusionRules()
+    rules.add_rule("*.pyc")  # Exclude .pyc files
+    rules.add_rule("*.md")  # Exclude markdown files
+
+    analyzer = StreamingDir2Text(temp_directory, exclusion_rules=rules)
     content_output = "".join(analyzer.stream_contents())
 
-    # Verify .pyc file is excluded (from gitignore)
+    # Verify .pyc file is excluded
     assert "compiled python" not in content_output
 
-    # Verify .md file is excluded (from npmignore)
+    # Verify .md file is excluded
     assert "# Test Project" not in content_output
 
     # Verify other files are included
@@ -153,19 +154,22 @@ def test_streaming_dir2text_with_multiple_exclusions(temp_directory):
 
 def test_streaming_dir2text_exclusion_order(temp_directory):
     """Test that exclusion order matters for overriding patterns."""
-    # Create files for testing negation patterns
-    custom_ignore_a = temp_directory / "custom_a.ignore"
-    custom_ignore_a.write_text("src/*.py\n")  # Exclude all Python files in src
-
-    custom_ignore_b = temp_directory / "custom_b.ignore"
-    custom_ignore_b.write_text("!src/main.py\n")  # But allow main.py
+    # Create rules for testing negation patterns - Order 1
+    rules1 = GitIgnoreExclusionRules()
+    rules1.add_rule("src/*.py")  # Exclude all Python files in src
+    rules1.add_rule("!src/main.py")  # But allow main.py
 
     # Order 1: exclude all .py, then allow main.py
-    analyzer1 = StreamingDir2Text(temp_directory, exclude_files=[custom_ignore_a, custom_ignore_b])
+    analyzer1 = StreamingDir2Text(temp_directory, exclusion_rules=rules1)
     content_output1 = "".join(analyzer1.stream_contents())
 
+    # Create rules for testing negation patterns - Order 2
+    rules2 = GitIgnoreExclusionRules()
+    rules2.add_rule("!src/main.py")  # Try to allow main.py
+    rules2.add_rule("src/*.py")  # Then exclude all .py
+
     # Order 2: allow main.py, then exclude all .py (this won't work as expected)
-    analyzer2 = StreamingDir2Text(temp_directory, exclude_files=[custom_ignore_b, custom_ignore_a])
+    analyzer2 = StreamingDir2Text(temp_directory, exclusion_rules=rules2)
     content_output2 = "".join(analyzer2.stream_contents())
 
     # With order 1, main.py should be included
@@ -177,16 +181,18 @@ def test_streaming_dir2text_exclusion_order(temp_directory):
 
 def test_streaming_dir2text_with_complex_exclusions(temp_directory):
     """Test with more complex exclusion patterns including negations."""
-    gitignore = temp_directory / ".gitignore"
-    custom_ignore = temp_directory / "custom.ignore"
+    rules = GitIgnoreExclusionRules()
+    rules.add_rule("*.pyc")  # Exclude .pyc files
+    rules.add_rule("src/utils/")  # Exclude utils directory
+    rules.add_rule("!src/utils/helpers.py")  # But include helpers.py
 
-    analyzer = StreamingDir2Text(temp_directory, exclude_files=[gitignore, custom_ignore])
+    analyzer = StreamingDir2Text(temp_directory, exclusion_rules=rules)
     content_output = "".join(analyzer.stream_contents())
 
-    # Verify .pyc file is excluded (from gitignore)
+    # Verify .pyc file is excluded
     assert "compiled python" not in content_output
 
-    # Verify utils/ is excluded but helpers.py is included (custom.ignore with negation)
+    # Verify utils/ is excluded but helpers.py is included (with negation)
     assert "def helper():" in content_output
 
 
@@ -224,12 +230,14 @@ def test_dir2text_complete_processing(temp_directory):
     assert analyzer.streaming_complete
 
 
-def test_dir2text_with_multiple_exclusions(temp_directory):
-    """Test Dir2Text with multiple exclusion files."""
-    gitignore = temp_directory / ".gitignore"
-    npmignore = temp_directory / ".npmignore"
+def test_dir2text_with_exclusion_rules(temp_directory):
+    """Test Dir2Text with exclusion rules."""
+    # Create rules with multiple patterns
+    rules = GitIgnoreExclusionRules()
+    rules.add_rule("*.pyc")  # Exclude .pyc files
+    rules.add_rule("*.md")  # Exclude markdown files
 
-    analyzer = Dir2Text(temp_directory, exclude_files=[gitignore, npmignore])
+    analyzer = Dir2Text(temp_directory, exclusion_rules=rules)
 
     # Verify .pyc file and .md file are excluded
     assert "compiled python" not in analyzer.content_string
@@ -281,12 +289,46 @@ def test_unicode_handling(temp_directory):
     assert "Hello 世界!" in content_output
 
 
-def test_nonexistent_exclusion_files(temp_directory):
-    """Test that nonexistent exclusion files raise errors."""
-    with pytest.raises(FileNotFoundError):
-        StreamingDir2Text(temp_directory, exclude_files=["nonexistent.ignore"])
+def test_streaming_dir2text_exclusion_rules_with_patterns(temp_directory):
+    """Test exclusion rules with direct patterns."""
+    # Create a rules object with multiple patterns
+    rules = GitIgnoreExclusionRules()
+    rules.add_rule("*.pyc")  # Exclude .pyc files
+    rules.add_rule("*.md")  # Exclude markdown files
+    rules.add_rule("!README.md")  # But include README.md
 
-    # Test with mix of valid and invalid files
-    with pytest.raises(FileNotFoundError):
-        gitignore = temp_directory / ".gitignore"
-        StreamingDir2Text(temp_directory, exclude_files=[gitignore, "nonexistent.ignore"])
+    analyzer = StreamingDir2Text(temp_directory, exclusion_rules=rules)
+    content_output = "".join(analyzer.stream_contents())
+
+    # Verify .pyc file is excluded
+    assert "compiled python" not in content_output
+
+    # Verify README.md is included (negation pattern works)
+    assert "# Test Project" in content_output
+
+
+def test_streaming_dir2text_exclusion_rules_ordering(temp_directory):
+    """Test that pattern ordering is preserved with exclusion rules object."""
+    # Order 1: Exclude Python files, then allow main.py
+    rules1 = GitIgnoreExclusionRules()
+    rules1.add_rule("src/*.py")  # Exclude all Python files in src
+    rules1.add_rule("!src/main.py")  # But allow main.py
+
+    # Order 2: Allow main.py, then exclude all Python files
+    rules2 = GitIgnoreExclusionRules()
+    rules2.add_rule("!src/main.py")  # Try to allow main.py
+    rules2.add_rule("src/*.py")  # Then exclude all Python files in src
+
+    # Check with order 1
+    analyzer1 = StreamingDir2Text(temp_directory, exclusion_rules=rules1)
+    content_output1 = "".join(analyzer1.stream_contents())
+
+    # Check with order 2
+    analyzer2 = StreamingDir2Text(temp_directory, exclusion_rules=rules2)
+    content_output2 = "".join(analyzer2.stream_contents())
+
+    # With order 1, main.py should be included (negation works)
+    assert "def main():" in content_output1
+
+    # With order 2, main.py will be excluded (later rule wins)
+    assert "def main():" not in content_output2

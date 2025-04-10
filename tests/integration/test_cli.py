@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+from dir2text.cli.main import format_counts
+
 # Skip all tests in this module if not running with pytest -xvs tests/test_cli_integration.py
 # This prevents these slow tests from running during normal test runs
 pytestmark = pytest.mark.skipif(
@@ -48,7 +50,7 @@ def temp_project():
 
 def run_cli(args, cwd=None):
     """Run the dir2text CLI with the given arguments."""
-    cmd = [sys.executable, "-m", "dir2text.cli"] + args
+    cmd = [sys.executable, "-m", "dir2text.cli.main"] + args
     result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=cwd)
     return result
 
@@ -111,7 +113,7 @@ def test_cli_multiple_exclusions(temp_project):
 
 
 def test_cli_stats_options(temp_project):
-    """Test the new -s/--stats options."""
+    """Test the -s/--stats options."""
 
     # Test default stats behavior (stderr output)
     # -s/--stats requires an argument, so use 'stderr' explicitly
@@ -245,7 +247,7 @@ def test_cli_nonexistent_exclude_file(temp_project):
 
     # Should fail with error message
     assert result.returncode != 0
-    assert "Exclusion file not found" in result.stderr
+    assert "Rules file not found" in result.stderr
 
 
 def test_cli_error_handling_with_multiple_files(temp_project):
@@ -256,7 +258,7 @@ def test_cli_error_handling_with_multiple_files(temp_project):
 
     # Should fail with error message
     assert result.returncode != 0
-    assert "Exclusion file not found" in result.stderr
+    assert "Rules file not found" in result.stderr
 
 
 def test_cli_output_formats_with_multiple_exclusions(temp_project):
@@ -310,13 +312,187 @@ def test_cli_with_exclusions_in_output(temp_project):
     assert "main.pyc" not in result.stdout  # excluded by gitignore
 
 
-def test_cli_help():
-    """Test the CLI help text includes information about multiple exclusion files."""
-    result = run_cli(["--help"])
+def test_cli_direct_pattern_exclusion(temp_project):
+    """Test the CLI with direct pattern exclusions via -i/--ignore."""
+    # Run with direct patterns
+    result = run_cli(["-i", "*.pyc", "-i", "*.log", str(temp_project)])
 
+    # Verify output
     assert result.returncode == 0
-    assert "-e FILE, --exclude FILE" in result.stdout
-    assert "can be specified multiple times" in result.stdout
 
-    # Look for -s/--stats option with DEST metavar, matching the format from the error
-    assert "-s DEST, --stats DEST" in result.stdout
+    # Should exclude patterns specified directly
+    assert "main.pyc" not in result.stdout
+    assert "server.log" not in result.stdout
+
+    # Should include other files
+    assert "main.py" in result.stdout
+    assert "README.md" in result.stdout
+    assert "package.json" in result.stdout
+    assert "module.js" in result.stdout
+
+
+def test_cli_mixed_exclusions(temp_project):
+    """Test the CLI with a mix of -e and -i options."""
+    # Get path to gitignore
+    gitignore_path = str(temp_project / ".gitignore")
+
+    # Run with mix of file and pattern exclusions
+    result = run_cli(
+        ["-e", gitignore_path, "-i", "*.md", str(temp_project)]  # Exclude *.pyc and build/  # Exclude markdown files
+    )
+
+    # Verify output
+    assert result.returncode == 0
+
+    # Should exclude from both sources
+    assert "main.pyc" not in result.stdout  # from gitignore
+    assert "output.min.js" not in result.stdout  # from gitignore (build/)
+    assert "README.md" not in result.stdout  # from direct pattern
+
+    # Should include other files
+    assert "main.py" in result.stdout
+    assert "server.log" in result.stdout
+    assert "package.json" in result.stdout
+
+
+def test_cli_interleaved_exclusions(temp_project):
+    """Test the CLI with interleaved -e and -i options to verify order preservation."""
+    # Create a file to control test order
+    order_test = temp_project / "order_test.ignore"
+    order_test.write_text("*.md\n")  # Exclude markdown files
+
+    order_test_path = str(order_test)
+
+    # Test order 1: Exclude .md files, then negate README.md
+    result1 = run_cli(
+        ["-e", order_test_path, "-i", "!README.md", str(temp_project)]  # Exclude *.md  # But allow README.md
+    )
+
+    # Test order 2: Allow README.md, then exclude all .md files
+    result2 = run_cli(
+        [
+            "-i",
+            "!README.md",  # Try to allow README.md
+            "-e",
+            order_test_path,  # Then exclude all *.md
+            str(temp_project),
+        ]
+    )
+
+    # In order 1, README.md should be included (negation works after exclusion)
+    assert "README.md" in result1.stdout
+    assert "# Test Project" in result1.stdout
+
+    # In order 2, README.md should be excluded (later rule wins)
+    assert "README.md" not in result2.stdout
+    assert "# Test Project" not in result2.stdout
+
+
+def test_cli_complex_pattern_exclusion(temp_project):
+    """Test the CLI with complex gitignore pattern syntax in -i/--ignore."""
+    # Replace Python file to make it more distinctive for testing
+    (temp_project / "src" / "main.py").write_text("# MAIN_PY_FILE\ndef main():\n    print('Hello')\n")
+
+    # Create a file in a subdirectory of utils to better test the patterns
+    (temp_project / "src" / "utils" / "test_utils.py").write_text("# TEST_UTILS_PY\ndef test():\n    pass\n")
+
+    # Test with various pattern types
+    result = run_cli(
+        [
+            "-i",
+            "src/**/*.py",  # All Python files in src directory or subdirectories
+            "-i",
+            "!src/utils/*.py",  # Except Python files directly in utils directory
+            "-i",
+            "build/",  # All build directories
+            str(temp_project),
+        ]
+    )
+
+    # Verify output
+    assert result.returncode == 0, f"Command failed with stderr: {result.stderr}"
+
+    # Verify pattern matching works correctly
+    assert "# MAIN_PY_FILE" not in result.stdout  # src/main.py should be excluded
+    assert "# TEST_UTILS_PY" in result.stdout  # src/utils/test_utils.py should be included due to negation
+    assert "output.min.js" not in result.stdout  # build/ content should be excluded
+
+
+def test_cli_negation_pattern_precedence(temp_project):
+    """Test precedence of negation patterns with both -e and -i options."""
+    # Create a test file with exclusion pattern
+    exclude_file = temp_project / "exclude.ignore"
+    exclude_file.write_text("*.py\n")  # Exclude all Python files
+
+    # Test with different combinations and orders
+
+    # Case 1: File excludes all .py, then direct pattern negates main.py
+    result1 = run_cli(
+        ["-e", str(exclude_file), "-i", "!src/main.py", str(temp_project)]  # Exclude *.py  # But allow main.py
+    )
+
+    # Case 2: Direct pattern negates main.py, then file excludes all .py
+    result2 = run_cli(
+        [
+            "-i",
+            "!src/main.py",  # Try to allow main.py
+            "-e",
+            str(exclude_file),  # Then exclude all *.py
+            str(temp_project),
+        ]
+    )
+
+    # Case 3: Direct pattern excludes, direct pattern negates
+    result3 = run_cli(
+        ["-i", "*.py", "-i", "!src/main.py", str(temp_project)]  # Exclude all Python files  # But allow main.py
+    )
+
+    # Case 4: Direct pattern negates, direct pattern excludes
+    result4 = run_cli(
+        ["-i", "!src/main.py", "-i", "*.py", str(temp_project)]  # Try to allow main.py  # Then exclude all Python files
+    )
+
+    # Case 1: main.py should be included (negation after exclusion works)
+    assert "def main()" in result1.stdout
+    assert "def helper()" not in result1.stdout  # Other Python files still excluded
+
+    # Case 2: main.py should be excluded (later rule wins)
+    assert "def main()" not in result2.stdout
+
+    # Case 3: main.py should be included (negation works with direct patterns)
+    assert "def main()" in result3.stdout
+    assert "def helper()" not in result3.stdout  # Other Python files excluded
+
+    # Case 4: main.py should be excluded (later rule wins with direct patterns too)
+    assert "def main()" not in result4.stdout
+
+
+def test_format_counts():
+    """Test format_counts function."""
+    # Test with all counts
+    counts = {
+        "directories": 5,
+        "files": 10,
+        "lines": 100,
+        "tokens": 500,
+        "characters": 1000,
+    }
+
+    output = format_counts(counts)
+
+    # Check that output contains all the values
+    assert "Directories: 5" in output
+    assert "Files: 10" in output
+    assert "Lines: 100" in output
+    assert "Tokens: 500" in output
+    assert "Characters: 1000" in output
+
+    # Test without tokens
+    counts["tokens"] = None
+    output = format_counts(counts)
+
+    assert "Tokens:" not in output
+    assert "Directories: 5" in output
+    assert "Files: 10" in output
+    assert "Lines: 100" in output
+    assert "Characters: 1000" in output
