@@ -14,6 +14,7 @@ dir2text [OPTIONS] DIRECTORY
 
 | Option | Description | Example |
 |--------|-------------|---------|
+| `-V, --version` | Show version information and exit | `dir2text --version` |
 | `-o, --output FILE` | Output file path | `dir2text dir -o output.txt` |
 | `-e, --exclude FILE` | Path to exclusion file (can be specified multiple times) | `dir2text dir -e .gitignore -e .npmignore` |
 | `-f, --format FORMAT` | Output format (xml/json) | `dir2text dir -f json` |
@@ -23,6 +24,17 @@ dir2text [OPTIONS] DIRECTORY
 | `-s, --stats` | Print statistics report (stderr, stdout, or file) | `dir2text dir -s` |
 | `-t, --tokenizer MODEL` | Model for token counting | `dir2text dir -c -t gpt-4` |
 | `-P, --permission-action ACTION` | Permission error handling | `dir2text dir -P warn` |
+
+## Version Information
+
+```bash
+dir2text --version
+
+# Example output:
+dir2text X.X.X
+```
+
+When the version flag is used, the program prints the version and exits immediately, ignoring any other flags.
 
 ## Output Formats
 

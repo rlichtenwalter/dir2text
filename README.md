@@ -53,6 +53,9 @@ Basic usage:
 ```bash
 dir2text /path/to/project
 
+# Show version information
+dir2text --version
+
 # Exclude files matching patterns from one or more exclusion files
 dir2text -e .gitignore /path/to/project
 dir2text -e .gitignore -e .npmignore -e custom-ignore /path/to/project
@@ -97,9 +100,16 @@ Note that token counting (`-c`) and statistics reporting (`-s`) are separate con
 Basic usage:
 ```python
 from dir2text import StreamingDir2Text
+from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
+
+# Create exclusion rules (optional)
+rules = GitIgnoreExclusionRules()
+rules.add_rule("*.pyc")  # Add rules directly
+# OR load from files
+rules.load_rules(".gitignore")
 
 # Initialize the analyzer
-analyzer = StreamingDir2Text("path/to/project")
+analyzer = StreamingDir2Text("path/to/project", exclusion_rules=rules)
 
 # Stream the directory tree
 for line in analyzer.stream_tree():
@@ -113,14 +123,21 @@ for chunk in analyzer.stream_contents():
 print(f"Processed {analyzer.file_count} files in {analyzer.directory_count} directories")
 ```
 
-Memory-efficient processing with multiple exclusions and token counting:
+Memory-efficient processing with token counting:
 ```python
 from dir2text import StreamingDir2Text
+from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
+
+# Create exclusion rules from multiple files
+rules = GitIgnoreExclusionRules()
+rules.load_rules(".gitignore")
+rules.load_rules(".npmignore")
+rules.add_rule("custom.ignore")
 
 # Initialize with options
 analyzer = StreamingDir2Text(
     directory="path/to/project",
-    exclude_files=[".gitignore", ".npmignore", "custom.ignore"],  # Multiple exclusion files
+    exclusion_rules=rules,
     output_format="json",
     tokenizer_model="gpt-4"
 )
@@ -143,9 +160,14 @@ print(f"Characters: {analyzer.character_count}")
 Immediate processing (for smaller directories):
 ```python
 from dir2text import Dir2Text
+from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
+
+# Create exclusion rules
+rules = GitIgnoreExclusionRules()
+rules.load_rules(".gitignore")
 
 # Process everything immediately
-analyzer = Dir2Text("path/to/project")
+analyzer = Dir2Text("path/to/project", exclusion_rules=rules)
 
 # Access complete content
 print(analyzer.tree_string)

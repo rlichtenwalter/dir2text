@@ -133,9 +133,17 @@ dir2text uses streaming to maintain constant memory usage:
 
 ```python
 from dir2text import StreamingDir2Text
+from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
+
+# Create exclusion rules
+rules = GitIgnoreExclusionRules()
+rules.load_rules(".gitignore")
 
 # Create analyzer
-analyzer = StreamingDir2Text("/path/to/project")
+analyzer = StreamingDir2Text(
+    "/path/to/project", 
+    exclusion_rules=rules
+)
 
 # Process tree (memory-efficient)
 for line in analyzer.stream_tree():
@@ -158,16 +166,23 @@ dir2text provides two permission handling modes:
 ```python
 from dir2text import FileSystemTree
 from dir2text.file_system_tree import PermissionAction
+from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
+
+# Create exclusion rules
+rules = GitIgnoreExclusionRules()
+rules.load_rules(".gitignore")
 
 # Ignore permission errors (default)
 tree = FileSystemTree(
     "/path/to/project",
+    exclusion_rules=rules,
     permission_action=PermissionAction.IGNORE
 )
 
 # Raise permission errors
 tree = FileSystemTree(
     "/path/to/project",
+    exclusion_rules=rules,
     permission_action=PermissionAction.RAISE
 )
 ```
@@ -190,10 +205,16 @@ print(tree.get_tree_representation())
 ### Content Processing
 ```python
 from dir2text import StreamingDir2Text
+from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
+
+# Create exclusion rules
+rules = GitIgnoreExclusionRules()
+rules.load_rules(".gitignore")
 
 # Process with XML output
 analyzer = StreamingDir2Text(
     "/path/to/project",
+    exclusion_rules=rules,
     output_format="xml"
 )
 
@@ -205,10 +226,16 @@ for chunk in analyzer.stream_contents():
 ### LLM Preparation
 ```python
 from dir2text import Dir2Text
+from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
+
+# Create exclusion rules
+rules = GitIgnoreExclusionRules()
+rules.load_rules(".gitignore")
 
 # Full processing with token counting
 analyzer = Dir2Text(
     "/path/to/project",
+    exclusion_rules=rules,
     output_format="json",
     tokenizer_model="gpt-4"
 )

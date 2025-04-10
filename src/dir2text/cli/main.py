@@ -13,6 +13,7 @@ Key Features:
     - Output redirection and file writing
     - Various output format options and combinations
     - Permission error handling
+    - Version information display
 
 Signal Handling Notes:
     The module implements careful signal handling to ensure proper cleanup on interruption:
@@ -34,6 +35,9 @@ Example:
 
     # With exclusions and permissive error handling
     $ dir2text /path/to/dir -e .gitignore -P warn
+
+    # Display version information
+    $ dir2text --version
 """
 
 import sys
@@ -93,6 +97,7 @@ def main() -> None:
             args = parser.parse_args()
         except SystemExit:
             # argparse calls sys.exit(2) for argument errors
+            # or sys.exit(0) for --version
             raise
 
         # Perform additional validation beyond what argparse supports directly

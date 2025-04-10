@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 from typing import Any, List, Optional, Sequence, Type, Union
 
+from dir2text import __version__
 from dir2text.exclusion_rules.base_rules import BaseExclusionRules
 
 
@@ -141,12 +142,21 @@ def create_parser(exclusion_rules: BaseExclusionRules) -> argparse.ArgumentParse
 
       # Include statistics in the output file
       dir2text -s file -o output.txt /path/to/project
+
+      # Display version information and exit
+      dir2text -V
+      dir2text --version
     """
 
     parser = argparse.ArgumentParser(
         description=description,
         epilog=epilog,
         formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    # Version information
+    parser.add_argument(
+        "-V", "--version", action="version", version=f"dir2text {__version__}", help="Show the version and exit"
     )
 
     # Create the exclusion rules action class
