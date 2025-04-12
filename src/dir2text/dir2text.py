@@ -70,6 +70,7 @@ class StreamingDir2Text:
         output_format: str = "xml",
         tokenizer_model: Optional[str] = None,
         permission_action: Union[str, PermissionAction] = PermissionAction.IGNORE,
+        follow_symlinks: bool = False,
     ):
         """Initialize streaming directory analysis.
 
@@ -82,6 +83,9 @@ class StreamingDir2Text:
             permission_action: How to handle permission errors during traversal.
                 Can be either "ignore" or "raise", or a PermissionAction enum value.
                 Defaults to "ignore".
+            follow_symlinks: Whether to follow symbolic links during traversal.
+                If False (default), symlinks are represented as symlinks in the output.
+                If True, symlinks are followed and their targets' contents are included.
 
         Raises:
             ValueError: If directory is invalid or output format is unsupported.
@@ -107,9 +111,12 @@ class StreamingDir2Text:
 
         # Initialize exclusion rules if not provided
         self._exclusion_rules = exclusion_rules
+        self.follow_symlinks = follow_symlinks
 
         # Initialize components
-        self._fs_tree = FileSystemTree(self.directory, self._exclusion_rules, permission_action=permission_action)
+        self._fs_tree = FileSystemTree(
+            self.directory, self._exclusion_rules, permission_action=permission_action, follow_symlinks=follow_symlinks
+        )
 
         # Create counter if counting is enabled
         self._counter = TokenCounter(model=tokenizer_model) if tokenizer_model is not None else None
@@ -126,6 +133,7 @@ class StreamingDir2Text:
         # Initialize metrics that are immediately available
         self._directory_count = self._fs_tree.get_directory_count()
         self._file_count = self._fs_tree.get_file_count()
+        self._symlink_count = self._fs_tree.get_symlink_count()
 
         # Track streaming state
         self._tree_complete = False
@@ -162,6 +170,22 @@ class StreamingDir2Text:
             42
         """
         return self._file_count
+
+    @property
+    def symlink_count(self) -> int:
+        """Number of symlinks.
+
+        This count is final and available immediately after construction.
+
+        Returns:
+            int: Number of symlinks in the tree.
+
+        Example:
+            >>> tree = StreamingDir2Text("src")  # doctest: +SKIP
+            >>> tree.symlink_count  # doctest: +SKIP
+            3
+        """
+        return self._symlink_count
 
     @property
     def streaming_complete(self) -> bool:
@@ -354,6 +378,7 @@ class Dir2Text(StreamingDir2Text):
         output_format: str = "xml",
         tokenizer_model: str = "gpt-4",
         permission_action: Union[str, PermissionAction] = PermissionAction.IGNORE,
+        follow_symlinks: bool = False,
     ):
         """Initialize and immediately process the entire directory.
 
@@ -366,6 +391,9 @@ class Dir2Text(StreamingDir2Text):
             permission_action: How to handle permission errors during traversal.
                 Can be either "ignore" or "raise", or a PermissionAction enum value.
                 Defaults to "ignore".
+            follow_symlinks: Whether to follow symbolic links during traversal.
+                If False (default), symlinks are represented as symlinks in the output.
+                If True, symlinks are followed and their targets' contents are included.
 
         Raises:
             ValueError: If directory is invalid or output format is unsupported.
@@ -378,6 +406,7 @@ class Dir2Text(StreamingDir2Text):
             output_format=output_format,
             tokenizer_model=tokenizer_model,
             permission_action=permission_action,
+            follow_symlinks=follow_symlinks,
         )
 
         # Process everything immediately

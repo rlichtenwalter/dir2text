@@ -10,6 +10,7 @@ A Python library and command-line tool for expressing directory structures and f
 - Multiple output formats (XML, JSON)
 - Easy extensibility for new formats
 - Support for exclusion patterns (e.g., .gitignore rules)
+- Proper symbolic link handling and loop detection
 - Optional token counting for LLM context management
 - Statistics reporting with configurable output destination
 - Safe handling of large files and directories
@@ -60,16 +61,40 @@ dir2text --version
 dir2text -e .gitignore /path/to/project
 dir2text -e .gitignore -e .npmignore -e custom-ignore /path/to/project
 
+# Exclude files with direct patterns
+dir2text -i "*.pyc" -i "node_modules/" /path/to/project
+
 # Enable token counting for LLM context management
 dir2text -c /path/to/project
 
 # Generate JSON output and save to file
 dir2text -f json -o output.json /path/to/project
 
+# Follow symbolic links
+dir2text -L /path/to/project
+
 # Skip tree or content sections
 dir2text -T /path/to/project     # Skip tree visualization
 dir2text -C /path/to/project     # Skip file contents
 ```
+
+### Symbolic Link Handling
+
+By default, symbolic links are represented as symlinks without following them:
+
+```bash
+dir2text /path/to/project
+```
+
+This shows symlinks clearly marked with their targets in the tree output, and as separate elements in content output.
+
+To follow symbolic links during traversal (similar to Unix `find -L`):
+
+```bash
+dir2text -L /path/to/project
+```
+
+This includes the content that symlinks point to, while still protecting against symlink loops.
 
 ### Statistics Reporting
 
@@ -77,7 +102,7 @@ Dir2text can generate statistics about the processed directory including file co
 
 ```bash
 # Print statistics to stderr (default)
-dir2text -s /path/to/project
+dir2text -s stderr /path/to/project
 
 # Print statistics to stdout
 dir2text -s stdout /path/to/project
@@ -89,7 +114,7 @@ dir2text -s file -o output.txt /path/to/project
 dir2text -s -c /path/to/project
 ```
 
-Statistics include counts of directories, files, lines, and characters. Token counts are only included when token counting is enabled with the `-c` option.
+Statistics include counts of directories, files, symlinks, lines, and characters. Token counts are only included when token counting is enabled with the `-c` option.
 
 Note that token counting (`-c`) and statistics reporting (`-s`) are separate concerns:
 - `-c` enables token counting and embeds token counts in the output markup
@@ -121,6 +146,7 @@ for chunk in analyzer.stream_contents():
 
 # Get metrics
 print(f"Processed {analyzer.file_count} files in {analyzer.directory_count} directories")
+print(f"Found {analyzer.symlink_count} symbolic links")
 ```
 
 Memory-efficient processing with token counting:
@@ -139,7 +165,8 @@ analyzer = StreamingDir2Text(
     directory="path/to/project",
     exclusion_rules=rules,
     output_format="json",
-    tokenizer_model="gpt-4"
+    tokenizer_model="gpt-4",
+    follow_symlinks=False  # Default behavior, don't follow symlinks
 )
 
 # Process content incrementally
@@ -152,6 +179,7 @@ with open("output.json", "w") as f:
 # Print statistics
 print(f"Files: {analyzer.file_count}")
 print(f"Directories: {analyzer.directory_count}")
+print(f"Symlinks: {analyzer.symlink_count}")
 print(f"Lines: {analyzer.line_count}")
 print(f"Tokens: {analyzer.token_count}")
 print(f"Characters: {analyzer.character_count}")
@@ -167,7 +195,11 @@ rules = GitIgnoreExclusionRules()
 rules.load_rules(".gitignore")
 
 # Process everything immediately
-analyzer = Dir2Text("path/to/project", exclusion_rules=rules)
+analyzer = Dir2Text(
+    "path/to/project", 
+    exclusion_rules=rules,
+    follow_symlinks=True  # Optionally follow symlinks
+)
 
 # Access complete content
 print(analyzer.tree_string)
@@ -182,14 +214,21 @@ print(analyzer.content_string)
 def example():
     print("Hello, world!")
 </file>
+<symlink path="docs/api.md" target="../README.md" />
 ```
 
 ### JSON Format
 ```json
 {
+  "type": "file",
   "path": "relative/path/to/file.py",
   "content": "def example():\n    print(\"Hello, world!\")",
   "tokens": 150
+}
+{
+  "type": "symlink",
+  "path": "docs/api.md",
+  "target": "../README.md"
 }
 ```
 
@@ -261,7 +300,7 @@ This project is actively maintained. Issues and pull requests are welcome.
 A: Streaming allows processing of large directories and files with constant memory usage, making it suitable for processing repositories of any size.
 
 **Q: How does dir2text handle symbolic links?**  
-A: dir2text follows symbolic links to both files and directories. While this enables complete directory traversal, no symlink loop detection is currently implemented. Users should be cautious when processing directories with circular symlinks, as this could lead to infinite recursion. Future versions may add configuration options for symlink handling and loop prevention.
+A: By default, dir2text represents symlinks as symbolic links in both tree and content output without following them. With the `-L` option, it follows symlinks similar to Unix tools like `find -L`. In both modes, symlink loop detection prevents infinite recursion.
 
 **Q: Can I use this with binary files?**  
 A: The tool is designed for text files. Binary files should be excluded using the exclusion rules feature.

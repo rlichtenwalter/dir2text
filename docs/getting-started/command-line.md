@@ -17,7 +17,9 @@ dir2text [OPTIONS] DIRECTORY
 | `-V, --version` | Show version information and exit | `dir2text --version` |
 | `-o, --output FILE` | Output file path | `dir2text dir -o output.txt` |
 | `-e, --exclude FILE` | Path to exclusion file (can be specified multiple times) | `dir2text dir -e .gitignore -e .npmignore` |
+| `-i, --ignore PATTERN` | Individual pattern to exclude (can be specified multiple times) | `dir2text dir -i "*.pyc" -i "node_modules/"` |
 | `-f, --format FORMAT` | Output format (xml/json) | `dir2text dir -f json` |
+| `-L, --follow-symlinks` | Follow symbolic links during traversal | `dir2text dir -L` |
 | `-T, --no-tree` | Skip directory tree | `dir2text dir -T` |
 | `-C, --no-contents` | Skip file contents | `dir2text dir -C` |
 | `-c, --count` | Enable token counting and embed token counts in file metadata output | `dir2text dir -c` |
@@ -47,6 +49,7 @@ dir2text /path/to/project
 def main():
     print("Hello, World!")
 </file>
+<symlink path="link/to/readme.md" target="../README.md" />
 ```
 
 ### JSON Format
@@ -54,10 +57,8 @@ def main():
 dir2text /path/to/project -f json
 
 # Example output:
-{
-  "path": "src/main.py",
-  "content": "def main():\n    print(\"Hello, World!\")\n"
-}
+{"type": "file", "path": "src/main.py", "content": "def main():\n    print(\"Hello, World!\")\n"}
+{"type": "symlink", "path": "link/to/readme.md", "target": "../README.md"}
 ```
 
 ## Directory Structure
@@ -72,8 +73,27 @@ project/
 │   ├── main.py
 │   └── utils/
 │       └── helpers.py
+├── link_to_src → ./src/ [symlink]
 └── README.md
 ```
+
+## Symbolic Link Handling
+
+By default, symbolic links are represented as symlinks without following them:
+
+```bash
+dir2text /path/to/project
+```
+
+This shows symlinks clearly marked with their targets in the tree output, and as separate elements in content output.
+
+To follow symbolic links during traversal (similar to Unix `find -L`):
+
+```bash
+dir2text -L /path/to/project
+```
+
+This includes the content that symlinks point to, while still protecting against symlink loops.
 
 ## File Selection
 
@@ -97,6 +117,16 @@ __pycache__/
 # Build directories
 build/
 dist/
+```
+
+### Using Direct Patterns
+
+```bash
+# Exclude patterns directly
+dir2text /path/to/project -i "*.pyc" -i "node_modules/"
+
+# Mix file-based and direct pattern exclusions
+dir2text /path/to/project -e .gitignore -i "*.log" -i "!important.log"
 ```
 
 ## Permission Handling
@@ -158,7 +188,7 @@ dir2text -s file -o output.txt /path/to/project
 dir2text -s stderr -c /path/to/project
 ```
 
-Statistics include counts of directories, files, lines, and characters. Token counts are only included when `-c` is also specified.
+Statistics include counts of directories, files, symlinks, lines, and characters. Token counts are only included when `-c` is also specified.
 
 ## Common Use Cases
 
@@ -189,6 +219,12 @@ dir2text \
     -s stderr \
     /path/to/project \
     > project_for_llm.txt 2> stats.txt
+```
+
+### Including External Content via Symlinks
+```bash
+# Follow symbolic links to include external content
+dir2text -L /path/to/project -o project_with_linked_content.txt
 ```
 
 ## Exit Codes

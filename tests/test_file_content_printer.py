@@ -3,6 +3,7 @@
 Tests both normal operation and error handling scenarios.
 """
 
+import os
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -42,9 +43,48 @@ def temp_directory():
 
 
 @pytest.fixture
+def temp_directory_with_symlinks():
+    """Create a temporary directory with symlinks for testing."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        base_dir = Path(tmpdir)
+
+        # Create a file
+        file1 = base_dir / "file1.txt"
+        file1.write_text("Test file content")
+
+        # Try to create a symlink
+        try:
+            symlink1 = base_dir / "link1.txt"
+            os.symlink(file1, symlink1)
+            has_symlinks = True
+        except (OSError, NotImplementedError, NameError):
+            # If symlink creation fails, we'll mark the test to be skipped
+            has_symlinks = False
+
+        yield base_dir, has_symlinks
+
+
+@pytest.fixture
 def mock_tree():
     """Create a mock FileSystemTree."""
     return MagicMock(spec=FileSystemTree)
+
+
+@pytest.fixture
+def mock_tree_with_symlinks():
+    """Create a mock FileSystemTree with simulated symlinks."""
+    mock = MagicMock(spec=FileSystemTree)
+
+    # Set up follow_symlinks property
+    mock.follow_symlinks = False
+
+    # Set up iterate_files to return a single file
+    mock.iterate_files.return_value = [("/abs/path/file.txt", "file.txt")]
+
+    # Set up iterate_symlinks to return a symlink
+    mock.iterate_symlinks.return_value = [("/abs/path/link.txt", "link.txt", "./file.txt")]
+
+    return mock
 
 
 def test_init_default_parameters(mock_tree):
@@ -206,3 +246,101 @@ def test_get_output_file_extension():
     # Test JSON strategy
     printer = FileContentPrinter(tree, output_format="json")
     assert printer.get_output_file_extension() == ".json"
+
+
+def test_yield_file_contents_with_symlinks(mock_tree_with_symlinks):
+    """Test processing files and symlinks."""
+    # Create a printer with the mock tree that has both files and symlinks
+    printer = FileContentPrinter(mock_tree_with_symlinks, output_format="xml")
+
+    # Get all content (files and symlinks)
+    content_items = list(printer.yield_file_contents())
+
+    # Should have both a file and a symlink
+    assert len(content_items) == 2
+
+    # The first item should be a file
+    file_item = content_items[0]
+    assert file_item[1] == "file.txt"
+
+    # The second item should be a symlink
+    symlink_item = content_items[1]
+    assert symlink_item[1] == "link.txt"
+
+    # Check that the symlink content is a single item
+    symlink_content = list(symlink_item[2])
+    assert len(symlink_content) == 1
+    assert "<symlink" in symlink_content[0]
+    assert 'path="link.txt"' in symlink_content[0]
+    assert 'target="./file.txt"' in symlink_content[0]
+
+
+def test_symlink_output_format(mock_tree_with_symlinks):
+    """Test symlink output in different formats."""
+    # Test XML format
+    xml_printer = FileContentPrinter(mock_tree_with_symlinks, output_format="xml")
+    xml_items = list(xml_printer.yield_file_contents())
+    xml_symlink = xml_items[1]
+    xml_content = list(xml_symlink[2])
+
+    assert "<symlink" in xml_content[0]
+    assert "/>" in xml_content[0]
+
+    # Test JSON format
+    json_printer = FileContentPrinter(mock_tree_with_symlinks, output_format="json")
+    json_items = list(json_printer.yield_file_contents())
+    json_symlink = json_items[1]
+    json_content = list(json_symlink[2])
+
+    assert '"type": "symlink"' in json_content[0]
+    assert '"path": "link.txt"' in json_content[0]
+    assert '"target": "./file.txt"' in json_content[0]
+
+
+def test_follow_symlinks_behavior(mock_tree):
+    """Test that when follow_symlinks=True, no symlinks are processed."""
+    # Configure mock to follow symlinks
+    mock_tree.follow_symlinks = True
+    mock_tree.iterate_files.return_value = [("/abs/path/file.txt", "file.txt")]
+    mock_tree.iterate_symlinks.return_value = []  # Empty when following symlinks
+
+    printer = FileContentPrinter(mock_tree)
+    content_items = list(printer.yield_file_contents())
+
+    # Should only have files, no symlinks
+    assert len(content_items) == 1
+    assert content_items[0][1] == "file.txt"
+
+
+def test_real_symlinks_in_output(temp_directory_with_symlinks):
+    """Test processing real symlinks on the filesystem."""
+    base_dir, has_symlinks = temp_directory_with_symlinks
+
+    if not has_symlinks:
+        pytest.skip("Symlink creation not supported on this platform/environment")
+
+    # Create a tree with the real directory structure
+    tree = FileSystemTree(str(base_dir))
+    printer = FileContentPrinter(tree)
+
+    # Get all content
+    content_items = list(printer.yield_file_contents())
+
+    # Should have both a file and a symlink
+    assert len(content_items) == 2
+
+    # Find the file and symlink entries
+    file_item = next((item for item in content_items if item[1] == "file1.txt"), None)
+    symlink_item = next((item for item in content_items if item[1] == "link1.txt"), None)
+
+    assert file_item is not None
+    assert symlink_item is not None
+
+    # Check file content
+    file_content = "".join(list(file_item[2]))
+    assert "Test file content" in file_content
+
+    # Check symlink content
+    symlink_content = "".join(list(symlink_item[2]))
+    assert "<symlink" in symlink_content
+    assert "link1.txt" in symlink_content

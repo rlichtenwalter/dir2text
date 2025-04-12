@@ -40,6 +40,7 @@ Example:
     $ dir2text --version
 """
 
+import importlib.util
 import sys
 from collections.abc import Mapping
 from typing import Optional
@@ -48,6 +49,7 @@ from dir2text.cli.argparser import create_parser, validate_args
 from dir2text.cli.safe_writer import SafeWriter
 from dir2text.cli.signal_handler import setup_signal_handling, signal_handler
 from dir2text.dir2text import StreamingDir2Text
+from dir2text.exceptions import TokenizerNotAvailableError
 from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
 from dir2text.file_system_tree import PermissionAction
 
@@ -61,7 +63,12 @@ def format_counts(counts: Mapping[str, Optional[int]]) -> str:
     Returns:
         A formatted string showing all counts with appropriate labels.
     """
-    result = [f"Directories: {counts['directories']}", f"Files: {counts['files']}", f"Lines: {counts['lines']}"]
+    result = [
+        f"Directories: {counts['directories']}",
+        f"Files: {counts['files']}",
+        f"Symlinks: {counts['symlinks']}",
+        f"Lines: {counts['lines']}",
+    ]
 
     if counts["tokens"] is not None:
         result.append(f"Tokens: {counts['tokens']}")
@@ -69,6 +76,15 @@ def format_counts(counts: Mapping[str, Optional[int]]) -> str:
     result.append(f"Characters: {counts['characters']}")
 
     return "\n".join(result)
+
+
+def check_tiktoken_available() -> bool:
+    """Check if the tiktoken library is available.
+
+    Returns:
+        True if tiktoken is installed, False otherwise.
+    """
+    return importlib.util.find_spec("tiktoken") is not None
 
 
 def main() -> None:
@@ -103,6 +119,12 @@ def main() -> None:
         # Perform additional validation beyond what argparse supports directly
         validate_args(args)
 
+        # Check if token counting was requested but tiktoken is not available
+        if args.count and not check_tiktoken_available():
+            raise TokenizerNotAvailableError(
+                "Token counting was requested with -c/--count, but the required tiktoken library is not installed."
+            )
+
         # Map CLI permission actions to internal enum
         perm_action = {
             "ignore": PermissionAction.IGNORE,
@@ -118,6 +140,7 @@ def main() -> None:
                 output_format=args.format,
                 tokenizer_model=args.tokenizer if args.count else None,
                 permission_action=perm_action,
+                follow_symlinks=args.follow_symlinks,
             )
 
             # Set up output
@@ -141,6 +164,7 @@ def main() -> None:
                         counts = {
                             "directories": analyzer.directory_count,
                             "files": analyzer.file_count,
+                            "symlinks": analyzer.symlink_count,
                             "lines": analyzer.line_count,
                             "tokens": analyzer.token_count if args.count else None,
                             "characters": analyzer.character_count,
@@ -176,6 +200,13 @@ def main() -> None:
                 sys.exit(126)
             # For "ignore", we simply continue
 
+    except TokenizerNotAvailableError as e:
+        print(f"Error: {str(e)}", file=sys.stderr)
+        print("To enable token counting, install dir2text with the 'token_counting' extra:", file=sys.stderr)
+        print('    pip install "dir2text[token_counting]"', file=sys.stderr)
+        print("    # or with Poetry:", file=sys.stderr)
+        print('    poetry add "dir2text[token_counting]"', file=sys.stderr)
+        sys.exit(1)
     except Exception as e:
         print(f"Error: {str(e)}", file=sys.stderr)
         sys.exit(1)

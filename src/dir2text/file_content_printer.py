@@ -223,8 +223,22 @@ class FileContentPrinter:
                 encoding configuration error.
         """
         try:
+            # Process regular files
             for file_path, relative_path in self.fs_tree.iterate_files():
                 yield file_path, relative_path, self._yield_wrapped_content(file_path, relative_path)
+
+            # Process symlinks if the tree is not following them
+            if not self.fs_tree.follow_symlinks:
+                for abs_path, rel_path, target in self.fs_tree.iterate_symlinks():
+                    # For symlinks, we yield a single formatted string instead of a content iterator
+                    symlink_str = self.output_strategy.format_symlink(rel_path, target)
+
+                    # Create a single-item iterator to maintain the same interface as file content
+                    def symlink_iterator() -> Iterator[str]:
+                        yield symlink_str
+
+                    yield abs_path, rel_path, symlink_iterator()
+
         except OSError as e:
             # Add context to filesystem iteration errors
             raise OSError(f"Failed to iterate directory structure: {str(e)}") from e

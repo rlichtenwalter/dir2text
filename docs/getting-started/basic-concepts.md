@@ -9,6 +9,7 @@ dir2text is designed to convert directory structures into text representations s
 - GitIgnore-style exclusion rules
 - Optional token counting for LLMs
 - Memory-efficient streaming processing
+- Symbolic link representation and handling
 
 ## Directory Trees
 
@@ -22,12 +23,14 @@ project/
 │   ├── main.py
 │   └── utils/
 │       └── helpers.py
+├── docs → ./README.md [symlink]
 └── README.md
 ```
 
 Key features:
 - Directories marked with trailing `/`
 - Files shown without trailing markers
+- Symbolic links marked with an arrow (`→`) and target path
 - Sorted alphabetically (directories first, then files)
 - Unicode support for file and directory names
 
@@ -36,7 +39,7 @@ Key features:
 Trees are built with these characteristics:
 - Lazy loading (built only when accessed)
 - Memory-efficient processing
-- Proper symlink handling
+- Proper symlink handling and loop detection
 - Permission error handling
 - Consistent sorting
 
@@ -50,15 +53,13 @@ Trees are built with these characteristics:
 def main():
     print("Hello, World!")
 </file>
+<symlink path="docs" target="./README.md" />
 ```
 
 2. JSON Format:
 ```json
-{
-  "path": "src/main.py",
-  "content": "def main():\n    print(\"Hello, World!\")\n",
-  "tokens": 42
-}
+{"type": "file", "path": "src/main.py", "content": "def main():\n    print(\"Hello, World!\")\n", "tokens": 42}
+{"type": "symlink", "path": "docs", "target": "./README.md"}
 ```
 
 ### Content Handling
@@ -68,6 +69,71 @@ Content processing features:
 - Proper escaping for output format
 - UTF-8 encoding
 - Constant memory usage
+
+## Symbolic Link Handling
+
+### Overview
+
+dir2text offers two modes for handling symbolic links:
+
+1. **Default Mode**: Symbolic links are represented as symlinks (not followed)
+   - Links appear in tree visualization with their target
+   - Links are included in content output as symlink elements
+   - No duplicate content
+
+2. **Follow Mode** (`-L` option): Symbolic links are followed like directories
+   - Target contents are processed as if they were part of the tree
+   - Symlink loops are detected and prevented
+   - Files may appear multiple times through different paths
+
+### Representation in Tree Visualization
+
+**Default Mode (without `-L`):**
+```
+project/
+├── src/
+│   └── main.py
+└── link_to_src → ./src/ [symlink]
+```
+
+**Follow Mode (with `-L`):**
+```
+project/
+├── src/
+│   └── main.py
+└── link_to_src/
+    └── main.py
+```
+
+### Representation in Content Output
+
+**Default Mode (without `-L`):**
+```xml
+<file path="src/main.py">
+def main():
+    print("Hello, World!")
+</file>
+<symlink path="link_to_src" target="./src/" />
+```
+
+**Follow Mode (with `-L`):**
+```xml
+<file path="src/main.py">
+def main():
+    print("Hello, World!")
+</file>
+<file path="link_to_src/main.py">
+def main():
+    print("Hello, World!")
+</file>
+```
+
+### Loop Protection
+
+Both modes include protection against symbolic link loops:
+- Loops are detected using device ID and inode number tracking
+- When a loop is detected, it's marked and traversal stops at that point
+- This prevents infinite recursion regardless of symlink following mode
 
 ## Exclusion Rules
 
@@ -142,7 +208,8 @@ rules.load_rules(".gitignore")
 # Create analyzer
 analyzer = StreamingDir2Text(
     "/path/to/project", 
-    exclusion_rules=rules
+    exclusion_rules=rules,
+    follow_symlinks=False  # Default behavior, don't follow symlinks
 )
 
 # Process tree (memory-efficient)
@@ -243,4 +310,21 @@ analyzer = Dir2Text(
 # Access processed content
 print(analyzer.content_string)
 print(f"Total tokens: {analyzer.token_count}")
+```
+
+### Processing with Symlinks
+```python
+from dir2text import Dir2Text
+
+# Default mode - represent symlinks without following
+analyzer = Dir2Text("/path/to/project")
+
+# Follow mode - follow symlinks and include their targets' content
+analyzer_follow = Dir2Text(
+    "/path/to/project",
+    follow_symlinks=True
+)
+
+# Print symlink count (only available in default mode)
+print(f"Symlinks: {analyzer.symlink_count}")
 ```

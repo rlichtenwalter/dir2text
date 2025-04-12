@@ -109,6 +109,9 @@ def create_parser(exclusion_rules: BaseExclusionRules) -> argparse.ArgumentParse
       # Basic directory processing
       dir2text /path/to/project
 
+      # Follow symbolic links (dereference symlinks)
+      dir2text -L /path/to/project
+
       # Exclude files matching patterns from one or more exclusion files
       dir2text -e .gitignore /path/to/project
       dir2text -e .gitignore -e .npmignore -e custom-ignore /path/to/project
@@ -216,6 +219,15 @@ def create_parser(exclusion_rules: BaseExclusionRules) -> argparse.ArgumentParse
         choices=["xml", "json"],
         default="xml",
         help="Output format for file contents (default: xml).",
+    )
+    parser.add_argument(
+        "-L",
+        "--follow-symlinks",
+        action="store_true",
+        help=(
+            "Follow symbolic links during traversal. By default, symlinks are represented as symlinks "
+            "without following."
+        ),
     )
     parser.add_argument(
         "-c",

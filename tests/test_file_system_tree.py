@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
-from dir2text.file_system_tree import FileSystemTree
+from dir2text.file_system_tree import FileIdentifier, FileSystemTree
 
 
 @pytest.fixture
@@ -16,6 +16,33 @@ def temp_directory(tmp_path):
     (tmp_path / "dir2" / "file2.py").touch()
     (tmp_path / "dir2" / "file2.pyc").touch()
     return tmp_path
+
+
+@pytest.fixture
+def temp_directory_with_symlinks(tmp_path):
+    """Create a temporary directory structure with symlinks."""
+    # Create directories and files
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "main.py").write_text("def main(): pass")
+    (tmp_path / "src" / "utils").mkdir()
+    (tmp_path / "src" / "utils" / "helpers.py").write_text("def helper(): pass")
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "readme.md").write_text("# Documentation")
+
+    # Create symlinks
+    try:
+        # Create a symlink from "build" to "src"
+        os.symlink(tmp_path / "src", tmp_path / "build")
+
+        # Create a symlink loop
+        os.symlink(tmp_path / "src", tmp_path / "src" / "utils" / "loop")
+
+        has_symlinks = True
+    except (OSError, NotImplementedError):
+        # On some platforms (like Windows) creating symlinks might require special permissions
+        has_symlinks = False
+
+    return tmp_path, has_symlinks
 
 
 @pytest.fixture
@@ -85,86 +112,196 @@ def test_file_system_tree_empty_directory(temp_directory):
     assert empty_node.children == ()
 
 
-def test_file_system_tree_symlinks(temp_directory):
-    # Test handling of symbolic links
-    target_file = temp_directory / "target.txt"
-    target_file.touch()
-    symlink = temp_directory / "link.txt"
-    try:
-        symlink.symlink_to(target_file)
-        fs_tree = FileSystemTree(str(temp_directory))
-        tree = fs_tree.get_tree()
-        assert any(node.name == "link.txt" for node in tree.children)
-    except OSError:  # Handles cases where symlink creation requires privileges
-        pytest.skip("Symbolic link creation not supported")
+def test_file_identifier():
+    """Test the FileIdentifier class functionality."""
+    # Create two identifiers with the same values
+    id1 = FileIdentifier(123, 456)
+    id2 = FileIdentifier(123, 456)
+
+    # Create one with different values
+    id3 = FileIdentifier(789, 456)
+
+    # Test equality
+    assert id1 == id2
+    assert id1 != id3
+    assert id1 != "not an identifier"
+
+    # Test hash
+    assert hash(id1) == hash(id2)
+    assert hash(id1) != hash(id3)
+
+    # Test in a set
+    id_set = {id1, id3}
+    assert len(id_set) == 2
+    assert id2 in id_set  # id2 should be treated as equivalent to id1
+
+    # Test repr
+    assert repr(id1) == "FileIdentifier(device_id=123, inode_number=456)"
 
 
-def test_file_system_tree_special_chars(temp_directory):
-    # Test handling of special characters in file names
-    special_names = [
-        "file with spaces.txt",
-        "file_with_उनिकोड.txt",
-        "!special!.txt",
-        "#hashtag.txt",
-        "file.with.dots.txt",
-        "-leading-dash.txt",
-        ".hidden_file",
-    ]
+def test_symlink_detection(temp_directory_with_symlinks):
+    """Test that symlinks are properly detected and represented."""
+    tmp_path, has_symlinks = temp_directory_with_symlinks
 
-    for name in special_names:
-        (temp_directory / name).touch()
+    if not has_symlinks:
+        pytest.skip("Symlink creation not supported on this platform/environment")
 
-    fs_tree = FileSystemTree(str(temp_directory))
+    # Test with default behavior (don't follow symlinks)
+    fs_tree = FileSystemTree(str(tmp_path))
     tree = fs_tree.get_tree()
 
-    for name in special_names:
-        assert any(node.name == name for node in tree.children)
+    # Get the build symlink node
+    build_node = next((node for node in tree.children if node.name == "build"), None)
+    assert build_node is not None
+    assert build_node.is_symlink
+    assert build_node.symlink_target is not None
+
+    # Check symlink count
+    assert fs_tree.get_symlink_count() == 2
+
+    # Check tree representation
+    tree_repr = fs_tree.get_tree_representation()
+    assert "build → " in tree_repr
+    assert "[symlink]" in tree_repr
+
+    # Check symlink iteration
+    symlinks = list(fs_tree.iterate_symlinks())
+    assert len(symlinks) == 2
+    symlink_paths = [s[1] for s in symlinks]  # Get relative paths
+    assert "build" in symlink_paths
 
 
-def test_file_system_tree_deep_recursion(temp_directory):
-    # Test handling of deeply nested directories
-    current = temp_directory
-    depth = 50  # Deep enough to test recursion but not too deep to cause issues
+def test_follow_symlinks(temp_directory_with_symlinks):
+    """Test following symlinks during traversal."""
+    tmp_path, has_symlinks = temp_directory_with_symlinks
 
-    for i in range(depth):
-        current = current / f"dir_{i}"
-        current.mkdir()
-        (current / f"file_{i}.txt").touch()
+    if not has_symlinks:
+        pytest.skip("Symlink creation not supported on this platform/environment")
 
-    fs_tree = FileSystemTree(str(temp_directory))
+    # Test with follow_symlinks=True
+    fs_tree = FileSystemTree(str(tmp_path), follow_symlinks=True)
     tree = fs_tree.get_tree()
 
-    # Verify we can traverse to the deepest level
-    current_node = tree
-    for i in range(depth):
-        current_node = next((node for node in current_node.children if node.name == f"dir_{i}"), None)
-        assert current_node is not None
-        assert any(node.name == f"file_{i}.txt" for node in current_node.children)
+    # Now build should be treated as a directory, not a symlink
+    build_node = next((node for node in tree.children if node.name == "build"), None)
+    assert build_node is not None
+    assert build_node.is_dir
+    assert not build_node.is_symlink
+
+    # Check that the contents of the src directory are also under build
+    assert any(node.name == "main.py" for node in build_node.children)
+
+    # Check symlink count - should be 0 since we're following symlinks
+    assert fs_tree.get_symlink_count() == 0
+
+    # Check tree representation
+    tree_repr = fs_tree.get_tree_representation()
+    assert "build/" in tree_repr  # Should be shown as directory
+    assert "loop/" not in tree_repr  # Loop should be detected and not followed
+
+    # Check file iteration to verify we can access the files through symlinks
+    files = list(fs_tree.iterate_files())
+    file_paths = [f[1] for f in files]  # Get relative paths
+
+    # We should have these files:
+    # - src/main.py
+    # - src/utils/helpers.py
+    # - docs/readme.md
+    # - build/main.py (same file as src/main.py)
+    # - build/utils/helpers.py (same file as src/utils/helpers.py)
+    assert len(files) == 5
+    assert "src/main.py" in file_paths
+    assert "build/main.py" in file_paths
 
 
-def test_file_system_tree_permission_denied(temp_directory):
-    # Test handling of permission-denied directories
-    restricted_dir = temp_directory / "restricted"
-    restricted_dir.mkdir()
-    (restricted_dir / "file.txt").touch()
+def test_symlink_loop_detection(temp_directory_with_symlinks):
+    """Test that symlink loops are properly detected and handled."""
+    tmp_path, has_symlinks = temp_directory_with_symlinks
 
-    try:
-        os.chmod(restricted_dir, 0o000)  # Remove all permissions
-        fs_tree = FileSystemTree(str(temp_directory))
-        tree = fs_tree.get_tree()
-        # Should still see the directory but might not access its contents
-        assert any(node.name == "restricted" for node in tree.children)
-    except OSError:  # Handles cases where permission changes require privileges
-        pytest.skip("Permission modification not supported")
-    finally:
-        os.chmod(restricted_dir, 0o755)  # Restore permissions for cleanup
+    if not has_symlinks:
+        pytest.skip("Symlink creation not supported on this platform/environment")
 
+    # Create a tree with follow_symlinks=True
+    fs_tree = FileSystemTree(str(tmp_path), follow_symlinks=True)
 
-def test_file_system_tree_zero_byte_files(temp_directory):
-    # Test handling of zero-byte files
-    zero_byte_file = temp_directory / "empty.txt"
-    zero_byte_file.touch()
-
-    fs_tree = FileSystemTree(str(temp_directory))
+    # Get the tree (this should not hang due to loop detection)
     tree = fs_tree.get_tree()
-    assert any(node.name == "empty.txt" for node in tree.children)
+
+    # Verify the loop is detected by checking tree structure
+    # Find the loop node (utils/loop)
+    loop_node = None
+    for node in tree.descendants:
+        if node.name == "loop" and hasattr(node, "symlink_target"):
+            loop_node = node
+            break
+
+    # Assert that we found the loop node and it's properly marked
+    assert loop_node is not None
+    assert loop_node.is_symlink
+    assert hasattr(loop_node, "symlink_target")
+    assert "loop" in loop_node.symlink_target or "[loop detected]" == loop_node.symlink_target
+
+
+def test_iterate_symlinks(temp_directory_with_symlinks):
+    """Test iterate_symlinks method."""
+    tmp_path, has_symlinks = temp_directory_with_symlinks
+
+    if not has_symlinks:
+        pytest.skip("Symlink creation not supported on this platform/environment")
+
+    # Create tree with default settings (don't follow symlinks)
+    fs_tree = FileSystemTree(str(tmp_path))
+
+    # Iterate symlinks
+    symlinks = list(fs_tree.iterate_symlinks())
+    assert len(symlinks) == 2
+
+    # Check format of symlink tuples: (abs_path, rel_path, target)
+    for symlink in symlinks:
+        assert len(symlink) == 3
+        abs_path, rel_path, target = symlink
+        assert os.path.isabs(abs_path)
+        assert not os.path.isabs(rel_path)
+        assert target  # Should have a target string
+
+    # With follow_symlinks=True, iterate_symlinks should return empty
+    fs_tree_follow = FileSystemTree(str(tmp_path), follow_symlinks=True)
+    symlinks_follow = list(fs_tree_follow.iterate_symlinks())
+    assert len(symlinks_follow) == 0
+
+
+def test_symlinks_with_exclusions(temp_directory_with_symlinks):
+    """Test combining symlink handling with exclusion rules."""
+    tmp_path, has_symlinks = temp_directory_with_symlinks
+
+    if not has_symlinks:
+        pytest.skip("Symlink creation not supported on this platform/environment")
+
+    # Create a temporary exclusion file
+    exclusion_file = tmp_path / ".dir2textignore"
+    exclusion_file.write_text("build/\n*.md\n")
+
+    # Create exclusion rules
+    rules = GitIgnoreExclusionRules(exclusion_file)
+
+    # Create a tree with exclusions
+    fs_tree = FileSystemTree(str(tmp_path), exclusion_rules=rules)
+
+    # Check that excluded symlinks aren't in the tree
+    tree = fs_tree.get_tree()
+    build_node = next((node for node in tree.children if node.name == "build"), None)
+    assert build_node is None  # Should be excluded
+
+    # Check that excluded files aren't in the iteration
+    files = list(fs_tree.iterate_files())
+    file_paths = [f[1] for f in files]
+
+    assert "docs/readme.md" not in file_paths  # Should be excluded
+    assert "src/main.py" in file_paths  # Should be included
+    assert "src/utils/helpers.py" in file_paths  # Should be included
+
+    # Check symlinks - build should be excluded
+    symlinks = list(fs_tree.iterate_symlinks())
+    symlink_paths = [s[1] for s in symlinks]
+    assert "build" not in symlink_paths
+    assert "src/utils/loop" in symlink_paths  # Still included

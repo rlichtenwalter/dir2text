@@ -473,6 +473,7 @@ def test_format_counts():
     counts = {
         "directories": 5,
         "files": 10,
+        "symlinks": 3,
         "lines": 100,
         "tokens": 500,
         "characters": 1000,
@@ -483,6 +484,7 @@ def test_format_counts():
     # Check that output contains all the values
     assert "Directories: 5" in output
     assert "Files: 10" in output
+    assert "Symlinks: 3" in output
     assert "Lines: 100" in output
     assert "Tokens: 500" in output
     assert "Characters: 1000" in output
@@ -494,5 +496,6 @@ def test_format_counts():
     assert "Tokens:" not in output
     assert "Directories: 5" in output
     assert "Files: 10" in output
+    assert "Symlinks: 3" in output
     assert "Lines: 100" in output
     assert "Characters: 1000" in output
