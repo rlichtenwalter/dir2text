@@ -165,7 +165,7 @@ def main() -> None:
                             "files": analyzer.file_count,
                             "symlinks": analyzer.symlink_count,
                             "lines": analyzer.line_count,
-                            "tokens": analyzer.token_count if args.tokenizer else None,
+                            "tokens": analyzer.token_count,
                             "characters": analyzer.character_count,
                         }
                         count_output_str = format_counts(counts)

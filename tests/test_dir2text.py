@@ -16,6 +16,20 @@ def mock_token_counter():
     """Create a mock token counter for testing."""
     counter = MagicMock()
     counter.count.return_value = MagicMock(tokens=10, lines=1, characters=20)
+    counter.get_total_tokens.return_value = 10
+    counter.get_total_lines.return_value = 1
+    counter.get_total_characters.return_value = 20
+    return counter
+
+
+@pytest.fixture
+def mock_token_counter_no_tokens():
+    """Create a mock token counter with no token counting capability."""
+    counter = MagicMock()
+    counter.count.return_value = MagicMock(tokens=None, lines=1, characters=20)
+    counter.get_total_tokens.return_value = None
+    counter.get_total_lines.return_value = 1
+    counter.get_total_characters.return_value = 20
     return counter
 
 
@@ -198,12 +212,24 @@ def test_streaming_dir2text_with_complex_exclusions(temp_directory):
 
 def test_streaming_dir2text_with_token_counting(temp_directory, mock_token_counter):
     """Test integration with token counter."""
-    mock_token_counter.get_total_tokens.return_value = 42  # Set return value
-    with patch("dir2text.dir2text.TokenCounter", return_value=mock_token_counter):
+    with patch("dir2text.token_counter.TokenCounter", return_value=mock_token_counter):
         analyzer = StreamingDir2Text(temp_directory, tokenizer_model="gpt-4")
         list(analyzer.stream_tree())
         list(analyzer.stream_contents())
-        assert analyzer.token_count > 0
+        assert analyzer.token_count == 10
+        assert analyzer.line_count == 1
+        assert analyzer.character_count == 20
+
+
+def test_streaming_dir2text_no_token_counting(temp_directory, mock_token_counter_no_tokens):
+    """Test behavior when token counting is disabled."""
+    with patch("dir2text.token_counter.TokenCounter", return_value=mock_token_counter_no_tokens):
+        analyzer = StreamingDir2Text(temp_directory)
+        list(analyzer.stream_tree())
+        list(analyzer.stream_contents())
+        assert analyzer.token_count is None
+        assert analyzer.line_count == 1
+        assert analyzer.character_count == 20
 
 
 def test_streaming_dir2text_output_formats(temp_directory):
@@ -332,3 +358,61 @@ def test_streaming_dir2text_exclusion_rules_ordering(temp_directory):
 
     # With order 2, main.py will be excluded (later rule wins)
     assert "def main():" not in content_output2
+
+
+def test_tokenizer_model_none(temp_directory, mock_token_counter_no_tokens):
+    """Test that token_count is None when tokenizer_model is None."""
+    with patch("dir2text.token_counter.TokenCounter", return_value=mock_token_counter_no_tokens):
+        analyzer = StreamingDir2Text(temp_directory, tokenizer_model=None)
+        list(analyzer.stream_tree())
+        list(analyzer.stream_contents())
+        assert analyzer.token_count is None
+        assert analyzer.line_count == 1
+        assert analyzer.character_count == 20
+
+
+def test_line_character_count_without_tokenizing(temp_directory, mock_token_counter_no_tokens):
+    """Test that line and character counts still work when tokenizer_model is None."""
+    with patch("dir2text.token_counter.TokenCounter", return_value=mock_token_counter_no_tokens):
+        analyzer = StreamingDir2Text(temp_directory)
+        list(analyzer.stream_tree())
+        list(analyzer.stream_contents())
+        assert analyzer.token_count is None
+        assert analyzer.line_count == 1  # Mock returns 1
+        assert analyzer.character_count == 20  # Mock returns 20
+
+
+def test_dir2text_with_token_counting(temp_directory, mock_token_counter):
+    """Test Dir2Text with token counting enabled."""
+    with patch("dir2text.token_counter.TokenCounter", return_value=mock_token_counter):
+        analyzer = Dir2Text(temp_directory, tokenizer_model="gpt-4")
+        assert analyzer.token_count == 10
+        assert analyzer.line_count == 1
+        assert analyzer.character_count == 20
+
+
+def test_dir2text_without_token_counting(temp_directory, mock_token_counter_no_tokens):
+    """Test Dir2Text without token counting."""
+    with patch("dir2text.token_counter.TokenCounter", return_value=mock_token_counter_no_tokens):
+        analyzer = Dir2Text(temp_directory)
+        assert analyzer.token_count is None
+        assert analyzer.line_count == 1
+        assert analyzer.character_count == 20
+
+
+def test_counting_in_all_modes(temp_directory, mock_token_counter):
+    """Test that counting happens in both streaming and complete modes."""
+    with patch("dir2text.token_counter.TokenCounter", return_value=mock_token_counter):
+        # Test streaming mode
+        analyzer1 = StreamingDir2Text(temp_directory, tokenizer_model="gpt-4")
+        list(analyzer1.stream_tree())
+        list(analyzer1.stream_contents())
+        assert analyzer1.line_count == 1
+        assert analyzer1.character_count == 20
+        assert analyzer1.token_count == 10
+
+        # Test complete mode
+        analyzer2 = Dir2Text(temp_directory, tokenizer_model="gpt-4")
+        assert analyzer2.line_count == 1
+        assert analyzer2.character_count == 20
+        assert analyzer2.token_count == 10

@@ -62,6 +62,8 @@ def main():
 {"type": "symlink", "path": "docs", "target": "./README.md"}
 ```
 
+Note: Token counts are only included when token counting is enabled with a tokenizer model.
+
 ### Content Handling
 
 Content processing features:
@@ -200,7 +202,7 @@ Token counting helps manage LLM context limits by:
 
 ### Models and Encodings
 
-Token counting uses tiktoken's encodings:
+Token counting uses tiktoken's encodings when available:
 - GPT-4 models (cl100k_base encoding)
 - GPT-3.5-Turbo models (cl100k_base encoding)
 - Text Davinci models (p50k_base encoding)
@@ -212,6 +214,13 @@ counter = TokenCounter(model="gpt-4")
 result = counter.count("Hello, world!")
 print(f"Tokens: {result.tokens}")
 ```
+
+### Optional Counting
+
+Token counting is optional and must be explicitly enabled by specifying a model:
+- Line and character counts are always calculated
+- Token counts are only calculated when a tokenizer model is specified
+- Token counts appear as `None` when token counting is disabled
 
 ## Memory Management
 
@@ -231,7 +240,8 @@ rules.load_rules(".gitignore")
 analyzer = StreamingDir2Text(
     "/path/to/project", 
     exclusion_rules=rules,
-    follow_symlinks=False  # Default behavior, don't follow symlinks
+    follow_symlinks=False,  # Default behavior, don't follow symlinks
+    tokenizer_model="gpt-4"  # Optional, enable token counting
 )
 
 # Process tree (memory-efficient)
@@ -291,7 +301,7 @@ tree = FileSystemTree("/path/to/project")
 print(tree.get_tree_representation())
 ```
 
-### Content Processing
+### Content Processing with Line and Character Counting
 ```python
 from dir2text import StreamingDir2Text
 from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
@@ -310,9 +320,13 @@ analyzer = StreamingDir2Text(
 # Stream content
 for chunk in analyzer.stream_contents():
     print(chunk, end='')
+
+# Access line and character counts
+print(f"Lines: {analyzer.line_count}")
+print(f"Characters: {analyzer.character_count}")
 ```
 
-### LLM Preparation
+### LLM Preparation with Token Counting
 ```python
 from dir2text import Dir2Text
 from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
@@ -331,7 +345,9 @@ analyzer = Dir2Text(
 
 # Access processed content
 print(analyzer.content_string)
+print(f"Total lines: {analyzer.line_count}")
 print(f"Total tokens: {analyzer.token_count}")
+print(f"Total characters: {analyzer.character_count}")
 ```
 
 ### Processing with Symlinks

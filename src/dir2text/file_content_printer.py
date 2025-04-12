@@ -118,7 +118,7 @@ class FileContentPrinter:
             relative_path: Path relative to the root directory.
 
         Returns:
-            int: Total number of tokens in the file, or None if tokenizer is not available or
+            Optional[int]: Total number of tokens in the file, or None if tokenizer is not available or
                  doesn't have token counting capabilities.
 
         Raises:
@@ -126,7 +126,8 @@ class FileContentPrinter:
             ValueError: If a file cannot be decoded using the specified encoding.
             LookupError: If the specified encoding is not available.
         """
-        if self.tokenizer is None or not self.tokenizer.tiktoken_available:
+        # Only attempt token counting if a tokenizer is available with token counting capabilities
+        if self.tokenizer is None or self.tokenizer.get_total_tokens() is None:
             return None
 
         token_count = 0
@@ -135,7 +136,9 @@ class FileContentPrinter:
             with open(path_obj, "r", encoding=self.encoding, errors=self.errors) as file:
                 reader = ChunkedFileReader(file)
                 for chunk in reader:
-                    token_count += self.tokenizer.count(self.output_strategy.format_content(chunk)).tokens
+                    result = self.tokenizer.count(self.output_strategy.format_content(chunk))
+                    if result.tokens is not None:
+                        token_count += result.tokens
         except UnicodeError as e:
             raise ValueError(
                 f"Failed to decode '{relative_path}' with {self.encoding} "
@@ -168,7 +171,7 @@ class FileContentPrinter:
         # Only count tokens if the tokenizer has token counting capabilities
         if (
             self.tokenizer is not None
-            and self.tokenizer.tiktoken_available
+            and self.tokenizer.get_total_tokens() is not None
             and self.output_strategy.requires_tokens_in_start
         ):
             token_count = self._count_file_tokens(path_obj, relative_path)
@@ -184,17 +187,13 @@ class FileContentPrinter:
                 reader = ChunkedFileReader(file)
                 for chunk in reader:
                     formatted_chunk = self.output_strategy.format_content(chunk)
-                    # Only count tokens if tokenizer has token counting capabilities
-                    if (
-                        self.tokenizer is not None
-                        and self.tokenizer.tiktoken_available
-                        and not self.output_strategy.requires_tokens_in_start
-                    ):
-                        token_count += self.tokenizer.count(formatted_chunk).tokens
 
-                    # Always count lines and characters
+                    # Count lines and characters (and potentially tokens)
                     if self.tokenizer is not None:
-                        self.tokenizer.count(formatted_chunk)
+                        result = self.tokenizer.count(formatted_chunk)
+                        # Only accumulate tokens if we're tracking them and not requiring them in start
+                        if result.tokens is not None and not self.output_strategy.requires_tokens_in_start:
+                            token_count += result.tokens
 
                     yield formatted_chunk
 
@@ -214,7 +213,7 @@ class FileContentPrinter:
         # Output end tag
         if (
             self.tokenizer is not None
-            and self.tokenizer.tiktoken_available
+            and self.tokenizer.get_total_tokens() is not None
             and not self.output_strategy.requires_tokens_in_start
         ):
             yield self.output_strategy.format_end(token_count)

@@ -14,6 +14,7 @@ from dir2text.file_content_printer import FileContentPrinter
 from dir2text.file_system_tree.file_system_tree import FileSystemTree
 from dir2text.output_strategies.json_strategy import JSONOutputStrategy
 from dir2text.output_strategies.xml_strategy import XMLOutputStrategy
+from dir2text.token_counter import CountResult
 
 
 @pytest.fixture
@@ -85,6 +86,24 @@ def mock_tree_with_symlinks():
     mock.iterate_symlinks.return_value = [("/abs/path/link.txt", "link.txt", "./file.txt")]
 
     return mock
+
+
+@pytest.fixture
+def mock_token_counter():
+    """Create a mock token counter with token counting capability."""
+    counter = MagicMock()
+    counter.count.return_value = CountResult(lines=1, tokens=10, characters=20)
+    counter.get_total_tokens.return_value = 10
+    return counter
+
+
+@pytest.fixture
+def mock_token_counter_no_tokens():
+    """Create a mock token counter without token counting capability."""
+    counter = MagicMock()
+    counter.count.return_value = CountResult(lines=1, tokens=None, characters=20)
+    counter.get_total_tokens.return_value = None
+    return counter
 
 
 def test_init_default_parameters(mock_tree):
@@ -344,3 +363,81 @@ def test_real_symlinks_in_output(temp_directory_with_symlinks):
     symlink_content = "".join(list(symlink_item[2]))
     assert "<symlink" in symlink_content
     assert "link1.txt" in symlink_content
+
+
+def test_count_file_tokens_with_tokenizer(mock_tree, mock_token_counter):
+    """Test _count_file_tokens method with tokenizer available."""
+    with (
+        patch("builtins.open", MagicMock()) as mock_open,
+        patch("dir2text.file_content_printer.ChunkedFileReader") as mock_reader,
+    ):
+        # Set up mocks
+        mock_open.return_value.__enter__.return_value = MagicMock()
+        mock_reader.return_value = ["chunk1", "chunk2"]
+
+        printer = FileContentPrinter(mock_tree, tokenizer=mock_token_counter)
+        tokens = printer._count_file_tokens("/test/file.py", "file.py")
+
+        # Verify tokens were counted
+        assert tokens == 20  # 10 tokens per chunk, 2 chunks
+
+
+def test_count_file_tokens_without_tokenizer(mock_tree, mock_token_counter_no_tokens):
+    """Test _count_file_tokens method without tokenizer."""
+    printer = FileContentPrinter(mock_tree, tokenizer=mock_token_counter_no_tokens)
+    tokens = printer._count_file_tokens("/test/file.py", "file.py")
+
+    # Verify no tokens were counted
+    assert tokens is None
+
+
+def test_yield_wrapped_content_with_tokens(mock_tree, mock_token_counter):
+    """Test _yield_wrapped_content method with token counting."""
+    with (
+        patch("builtins.open", MagicMock()) as mock_open,
+        patch("dir2text.file_content_printer.ChunkedFileReader") as mock_reader,
+        patch.object(FileContentPrinter, "_count_file_tokens", return_value=10),
+    ):
+        # Set up mocks
+        mock_open.return_value.__enter__.return_value = MagicMock()
+        mock_reader.return_value = ["chunk1", "chunk2"]
+
+        printer = FileContentPrinter(mock_tree, output_format="xml", tokenizer=mock_token_counter)
+        content = list(printer._yield_wrapped_content("/test/file.py", "file.py"))
+
+        # Verify tokens were included
+        assert 'tokens="10"' in content[0]
+
+
+def test_yield_wrapped_content_without_tokens(mock_tree, mock_token_counter_no_tokens):
+    """Test _yield_wrapped_content method without token counting."""
+    with (
+        patch("builtins.open", MagicMock()) as mock_open,
+        patch("dir2text.file_content_printer.ChunkedFileReader") as mock_reader,
+    ):
+        # Set up mocks
+        mock_open.return_value.__enter__.return_value = MagicMock()
+        mock_reader.return_value = ["chunk1", "chunk2"]
+
+        printer = FileContentPrinter(mock_tree, output_format="xml", tokenizer=mock_token_counter_no_tokens)
+        content = list(printer._yield_wrapped_content("/test/file.py", "file.py"))
+
+        # Verify tokens were not included
+        assert "tokens=" not in content[0]
+
+
+def test_always_counts_lines_and_characters(mock_tree, mock_token_counter_no_tokens):
+    """Test that lines and characters are always counted, even without token counting."""
+    with (
+        patch("builtins.open", MagicMock()) as mock_open,
+        patch("dir2text.file_content_printer.ChunkedFileReader") as mock_reader,
+    ):
+        # Set up mocks
+        mock_open.return_value.__enter__.return_value = MagicMock()
+        mock_reader.return_value = ["chunk1", "chunk2"]
+
+        printer = FileContentPrinter(mock_tree, tokenizer=mock_token_counter_no_tokens)
+        list(printer._yield_wrapped_content("/test/file.py", "file.py"))
+
+        # Verify lines and characters were counted
+        assert mock_token_counter_no_tokens.count.call_count == 2  # Called for each chunk

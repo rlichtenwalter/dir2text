@@ -136,10 +136,6 @@ class StreamingDir2Text:
         self._file_count = self._fs_tree.get_file_count()
         self._symlink_count = self._fs_tree.get_symlink_count()
 
-        # Initialize line and character counts
-        self._line_count = 0
-        self._character_count = 0
-
         # Track streaming state
         self._tree_complete = False
         self._contents_complete = False
@@ -205,19 +201,19 @@ class StreamingDir2Text:
         return self._tree_complete and self._contents_complete
 
     @property
-    def token_count(self) -> int:
+    def token_count(self) -> Optional[int]:
         """Number of tokens processed across all operations.
 
         Returns:
-            int: Total count of tokens processed. Returns 0 if token counting is disabled
+            Optional[int]: Total count of tokens processed, or None if token counting is disabled
                 (i.e., if tokenizer_model was None during initialization).
 
         Example:
-            >>> tree = StreamingDir2Text("src")  # doctest: +SKIP
+            >>> tree = StreamingDir2Text("src", tokenizer_model="gpt-4")  # doctest: +SKIP
             >>> tree.token_count  # doctest: +SKIP
             1500
         """
-        return self._counter.get_total_tokens() if self._counter.tiktoken_available else 0
+        return self._counter.get_total_tokens()
 
     @property
     def line_count(self) -> int:
@@ -389,7 +385,7 @@ class Dir2Text(StreamingDir2Text):
             exclusion_rules: Optional exclusion rules object to filter files and directories.
                       If None, no files will be excluded.
             output_format: Format for output ('xml' or 'json')
-            tokenizer_model: Model to use for token counting
+            tokenizer_model: Model to use for token counting, or None to disable token counting
             permission_action: How to handle permission errors during traversal.
                 Can be either "ignore" or "raise", or a PermissionAction enum value.
                 Defaults to "ignore".

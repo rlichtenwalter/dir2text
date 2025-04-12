@@ -23,7 +23,7 @@ dir2text [OPTIONS] DIRECTORY
 | `-T, --no-tree` | Skip directory tree | `dir2text dir -T` |
 | `-C, --no-contents` | Skip file contents | `dir2text dir -C` |
 | `-s, --summary` | Print summary report (stderr, stdout, or file) | `dir2text dir -s stderr` |
-| `-t, --tokenizer MODEL` | Model for token counting (specifying this enables token counting) | `dir2text dir -t gpt-4` |
+| `-t, --tokenizer MODEL` | Model for token counting | `dir2text dir -t gpt-4` |
 | `-P, --permission-action ACTION` | Permission error handling | `dir2text dir -P warn` |
 
 ## Version Information
@@ -154,7 +154,7 @@ pip install "dir2text[token_counting]"
 # Enable token counting by specifying tokenizer model
 dir2text -t gpt-4 /path/to/project
 
-# Example output:
+# Example output with token counts:
 <file path="src/main.py" tokens="42">
 def main():
     print("Hello, World!")
@@ -168,6 +168,8 @@ Supported models:
 
 ## Summary Reporting
 
+The summary always includes directory, file, symlink, line, and character counts. Token counts are only included when a tokenizer model is specified with `-t`.
+
 Control where summary information is displayed:
 
 ```bash
@@ -180,11 +182,19 @@ dir2text -s stdout /path/to/project
 # Include summary in the output file
 dir2text -s file -o output.txt /path/to/project
 
-# Include token counts in summary (by specifying tokenizer)
+# Include token counts in summary by specifying tokenizer
 dir2text -s stderr -t gpt-4 /path/to/project
 ```
 
-Summary information includes counts of directories, files, symlinks, lines, and characters. Token counts are only included when a tokenizer model is specified with `-t`.
+Example summary output:
+```
+Directories: 5
+Files: 12
+Symlinks: 2
+Lines: 245
+Tokens: 1503  # Only shown when -t is specified
+Characters: 12450
+```
 
 ## Common Use Cases
 
@@ -240,4 +250,14 @@ dir2text -L /path/to/project -o project_with_linked_content.txt
 ```bash
 # Use appropriate permission action
 dir2text /path/to/project -P warn
+```
+
+### Token Counting Errors
+If token counting is requested but tiktoken is not available, a helpful error message is displayed:
+```
+Error: Token counting was requested with -t/--tokenizer, but the required tiktoken library is not installed.
+To enable token counting, install dir2text with the 'token_counting' extra:
+    pip install "dir2text[token_counting]"
+    # or with Poetry:
+    poetry add "dir2text[token_counting]"
 ```
