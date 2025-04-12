@@ -5,27 +5,27 @@ All notable changes to this project will be documented in this file.
 This project adheres at least loosely to Semantic Versioning.
 
 ## Version 2.0.0 (2025-04-11)
-This major version release focuses on usability enhancements, particularly in exclusion rule support and output control.
+This major version release focuses on usability enhancements, particularly in exclusion rule support, symbolic link handling, and output control.
 
 ### Added
-- Allowed Format specification in the CLI with '-f' in addition to the previously existing '--format'.
-- Provided for multiple exclusion rule files uses of the '-e, --exclude' option both in the API and in the CLI (with multiple specifications of the '-e, --exclude' option).
-- Provided for specification of multiple individual files to ignore in the API and in the CLI (with the '-i, --ignore') option, which can be provided multiple times.
-- Context manager support in SafeWriter, allowing usage with `with` statements.
+- Added support for format specification using `-f` as a short form of `--format`.
+- Added support for specifying multiple exclusion rules both via files (-e/--exclude) and direct patterns (-i/--ignore), preserving the exact ordering for proper pattern precedence.
+- Implemented context manager support in SafeWriter, enabling usage with `with` statements.
 - Improved signal handling during SafeWriter close operations.
 
 ### Changed
-- **BREAKING**: Removed direct `exclude_files` support in StreamingDir2Text and Dir2Text, which now instead permit passing a subclass of dir2text.exclusion_rules.BaseExclusionRules.
+- **BREAKING**: Removed direct `exclude_files` support in StreamingDir2Text and Dir2Text, which now require a subclass of dir2text.exclusion_rules.BaseExclusionRules instead.
+- **BREAKING**: Removed the `-c, --counts` flag. Statistics reporting is now controlled exclusively through the new `-s, --summary=DEST` option, which requires a destination argument that can be 'stderr', 'stdout', or 'file' (with '-o').
+- Changed default CLI behavior to no longer print summary reports by default.
+- Modified token counting behavior so that specifying the `-t, --tokenizer MODEL` option implicitly enables token counting without requiring an additional flag.
+- Enhanced symlink handling with improved loop detection and proper interaction with exclusion rules.
 - Refactored CLI code to use SafeWriter as a context manager.
 - Improved error handling for signal interruption during SafeWriter resource cleanup.
 - Standardized interfaces on os.PathLike with os.Path in implementations instead of a mixture of str and os.Path.
-- Changed default CLI behavior so that the statistics report is no longer printed by default with '-c, --counts'.
-- Added '-s, --stats=DEST' to control reporting of final statistics, which requires a destination argument that can be 'stderr', 'stdout', or 'file' (with '-o').
 - Refactored CLI code to break out parsing, output writing, and signal handling functions separate from orchestration.
-- Converted SafeWriter CLI-internal class to a context manager.
 
 ### Fixed
-- Addressed bug in SafeWriter CLI-internal class that allowed file objects to be prematurely garbage collected.
+- Fixed a bug in SafeWriter CLI-internal class that allowed file objects to be prematurely garbage collected.
 
 ### Migration Guide
 If you previously used:
@@ -41,7 +41,7 @@ analyzer = StreamingDir2Text(directory, exclusion_rules=rules)
 ```
 
 ### Known Issues
-- Nothing.
+- None.
 
 ## Version 1.0.1 (2024-10-24)
 Added a project description for better presentation on PyPI.
