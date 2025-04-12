@@ -119,10 +119,10 @@ def main() -> None:
         # Perform additional validation beyond what argparse supports directly
         validate_args(args)
 
-        # Check if token counting was requested but tiktoken is not available
-        if args.count and not check_tiktoken_available():
+        # Check if tokenizer is requested but tiktoken is not available
+        if args.tokenizer and not check_tiktoken_available():
             raise TokenizerNotAvailableError(
-                "Token counting was requested with -c/--count, but the required tiktoken library is not installed."
+                "Token counting was requested with -t/--tokenizer, but the required tiktoken library is not installed."
             )
 
         # Map CLI permission actions to internal enum
@@ -138,7 +138,7 @@ def main() -> None:
                 directory=args.directory,
                 exclusion_rules=exclusion_rules,
                 output_format=args.format,
-                tokenizer_model=args.tokenizer if args.count else None,
+                tokenizer_model=args.tokenizer,
                 permission_action=perm_action,
                 follow_symlinks=args.follow_symlinks,
             )
@@ -159,31 +159,31 @@ def main() -> None:
                         for chunk in analyzer.stream_contents():
                             safe_writer.write(chunk)
 
-                    # Handle statistics reporting based on the --stats argument
-                    if args.stats:
+                    # Handle summary reporting based on the --summary argument
+                    if args.summary:
                         counts = {
                             "directories": analyzer.directory_count,
                             "files": analyzer.file_count,
                             "symlinks": analyzer.symlink_count,
                             "lines": analyzer.line_count,
-                            "tokens": analyzer.token_count if args.count else None,
+                            "tokens": analyzer.token_count if args.tokenizer else None,
                             "characters": analyzer.character_count,
                         }
                         count_output_str = format_counts(counts)
 
-                        # Determine where to print the statistics
-                        if args.stats == "stdout":
+                        # Determine where to print the summary
+                        if args.summary == "stdout":
                             # Print to stdout
                             safe_writer.write("\n" + count_output_str + "\n")
-                        elif args.stats == "file":
+                        elif args.summary == "file":
                             # Include in the output file
                             safe_writer.write("\n" + count_output_str + "\n")
-                        elif args.stats == "stderr":
+                        elif args.summary == "stderr":
                             # Print to stderr
                             print(count_output_str, file=sys.stderr)
 
                     # Check if nothing was actually output
-                    if args.no_tree and args.no_contents and not args.stats:
+                    if args.no_tree and args.no_contents and not args.summary:
                         print(
                             "Warning: Both tree and contents printing were disabled. No output generated.",
                             end="",

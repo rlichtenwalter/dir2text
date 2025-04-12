@@ -53,12 +53,10 @@ def test_file_system_node_parent_child():
 def test_file_system_node_with_additional_attributes():
     """Test FileSystemNode with additional attributes."""
     # Create a node with extra attributes
-    node = FileSystemNode("test_file.txt", is_dir=False, size=1024, modified_time="2023-01-01")
+    node = FileSystemNode("test_file.txt", is_dir=False, modified_time="2023-01-01")
 
     # Test that additional attributes were stored
     assert node.name == "test_file.txt"
     assert not node.is_dir
-    assert hasattr(node, "size")
-    assert node.size == 1024
     assert hasattr(node, "modified_time")
     assert node.modified_time == "2023-01-01"

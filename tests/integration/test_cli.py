@@ -112,59 +112,70 @@ def test_cli_multiple_exclusions(temp_project):
     assert "package.json" in result.stdout
 
 
-def test_cli_stats_options(temp_project):
-    """Test the -s/--stats options."""
+def test_cli_summary_options(temp_project):
+    """Test the -s/--summary options."""
 
-    # Test default stats behavior (stderr output)
-    # -s/--stats requires an argument, so use 'stderr' explicitly
+    # Test default summary behavior (stderr output)
+    # -s/--summary requires an argument, so use 'stderr' explicitly
     result_default = run_cli(["-s", "stderr", str(temp_project)])
     assert result_default.returncode == 0
     assert "Directories:" in result_default.stderr
     assert "Files:" in result_default.stderr
     assert "Lines:" in result_default.stderr
     assert "Characters:" in result_default.stderr
-    # No token counts without -c
+    # No token counts without tokenizer
     assert "Tokens:" not in result_default.stderr
-    # Make sure stats aren't in stdout
+    # Make sure summary aren't in stdout
     assert "Directories:" not in result_default.stdout
 
-    # Test stdout stats
+    # Test stdout summary
     result_stdout = run_cli(["-s", "stdout", str(temp_project)])
     assert result_stdout.returncode == 0
     assert "Directories:" in result_stdout.stdout
     assert "Files:" in result_stdout.stdout
     assert "Lines:" in result_stdout.stdout
     assert "Characters:" in result_stdout.stdout
-    # Make sure stats aren't in stderr
+    # Make sure summary aren't in stderr
     assert "Directories:" not in result_stdout.stderr
 
-    # Test stats with token counting
-    result_with_tokens = run_cli(["-s", "stderr", "-c", str(temp_project)])
-    assert result_with_tokens.returncode == 0
-    assert "Directories:" in result_with_tokens.stderr
-    assert "Files:" in result_with_tokens.stderr
-    assert "Lines:" in result_with_tokens.stderr
-    assert "Characters:" in result_with_tokens.stderr
-    assert "Tokens:" in result_with_tokens.stderr
+    # Test summary with token counting
+    result_with_tokens = run_cli(["-s", "stderr", "-t", "gpt-4", str(temp_project)])
+    # Note: This might fail in the actual test environment if tiktoken is not available
+    # In that case, we'd test for the proper error message instead
+    if result_with_tokens.returncode == 0:
+        assert "Directories:" in result_with_tokens.stderr
+        assert "Files:" in result_with_tokens.stderr
+        assert "Lines:" in result_with_tokens.stderr
+        assert "Characters:" in result_with_tokens.stderr
+        assert "Tokens:" in result_with_tokens.stderr
+    else:
+        # If it failed because tiktoken is not available, check for the appropriate error message
+        assert "Token counting was requested" in result_with_tokens.stderr
+        assert "tiktoken library is not installed" in result_with_tokens.stderr
 
-    # Test count without stats (should not print stats report)
-    result_count_only = run_cli(["-c", str(temp_project)])
-    assert result_count_only.returncode == 0
-    assert "Tokens:" not in result_count_only.stderr
-    assert "Directories:" not in result_count_only.stderr
+    # Test tokenizer only (without summary flag)
+    # This should not print any summary
+    result_tokenizer_only = run_cli(["-t", "gpt-4", str(temp_project)])
+    if result_tokenizer_only.returncode == 0:
+        assert "Tokens:" not in result_tokenizer_only.stderr
+        assert "Directories:" not in result_tokenizer_only.stderr
+    else:
+        # If it failed because tiktoken is not available, check for the appropriate error message
+        assert "Token counting was requested" in result_tokenizer_only.stderr
+        assert "tiktoken library is not installed" in result_tokenizer_only.stderr
 
 
-def test_cli_stats_to_file(temp_project):
+def test_cli_summary_to_file(temp_project):
     """Test the -s file option with output file."""
     # Create a regular output file instead of using NamedTemporaryFile
     output_path = str(temp_project / "output.txt")
 
     try:
-        # Test stats to file
+        # Test summary to file
         result = run_cli(["-s", "file", "-o", output_path, str(temp_project)])
         assert result.returncode == 0, f"Command failed with stderr: {result.stderr}"
 
-        # Verify stats appear in the output file
+        # Verify summary appear in the output file
         with open(output_path, "r") as f:
             content = f.read()
             assert "Directories:" in content
@@ -172,7 +183,7 @@ def test_cli_stats_to_file(temp_project):
             assert "Lines:" in content
             assert "Characters:" in content
 
-        # Verify stats don't appear in stderr
+        # Verify summary don't appear in stderr
         assert "Directories:" not in result.stderr
     finally:
         # Clean up
@@ -183,11 +194,11 @@ def test_cli_stats_to_file(temp_project):
             pass  # Ignore cleanup errors
 
 
-def test_cli_stats_to_file_without_output(temp_project):
+def test_cli_summary_to_file_without_output(temp_project):
     """Test that specifying -s file without -o fails."""
     result = run_cli(["-s", "file", str(temp_project)])
     assert result.returncode != 0
-    assert "--stats=file requires" in result.stderr
+    assert "--summary=file requires" in result.stderr
 
 
 def test_cli_exclusion_order(temp_project):

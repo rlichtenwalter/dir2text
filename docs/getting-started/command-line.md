@@ -18,13 +18,12 @@ dir2text [OPTIONS] DIRECTORY
 | `-o, --output FILE` | Output file path | `dir2text dir -o output.txt` |
 | `-e, --exclude FILE` | Path to exclusion file (can be specified multiple times) | `dir2text dir -e .gitignore -e .npmignore` |
 | `-i, --ignore PATTERN` | Individual pattern to exclude (can be specified multiple times) | `dir2text dir -i "*.pyc" -i "node_modules/"` |
-| `-f, --format FORMAT` | Output format (xml/json) | `dir2text dir -f json` |
 | `-L, --follow-symlinks` | Follow symbolic links during traversal | `dir2text dir -L` |
+| `-f, --format FORMAT` | Output format (xml/json) | `dir2text dir -f json` |
 | `-T, --no-tree` | Skip directory tree | `dir2text dir -T` |
 | `-C, --no-contents` | Skip file contents | `dir2text dir -C` |
-| `-c, --count` | Enable token counting and embed token counts in file metadata output | `dir2text dir -c` |
-| `-s, --stats` | Print statistics report (stderr, stdout, or file) | `dir2text dir -s` |
-| `-t, --tokenizer MODEL` | Model for token counting | `dir2text dir -c -t gpt-4` |
+| `-s, --summary` | Print summary report (stderr, stdout, or file) | `dir2text dir -s stderr` |
+| `-t, --tokenizer MODEL` | Model for token counting (specifying this enables token counting) | `dir2text dir -t gpt-4` |
 | `-P, --permission-action ACTION` | Permission error handling | `dir2text dir -P warn` |
 
 ## Version Information
@@ -152,11 +151,8 @@ Token counting requires the token_counting extra:
 # Install with token counting
 pip install "dir2text[token_counting]"
 
-# Enable token counting (embeds counts in output)
-dir2text -c /path/to/project
-
-# Use specific model for counting
-dir2text -c -t gpt-4 /path/to/project
+# Enable token counting by specifying tokenizer model
+dir2text -t gpt-4 /path/to/project
 
 # Example output:
 <file path="src/main.py" tokens="42">
@@ -166,29 +162,29 @@ def main():
 ```
 
 Supported models:
-- `gpt-4` (default)
+- `gpt-4` (recommended default)
 - `gpt-3.5-turbo`
 - `text-davinci-003`
 
-## Statistics Reporting
+## Summary Reporting
 
-Control whether and where statistics are displayed:
+Control where summary information is displayed:
 
 ```bash
-# Print statistics to stderr (default)
+# Print summary to stderr
 dir2text -s stderr /path/to/project
 
-# Print statistics to stdout
+# Print summary to stdout
 dir2text -s stdout /path/to/project
 
-# Include statistics in the output file
+# Include summary in the output file
 dir2text -s file -o output.txt /path/to/project
 
-# Show token counts in statistics (combined with -c)
-dir2text -s stderr -c /path/to/project
+# Include token counts in summary (by specifying tokenizer)
+dir2text -s stderr -t gpt-4 /path/to/project
 ```
 
-Statistics include counts of directories, files, symlinks, lines, and characters. Token counts are only included when `-c` is also specified.
+Summary information includes counts of directories, files, symlinks, lines, and characters. Token counts are only included when a tokenizer model is specified with `-t`.
 
 ## Common Use Cases
 
@@ -208,14 +204,14 @@ dir2text /path/to/project \
 # Prepare for LLM with token counting
 dir2text \
     -e .gitignore \
-    -c \
+    -t gpt-4 \
     -o project_for_llm.txt \
     /path/to/project
 
-# Include statistics in a separate file
+# Include summary in a separate file
 dir2text \
     -e .gitignore \
-    -c \
+    -t gpt-4 \
     -s stderr \
     /path/to/project \
     > project_for_llm.txt 2> stats.txt

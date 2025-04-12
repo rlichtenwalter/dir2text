@@ -59,3 +59,7 @@ class FileSystemNode(Node):  # type: ignore
         self.is_dir = is_dir
         self.is_symlink = is_symlink
         self.symlink_target = symlink_target
+
+        # Store any additional attributes from kwargs
+        for key, value in kwargs.items():
+            setattr(self, key, value)

@@ -175,8 +175,7 @@ def test_create_parser(mock_exclusion_rules, temp_directory):
     assert not args.no_tree
     assert not args.no_contents
     assert args.format == "xml"
-    assert not args.count
-    assert args.tokenizer == "gpt-4"
+    assert args.tokenizer is None  # No tokenizer by default
     assert args.permission_action == "ignore"
 
 
@@ -200,7 +199,6 @@ def test_create_parser_with_all_options(mock_exclusion_rules, temp_file, temp_di
             "-C",
             "-f",
             "json",
-            "-c",
             "-s",
             "stderr",
             "-t",
@@ -219,8 +217,7 @@ def test_create_parser_with_all_options(mock_exclusion_rules, temp_file, temp_di
     assert args.no_tree
     assert args.no_contents
     assert args.format == "json"
-    assert args.count
-    assert args.stats == "stderr"
+    assert args.summary == "stderr"
     assert args.tokenizer == "gpt-3.5-turbo"
     assert args.permission_action == "warn"
 
@@ -229,7 +226,7 @@ def test_validate_args_valid():
     """Test validate_args with valid arguments."""
     # Create args with valid values
     args = argparse.Namespace(
-        stats=None,
+        summary=None,
         output=Path("/path/to/output.txt"),
     )
 
@@ -238,17 +235,17 @@ def test_validate_args_valid():
 
     # Try another valid combination
     args = argparse.Namespace(
-        stats="stderr",
+        summary="stderr",
         output=None,
     )
     validate_args(args)
 
 
-def test_validate_args_stats_file_without_output():
-    """Test validate_args with stats=file but no output."""
+def test_validate_args_summary_file_without_output():
+    """Test validate_args with summary=file but no output."""
     # Create args with invalid combination
     args = argparse.Namespace(
-        stats="file",
+        summary="file",
         output=None,
     )
 
@@ -256,7 +253,7 @@ def test_validate_args_stats_file_without_output():
     with pytest.raises(ValueError) as excinfo:
         validate_args(args)
 
-    assert "--stats=file requires -o/--output" in str(excinfo.value)
+    assert "--summary=file requires -o/--output" in str(excinfo.value)
 
 
 def test_parser_action_integration(temp_directory, temp_file):

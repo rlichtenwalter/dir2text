@@ -35,8 +35,8 @@ def test_check_tiktoken_unavailable(mock_tiktoken_unavailable):
 
 def test_main_token_counting_without_tiktoken(mock_tiktoken_unavailable):
     """Test main function when token counting is requested but tiktoken is not available."""
-    # Mock command line arguments to include -c flag
-    with patch("sys.argv", ["dir2text", "-c", "."]), patch("sys.exit") as mock_exit:
+    # Mock command line arguments to include -t flag for tokenizer
+    with patch("sys.argv", ["dir2text", "-t", "gpt-4", "."]), patch("sys.exit") as mock_exit:
         # Capture stderr
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):
@@ -44,7 +44,7 @@ def test_main_token_counting_without_tiktoken(mock_tiktoken_unavailable):
 
         # Verify error message
         stderr_output = stderr.getvalue()
-        assert "Error: Token counting was requested with -c/--count" in stderr_output
+        assert "Error: Token counting was requested with -t/--tokenizer" in stderr_output
         assert 'pip install "dir2text[token_counting]"' in stderr_output
         assert 'poetry add "dir2text[token_counting]"' in stderr_output
 
@@ -56,7 +56,7 @@ def test_main_token_counting_with_tiktoken(mock_tiktoken_available):
     """Test main function when token counting is requested and tiktoken is available."""
     # Mock command line arguments and other dependencies to test the flow
     with (
-        patch("sys.argv", ["dir2text", "-c", "."]),
+        patch("sys.argv", ["dir2text", "-t", "gpt-4", "."]),
         patch("dir2text.cli.argparser.create_parser"),
         patch("dir2text.cli.argparser.validate_args"),
         patch("dir2text.cli.main.StreamingDir2Text"),

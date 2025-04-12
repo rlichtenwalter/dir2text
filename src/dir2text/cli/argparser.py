@@ -122,8 +122,8 @@ def create_parser(exclusion_rules: BaseExclusionRules) -> argparse.ArgumentParse
       # Mix file-based and direct pattern exclusions
       dir2text -e .gitignore -i "*.log" -i "!important.log" /path/to/project
 
-      # Count tokens for LLM context management
-      dir2text -c /path/to/project
+      # Enable token counting for LLM context management
+      dir2text -t gpt-4 /path/to/project
 
       # Generate JSON output and save to file
       dir2text --format json -o output.json /path/to/project
@@ -137,13 +137,13 @@ def create_parser(exclusion_rules: BaseExclusionRules) -> argparse.ArgumentParse
       dir2text -T /path/to/project     # Skip tree visualization
       dir2text -C /path/to/project     # Skip file contents
 
-      # Print statistics to stderr
+      # Print summary to stderr
       dir2text -s stderr /path/to/project
 
-      # Print statistics to stdout
+      # Print summary to stdout
       dir2text -s stdout /path/to/project
 
-      # Include statistics in the output file
+      # Include summary in the output file
       dir2text -s file -o output.txt /path/to/project
 
       # Display version information and exit
@@ -230,23 +230,17 @@ def create_parser(exclusion_rules: BaseExclusionRules) -> argparse.ArgumentParse
         ),
     )
     parser.add_argument(
-        "-c",
-        "--count",
-        action="store_true",
-        help="Enable token counting and embed token counts in file metadata output.",
-    )
-    parser.add_argument(
         "-s",
-        "--stats",
+        "--summary",
         metavar="DEST",
         choices=["stderr", "stdout", "file"],
-        help="Print statistics report. Valid destinations: stderr, stdout, file (requires -o)",
+        help="Print summary report. Valid destinations: stderr, stdout, file (requires -o)",
     )
     parser.add_argument(
         "-t",
         "--tokenizer",
-        default="gpt-4",
-        help="Tokenizer model to use for counting tokens (default: gpt-4).",
+        metavar="MODEL",
+        help="Tokenizer model to use for counting tokens (e.g., gpt-4). Specifying this enables token counting.",
     )
     parser.add_argument(
         "-P",
@@ -270,6 +264,6 @@ def validate_args(args: argparse.Namespace) -> None:
     Raises:
         ValueError: If any arguments fail validation.
     """
-    # Validate that if stats=file is specified, -o must also be provided
-    if args.stats == "file" and not args.output:
-        raise ValueError("--stats=file requires -o/--output to be specified")
+    # Validate that if summary=file is specified, -o must also be provided
+    if args.summary == "file" and not args.output:
+        raise ValueError("--summary=file requires -o/--output to be specified")

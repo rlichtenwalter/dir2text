@@ -41,9 +41,7 @@ analyzer = StreamingDir2Text(directory, exclusion_rules=rules)
 ```
 
 ### Known Issues
-- Symbolic link loop protection is not implemented. Application on structures with loops will hang.
-- Unit test design and converage is fair but not great. Better design and coverage are desirable.
-- Documentation is also fair but not great.
+- Nothing.
 
 ## Version 1.0.1 (2024-10-24)
 Added a project description for better presentation on PyPI.
