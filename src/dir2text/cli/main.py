@@ -197,6 +197,7 @@ def main() -> None:
             if args.permission_action == "warn":
                 print(f"Warning: {str(e)}", file=sys.stderr)
             elif args.permission_action == "fail":
+                print(f"Error: {str(e)}", file=sys.stderr)
                 sys.exit(126)
             # For "ignore", we simply continue
 
