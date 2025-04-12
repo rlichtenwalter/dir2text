@@ -1,10 +1,12 @@
+"""Unit tests for the FileSystemTree class."""
+
 import os
 from pathlib import Path
 
 import pytest
 
 from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
-from dir2text.file_system_tree import FileIdentifier, FileSystemTree
+from dir2text.file_system_tree.file_system_tree import FileSystemTree
 
 
 @pytest.fixture
@@ -110,33 +112,6 @@ def test_file_system_tree_empty_directory(temp_directory):
     empty_node = next((node for node in tree.children if node.name == "empty_dir"), None)
     assert empty_node is not None
     assert empty_node.children == ()
-
-
-def test_file_identifier():
-    """Test the FileIdentifier class functionality."""
-    # Create two identifiers with the same values
-    id1 = FileIdentifier(123, 456)
-    id2 = FileIdentifier(123, 456)
-
-    # Create one with different values
-    id3 = FileIdentifier(789, 456)
-
-    # Test equality
-    assert id1 == id2
-    assert id1 != id3
-    assert id1 != "not an identifier"
-
-    # Test hash
-    assert hash(id1) == hash(id2)
-    assert hash(id1) != hash(id3)
-
-    # Test in a set
-    id_set = {id1, id3}
-    assert len(id_set) == 2
-    assert id2 in id_set  # id2 should be treated as equivalent to id1
-
-    # Test repr
-    assert repr(id1) == "FileIdentifier(device_id=123, inode_number=456)"
 
 
 def test_symlink_detection(temp_directory_with_symlinks):

@@ -7,21 +7,25 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
+        stages: [commit]
     -   id: tox-lint
         name: Linting
         entry: tox -e lint
         language: system
         types: [python]
         pass_filenames: false
+        stages: [commit]
     -   id: tox-test
         name: Unit Tests
         entry: tox -e test
         language: system
         types: [python]
         pass_filenames: false
+        stages: [push]
     -   id: tox-integration
         name: CLI Integration Tests
         entry: tox -e integration
         language: system
         types: [python]
         pass_filenames: false
+        stages: [push]

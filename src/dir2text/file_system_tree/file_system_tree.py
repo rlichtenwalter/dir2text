@@ -1,145 +1,19 @@
 """File system tree representation with configurable exclusion rules.
 
-This module provides classes for building and manipulating tree representations of
-directory structures, with support for excluding files and directories based on
-specified rules.
+This module provides the main FileSystemTree class for building and manipulating
+tree representations of directory structures, with support for excluding files
+and directories based on specified rules.
 """
 
 import os
-from enum import Enum
 from pathlib import Path
-from typing import Any, Iterator, Optional, Set, Tuple
-
-from anytree import Node
+from typing import Iterator, Optional, Set, Tuple
 
 from dir2text.exclusion_rules.base_rules import BaseExclusionRules
+from dir2text.file_system_tree.file_identifier import FileIdentifier
+from dir2text.file_system_tree.file_system_node import FileSystemNode
+from dir2text.file_system_tree.permission_action import PermissionAction
 from dir2text.types import PathType
-
-
-class PermissionAction(str, Enum):
-    """Action to take when encountering permission errors during directory traversal.
-
-    Values:
-        IGNORE: Continue traversal silently, skipping inaccessible items (default behavior)
-        RAISE: Raise a PermissionError immediately when access is denied
-    """
-
-    IGNORE = "ignore"
-    RAISE = "raise"
-
-
-class FileIdentifier:
-    """Class for uniquely identifying files and directories by their device and inode.
-
-    This class is used for tracking unique files during traversal, particularly for
-    symlink loop detection. The combination of device ID and inode number uniquely
-    identifies a file or directory in the filesystem.
-
-    Attributes:
-        device_id (int): The device ID from stat information.
-        inode_number (int): The inode number from stat information.
-
-    Note:
-        On Windows, inode numbers might be handled differently than on Unix systems,
-        but Python's os.stat implementation provides values that can be used
-        for uniquely identifying files.
-    """
-
-    def __init__(self, device_id: int, inode_number: int):
-        """Initialize a FileIdentifier.
-
-        Args:
-            device_id: The device ID from stat information.
-            inode_number: The inode number from stat information.
-        """
-        self.device_id = device_id
-        self.inode_number = inode_number
-
-    def __eq__(self, other: Any) -> bool:
-        """Check equality with another FileIdentifier.
-
-        Args:
-            other: Another object to compare with.
-
-        Returns:
-            True if the other object is a FileIdentifier with the same
-            device_id and inode_number.
-        """
-        if not isinstance(other, FileIdentifier):
-            return False
-        return self.device_id == other.device_id and self.inode_number == other.inode_number
-
-    def __hash__(self) -> int:
-        """Generate a hash value for use in dictionaries and sets.
-
-        Returns:
-            A hash based on device_id and inode_number.
-        """
-        return hash((self.device_id, self.inode_number))
-
-    def __repr__(self) -> str:
-        """Create a string representation of the FileIdentifier.
-
-        Returns:
-            A string representation showing device_id and inode_number.
-        """
-        return f"FileIdentifier(device_id={self.device_id}, inode_number={self.inode_number})"
-
-
-class FileSystemNode(Node):  # type: ignore
-    """Node class representing a file or directory in the filesystem tree.
-
-    Extends anytree.Node to add flags indicating whether the node represents
-    a directory, a symlink, or other file types. Inherits tree traversal and
-    manipulation capabilities from anytree.Node.
-
-    Attributes:
-        name (str): The name of the file or directory (just the basename).
-        parent (Optional[FileSystemNode]): The parent node in the tree.
-        is_dir (bool): True if this node represents a directory, False for files.
-        is_symlink (bool): True if this node represents a symbolic link.
-        symlink_target (Optional[str]): Target path of the symlink, if this is a symlink.
-        children (tuple[FileSystemNode]): The child nodes (inherited from anytree.Node).
-
-    Example:
-        >>> root = FileSystemNode("root", is_dir=True)
-        >>> child = FileSystemNode("file.txt", parent=root, is_dir=False)
-        >>> root.name
-        'root'
-        >>> child.is_dir
-        False
-    """
-
-    def __init__(
-        self,
-        name: str,
-        parent: Optional["FileSystemNode"] = None,
-        is_dir: bool = False,
-        is_symlink: bool = False,
-        symlink_target: Optional[str] = None,
-        **kwargs: Any,
-    ) -> None:
-        """Initialize a FileSystemNode.
-
-        Args:
-            name: The name of the file or directory.
-            parent: The parent node. Defaults to None.
-            is_dir: Whether this node represents a directory. Defaults to False.
-            is_symlink: Whether this node represents a symbolic link. Defaults to False.
-            symlink_target: The target path of the symlink. Only applicable if is_symlink is True.
-            **kwargs: Additional arguments passed to anytree.Node.
-
-        Example:
-            >>> node = FileSystemNode("example.txt", is_dir=False)
-            >>> node.name
-            'example.txt'
-            >>> node.is_dir
-            False
-        """
-        super().__init__(name, parent, **kwargs)
-        self.is_dir = is_dir
-        self.is_symlink = is_symlink
-        self.symlink_target = symlink_target
 
 
 class FileSystemTree:

@@ -8,7 +8,7 @@ for reading files while maintaining memory-efficient streaming behavior.
 from pathlib import Path
 from typing import Iterator, Optional, Tuple, Union
 
-from .file_system_tree import FileSystemTree
+from .file_system_tree.file_system_tree import FileSystemTree
 from .io.chunked_file_reader import ChunkedFileReader
 from .output_strategies.base_strategy import OutputStrategy
 from .output_strategies.json_strategy import JSONOutputStrategy
@@ -43,7 +43,7 @@ class FileContentPrinter:
         errors (str): How to handle encoding errors when reading files.
 
     Example:
-        >>> from dir2text.file_system_tree import FileSystemTree
+        >>> from dir2text.file_system_tree.file_system_tree import FileSystemTree
         >>> tree = FileSystemTree("src")  # doctest: +SKIP
         >>> printer = FileContentPrinter(tree)  # doctest: +SKIP
         >>> for path, rel_path, content in printer.yield_file_contents():  # doctest: +SKIP
@@ -250,7 +250,7 @@ class FileContentPrinter:
             str: The file extension (including the dot) for the current output format.
 
         Example:
-            >>> from dir2text.file_system_tree import FileSystemTree
+            >>> from dir2text.file_system_tree.file_system_tree import FileSystemTree
             >>> tree = FileSystemTree("src")  # doctest: +SKIP
             >>> printer = FileContentPrinter(tree, "xml")  # doctest: +SKIP
             >>> printer.get_output_file_extension()  # doctest: +SKIP

@@ -11,7 +11,8 @@ from typing import Iterator, Optional, Union
 from dir2text.exceptions import TokenizationError
 from dir2text.exclusion_rules.base_rules import BaseExclusionRules
 from dir2text.file_content_printer import FileContentPrinter
-from dir2text.file_system_tree import FileSystemTree, PermissionAction
+from dir2text.file_system_tree.file_system_tree import FileSystemTree
+from dir2text.file_system_tree.permission_action import PermissionAction
 from dir2text.output_strategies.base_strategy import OutputStrategy
 from dir2text.output_strategies.json_strategy import JSONOutputStrategy
 from dir2text.output_strategies.xml_strategy import XMLOutputStrategy

@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from dir2text.file_content_printer import FileContentPrinter
-from dir2text.file_system_tree import FileSystemTree
+from dir2text.file_system_tree.file_system_tree import FileSystemTree
 from dir2text.output_strategies.json_strategy import JSONOutputStrategy
 from dir2text.output_strategies.xml_strategy import XMLOutputStrategy
 

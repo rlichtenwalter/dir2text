@@ -51,7 +51,7 @@ from dir2text.cli.signal_handler import setup_signal_handling, signal_handler
 from dir2text.dir2text import StreamingDir2Text
 from dir2text.exceptions import TokenizerNotAvailableError
 from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
-from dir2text.file_system_tree import PermissionAction
+from dir2text.file_system_tree.permission_action import PermissionAction
 
 
 def format_counts(counts: Mapping[str, Optional[int]]) -> str:
