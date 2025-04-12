@@ -120,7 +120,7 @@ class StreamingDir2Text:
         )
 
         # Create counter if counting is enabled
-        self._counter = TokenCounter(model=tokenizer_model) if tokenizer_model is not None else None
+        self._counter = TokenCounter(model=tokenizer_model)
 
         # Setup output strategy
         self._strategy: OutputStrategy
@@ -135,6 +135,10 @@ class StreamingDir2Text:
         self._directory_count = self._fs_tree.get_directory_count()
         self._file_count = self._fs_tree.get_file_count()
         self._symlink_count = self._fs_tree.get_symlink_count()
+
+        # Initialize line and character counts
+        self._line_count = 0
+        self._character_count = 0
 
         # Track streaming state
         self._tree_complete = False
@@ -213,43 +217,41 @@ class StreamingDir2Text:
             >>> tree.token_count  # doctest: +SKIP
             1500
         """
-        return self._counter.get_total_tokens() if self._counter is not None else 0
+        return self._counter.get_total_tokens() if self._counter.tiktoken_available else 0
 
     @property
     def line_count(self) -> int:
         """Number of lines processed across all operations.
 
         This count accumulates during streaming. The value is partial until
-        streaming_complete is True. Returns 0 if token counting is disabled.
+        streaming_complete is True.
 
         Returns:
-            int: Total count of lines processed. Returns 0 if token counting is disabled
-                (i.e., if tokenizer_model was None during initialization).
+            int: Total count of lines processed.
 
         Example:
             >>> tree = StreamingDir2Text("src")  # doctest: +SKIP
             >>> tree.line_count  # doctest: +SKIP
             250
         """
-        return self._counter.get_total_lines() if self._counter is not None else 0
+        return self._counter.get_total_lines()
 
     @property
     def character_count(self) -> int:
         """Number of characters processed across all operations.
 
         This count accumulates during streaming. The value is partial until
-        streaming_complete is True. Returns 0 if token counting is disabled.
+        streaming_complete is True.
 
         Returns:
-            int: Total count of characters processed. Returns 0 if token counting is disabled
-                (i.e., if tokenizer_model was None during initialization).
+            int: Total count of characters processed.
 
         Example:
             >>> tree = StreamingDir2Text("src")  # doctest: +SKIP
             >>> tree.character_count  # doctest: +SKIP
             15000
         """
-        return self._counter.get_total_characters() if self._counter is not None else 0
+        return self._counter.get_total_characters()
 
     def _yield(self, text: str) -> str:
         """Return text for yielding.
@@ -275,12 +277,11 @@ class StreamingDir2Text:
         Returns:
             The input text, unchanged.
         """
-        if self._counter is not None:
-            try:
-                self._counter.count(text)
-            except TokenizationError:
-                # Continue even if token counting fails
-                pass
+        try:
+            self._counter.count(text)
+        except TokenizationError:
+            # Continue even if token counting fails
+            pass
         return self._yield(text)
 
     def stream_tree(self) -> Iterator[str]:
@@ -377,7 +378,7 @@ class Dir2Text(StreamingDir2Text):
         *,
         exclusion_rules: Optional[BaseExclusionRules] = None,
         output_format: str = "xml",
-        tokenizer_model: str = "gpt-4",
+        tokenizer_model: Optional[str] = None,
         permission_action: Union[str, PermissionAction] = PermissionAction.IGNORE,
         follow_symlinks: bool = False,
     ):

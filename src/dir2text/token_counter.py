@@ -67,27 +67,32 @@ class TokenCounter:
             a model) but tiktoken is not installed.
     """
 
-    def __init__(self, model: str = "gpt-4"):
+    def __init__(self, model: Optional[str] = None):
         """Initialize the counter.
 
         Args:
-            model: The model whose tokenizer to use. Defaults to "gpt-4", which provides
-                a good general-purpose tokenization using the cl100k_base encoding.
-                While primarily designed for OpenAI models, the tokenizers can provide
-                useful approximations for similar models.
+            model: The model whose tokenizer to use, or None to disable token counting.
+                Default None. When a model is specified, it uses that model's tokenizer
+                (e.g., "gpt-4" uses cl100k_base encoding).
 
         Raises:
             ValueError: If the specified model's tokenizer cannot be loaded.
-            TokenizerNotAvailableError: If tiktoken is not installed.
+            TokenizerNotAvailableError: If tiktoken is not installed and model is specified.
         """
         self.model = model
         self.tiktoken_available = self._check_tiktoken()
         self.encoder: Optional[Any] = None
-        if self.tiktoken_available:
+
+        if self.model is not None and self.tiktoken_available:
             try:
                 self.encoder = self._get_encoder()
             except TokenizerNotAvailableError:
                 self.tiktoken_available = False
+                # If token counting was explicitly requested but not available, raise
+                raise TokenizerNotAvailableError()
+        elif self.model is not None and not self.tiktoken_available:
+            # If token counting was explicitly requested but not available, raise
+            raise TokenizerNotAvailableError()
 
         self._total_tokens = 0
         self._total_lines = 0
@@ -118,7 +123,15 @@ class TokenCounter:
         """
         if not self.tiktoken_available:
             raise TokenizerNotAvailableError()
+
+        # Import tiktoken here to avoid import errors when not available
         import tiktoken
+
+        # Ensure we have a valid model string before calling encoding_for_model
+        if self.model is None:
+            # This should not normally happen due to our initialization checks,
+            # but we'll handle it gracefully just in case
+            return None
 
         try:
             return tiktoken.encoding_for_model(self.model)
@@ -134,8 +147,8 @@ class TokenCounter:
         """Count lines, tokens, and characters in text.
 
         This method always counts lines and characters. It will also count tokens
-        if the tiktoken library is available. All counts are added to running totals
-        and also returned.
+        if the tiktoken library is available and a model has been specified.
+        All counts are added to running totals and also returned.
 
         Args:
             text: The text to analyze.
@@ -143,7 +156,7 @@ class TokenCounter:
         Returns:
             CountResult: Named tuple containing:
                 - lines: Number of newlines in this text
-                - tokens: Number of tokens in this text (0 if token counting unavailable)
+                - tokens: Number of tokens in this text (0 if token counting unavailable/disabled)
                 - characters: Number of characters in this text
 
         Raises:

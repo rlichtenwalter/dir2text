@@ -68,12 +68,11 @@ def format_counts(counts: Mapping[str, Optional[int]]) -> str:
         f"Files: {counts['files']}",
         f"Symlinks: {counts['symlinks']}",
         f"Lines: {counts['lines']}",
+        f"Characters: {counts['characters']}",
     ]
 
     if counts["tokens"] is not None:
-        result.append(f"Tokens: {counts['tokens']}")
-
-    result.append(f"Characters: {counts['characters']}")
+        result.insert(4, f"Tokens: {counts['tokens']}")
 
     return "\n".join(result)
 
