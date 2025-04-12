@@ -98,7 +98,7 @@ This includes the content that symlinks point to, while still protecting against
 
 ### Summary Reporting
 
-Dir2text can generate statistics about the processed directory including file counts, line counts, and optionally token counts. You can control where these statistics are displayed:
+Dir2text can generate a summary describing the processed directory including file counts, line counts, and optionally token counts. You can control where this information is displayed:
 
 ```bash
 # Print summary to stderr
@@ -226,6 +226,23 @@ def example():
   "path": "docs/api.md",
   "target": "../README.md"
 }
+```
+
+## Signal Handling
+
+When using dir2text as a command-line tool, it handles system signals gracefully to ensure proper resource management and clean exits:
+
+- **SIGPIPE**: When piping output to programs like `head`, `less`, or `grep` that may terminate before reading all input, dir2text detects the closed pipe and exits cleanly without error messages.
+- **SIGINT** (Ctrl+C): Properly handles user interruption, ensuring all resources are cleaned up.
+
+This means you can safely pipe dir2text output to other commands without worrying about error messages when those commands exit:
+
+```bash
+# The first 10 lines of output
+dir2text /path/to/project | head -n 10
+
+# Only files containing "function"
+dir2text /path/to/project | grep "function"
 ```
 
 ## Development

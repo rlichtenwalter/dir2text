@@ -86,6 +86,8 @@ dir2text offers two modes for handling symbolic links:
    - Symlink loops are detected and prevented
    - Files may appear multiple times through different paths
 
+Both modes feature comprehensive loop detection through tracking device IDs and inode numbers. When a loop is detected, it's marked with a special `[loop detected]` indicator to prevent infinite recursion.
+
 ### Representation in Tree Visualization
 
 **Default Mode (without `-L`):**
@@ -134,6 +136,26 @@ Both modes include protection against symbolic link loops:
 - Loops are detected using device ID and inode number tracking
 - When a loop is detected, it's marked and traversal stops at that point
 - This prevents infinite recursion regardless of symlink following mode
+
+### Interaction with Exclusion Rules
+
+When symbolic links interact with exclusion rules, there are some important behaviors to understand:
+
+1. **Pattern matching for symlinks**:
+   - Patterns like `build/` (with trailing slash) are intended to match directories
+   - For non-followed symlinks, dir2text will also check if a symlink would match the pattern as if it had a trailing slash
+   - This ensures patterns like `node_modules/` exclude symlinks named "node_modules" even though they're not directories
+
+2. **Exclusion rule ordering with symlinks**:
+   - When using negation patterns (starting with `!`), order matters
+   - For example, `links/` followed by `!links/important` would include "important" symlinks
+   - But `!links/important` followed by `links/` would exclude all symlinks in "links"
+   - This ordering applies to both followed and non-followed symlinks
+
+3. **Excluding symlink targets**:
+   - In follow mode, exclusion applies to the target path, not just the symlink path
+   - If a symlink points to an excluded directory, the symlink's contents won't be shown
+   - But the symlink itself will still appear in the tree
 
 ## Exclusion Rules
 
