@@ -130,7 +130,29 @@ class FileSystemTree:
         # Set to track visited inodes during traversal to prevent symlink loops
         visited_inodes: Set[FileIdentifier] = set()
 
+        # Build the tree structure
         self._tree = self._create_node(self.root_path, "", visited_inodes)
+
+        # Handle the root node name specifically
+        if self._tree:
+            original_path_str = str(self.root_path)
+            resolved_path = self.root_path.resolve()
+
+            # Get the real directory name
+            real_dir_name = resolved_path.name
+
+            # For relative paths, include the original specification
+            if not self.root_path.is_absolute():
+                if original_path_str in [".", "./"]:
+                    # For current directory, just use the real name
+                    self._tree.name = real_dir_name
+                else:
+                    # For other relative paths (like '../'), include both the name and the specification
+                    self._tree.name = f"{real_dir_name}"
+            else:
+                # For absolute paths, just use the directory name
+                self._tree.name = real_dir_name
+
         self._count_files_and_directories()
 
     def _get_file_identifier(self, path: Path) -> FileIdentifier:
@@ -493,9 +515,12 @@ class FileSystemTree:
         if self._tree is None:
             return
 
-        def write_node(node: FileSystemNode, prefix: str = "", is_last: bool = True) -> Iterator[str]:
+        def write_node(
+            node: FileSystemNode, prefix: str = "", is_last: bool = True, is_root: bool = False
+        ) -> Iterator[str]:
             # Handle root node
-            if not node.parent:
+            if is_root:
+                # For the root node, use its name which should now include user specification if needed
                 yield f"{node.name}/"
             else:
                 # Handle child nodes
@@ -517,7 +542,6 @@ class FileSystemTree:
                 yield f"{prefix}{connector}{node.name}{suffix}"
 
             if node.is_dir:
-                new_prefix = prefix + ("    " if is_last else "│   ")
                 # Sort children: directories first, then files, both alphabetically
                 sorted_children = sorted(node.children, key=lambda n: (not n.is_dir, n.name.lower()))
 
@@ -531,9 +555,17 @@ class FileSystemTree:
                     ):
                         continue
                     is_last_child = i == len(sorted_children) - 1
-                    yield from write_node(child, new_prefix, is_last_child)
 
-        yield from write_node(self._tree)
+                    # Calculate new prefix for child - for direct children of root, don't add initial spaces
+                    if is_root:
+                        new_prefix = ""
+                    else:
+                        new_prefix = prefix + ("    " if is_last else "│   ")
+
+                    yield from write_node(child, new_prefix, is_last_child, is_root=False)
+
+        # Start with the root node, explicitly marking it as root
+        yield from write_node(self._tree, is_root=True)
 
     def get_tree_representation(self) -> str:
         """Get a complete string representation of the filesystem tree.
