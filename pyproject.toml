@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "dir2text"
-version = "1.0.0"
+version = "2.0.0"
 description = "A Python library and command-line tool for expressing directory structures and file contents in formats suitable for Large Language Models (LLMs). It combines directory tree visualization with file contents in a memory-efficient, streaming format."
 repository = "https://github.com/rlichtenwalter/dir2text.git"
 authors = ["Ryan N. Lichtenwalter <rlichtenwalter@gmail.com>"]
@@ -18,6 +18,7 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
 ]
 
 [project.urls]
@@ -51,11 +52,11 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-dir2text = "dir2text.cli:main"
+dir2text = "dir2text.cli.main:main"
 
 [tool.black]
 line-length = 120
-target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+target-version = ['py39', 'py310', 'py311', 'py312', 'py313']
 include = '\.pyi?$'
 extend-exclude = '''
 /(

@@ -1,9 +1,13 @@
 """Implementation of exclusion rules using .gitignore pattern syntax."""
 
-import os
+from os import PathLike
+from pathlib import Path
+from typing import Optional, Sequence, Union
 
 from pathspec import PathSpec
 from pathspec.patterns import GitWildMatchPattern  # type: ignore
+
+from dir2text.types import PathType
 
 from .base_rules import BaseExclusionRules
 
@@ -22,6 +26,13 @@ class GitIgnoreExclusionRules(BaseExclusionRules):
     - Double-asterisk matching (**)
     - Comment lines (starting with #)
 
+    Multiple rule files can be provided during initialization or added incrementally
+    with load_rules(). Rules from all files are combined, with later rules potentially
+    overriding earlier ones (particularly for negation patterns with !).
+
+    Individual rules can also be added directly using add_rule(), which accepts the same
+    pattern syntax as .gitignore files.
+
     Attributes:
         spec (PathSpec): Compiled pattern matcher from the pathspec library.
 
@@ -35,6 +46,10 @@ class GitIgnoreExclusionRules(BaseExclusionRules):
         >>> rules = GitIgnoreExclusionRules(f.name)
         >>> rules.exclude("node_modules/package.json")
         True
+        >>> # Add individual rules directly
+        >>> rules.add_rule("*.log")
+        >>> rules.exclude("app.log")
+        True
         >>> # Clean up the temporary file
         >>> os.unlink(f.name)
 
@@ -43,28 +58,40 @@ class GitIgnoreExclusionRules(BaseExclusionRules):
         even on Windows systems, to match Git's behavior.
     """
 
-    def __init__(self, rules_file: str):
-        """Initialize GitIgnoreExclusionRules with patterns from a specified file.
+    def __init__(self, rules_files: Optional[Union[PathType, Sequence[PathType]]] = None):
+        """Initialize GitIgnoreExclusionRules with patterns from specified files.
 
         Args:
-            rules_file (str): Path to the file containing .gitignore patterns.
+            rules_files: Path(s) to the file(s) containing .gitignore patterns.
+                     Can be a single path-like object or a sequence of path-like objects.
 
         Raises:
-            FileNotFoundError: If the rules file does not exist.
+            FileNotFoundError: If any rules file does not exist.
 
         Example:
             >>> import tempfile
             >>> import os
-            >>> # Create a temporary gitignore file
-            >>> with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
-            ...     _ = f.write('*.pyc\\n')
-            >>> # Initialize with our temporary gitignore
-            >>> rules = GitIgnoreExclusionRules(f.name)
+            >>> # Create temporary gitignore files
+            >>> with tempfile.NamedTemporaryFile(mode='w', delete=False) as f1:
+            ...     _ = f1.write('*.pyc\\n')
+            >>> with tempfile.NamedTemporaryFile(mode='w', delete=False) as f2:
+            ...     _ = f2.write('*.log\\n')
+            >>> # Initialize with both files
+            >>> rules = GitIgnoreExclusionRules([f1.name, f2.name])
+            >>> rules.exclude("test.pyc")
+            True
+            >>> rules.exclude("test.log")
+            True
             >>> # Clean up
-            >>> os.unlink(f.name)
+            >>> os.unlink(f1.name)
+            >>> os.unlink(f2.name)
         """
-        self.spec: PathSpec
-        self.load_rules(rules_file)
+        # Initialize with empty spec
+        self.spec = PathSpec.from_lines(GitWildMatchPattern, [])
+
+        # Load rules if provided
+        if rules_files is not None:
+            self.load_rules(rules_files)
 
     def exclude(self, path: str) -> bool:
         """Check if a path should be excluded based on the loaded .gitignore patterns.
@@ -74,8 +101,7 @@ class GitIgnoreExclusionRules(BaseExclusionRules):
         normalization is performed.
 
         Args:
-            path: The path to check. Should use forward slashes (/) as path
-                separators, even on Windows.
+            path: The path to check. Can be any path-like object.
 
         Returns:
             bool: True if the path matches any non-negated pattern or matches a negated
@@ -97,19 +123,20 @@ class GitIgnoreExclusionRules(BaseExclusionRules):
         """
         return self.spec.match_file(path)
 
-    def load_rules(self, rules_file: str) -> None:
-        """Load and compile .gitignore patterns from a file.
+    def load_rules(self, rules_files: Union[PathType, Sequence[PathType]]) -> None:
+        """Load and combine .gitignore patterns from one or more files.
 
-        This method reads patterns from the specified file and compiles them into a
-        PathSpec matcher. Empty lines and lines starting with # are ignored. The patterns
-        are processed in order, with later patterns potentially overriding earlier ones
-        (especially in the case of negation with !).
+        This method reads patterns from the specified file(s) and adds them to the
+        existing PathSpec matcher. Patterns are processed in the order they are added,
+        with later patterns potentially overriding earlier ones (especially in the
+        case of negation with !).
 
         Args:
-            rules_file (str): Path to the file containing .gitignore patterns.
+            rules_files: Path(s) to file(s) containing .gitignore patterns.
+                       Can be any path-like object or sequence of path-like objects.
 
         Raises:
-            FileNotFoundError: If the rules file does not exist.
+            FileNotFoundError: If any rules file does not exist.
 
         Example:
             >>> import tempfile
@@ -123,7 +150,7 @@ class GitIgnoreExclusionRules(BaseExclusionRules):
             >>> rules = GitIgnoreExclusionRules(f1.name)
             >>> rules.exclude("test.txt")
             True
-            >>> # Load second rules file
+            >>> # Add second rules file
             >>> rules.load_rules(f2.name)
             >>> rules.exclude("important.txt")
             False
@@ -131,8 +158,61 @@ class GitIgnoreExclusionRules(BaseExclusionRules):
             >>> os.unlink(f1.name)
             >>> os.unlink(f2.name)
         """
-        if not os.path.exists(rules_file):
-            raise FileNotFoundError(f"Rules file not found: {rules_file}")
-        with open(rules_file, "r") as f:
-            gitignore_content = f.read().splitlines()
-        self.spec = PathSpec.from_lines(GitWildMatchPattern, gitignore_content)
+        # Convert to list if it's a single path
+        if isinstance(rules_files, (str, PathLike)):
+            rules_files = [rules_files]
+
+        # Process each rules file
+        for rules_file in rules_files:
+            path = Path(rules_file)
+            if not path.exists():
+                raise FileNotFoundError(f"Rules file not found: {path}")
+
+            with open(path, "r") as f:
+                gitignore_content = f.read().splitlines()
+
+            # Add these patterns to our existing spec
+            new_patterns = PathSpec.from_lines(GitWildMatchPattern, gitignore_content).patterns
+
+            # Ensure patterns is a list that supports extend
+            if not hasattr(self.spec.patterns, "extend"):
+                self.spec.patterns = list(self.spec.patterns)
+
+            self.spec.patterns.extend(new_patterns)
+
+    def add_rule(self, rule: str) -> None:
+        """Add a single .gitignore pattern directly.
+
+        This method adds an individual .gitignore pattern to the existing rules.
+        The pattern follows the same syntax as a line in a .gitignore file.
+        Patterns are processed in the order they are added, with later patterns
+        potentially overriding earlier ones.
+
+        Args:
+            rule: A single .gitignore pattern to add (e.g., "*.pyc", "node_modules/",
+                 "!important.txt").
+
+        Example:
+            >>> rules = GitIgnoreExclusionRules()
+            >>> rules.add_rule("*.pyc")
+            >>> rules.exclude("test.pyc")
+            True
+            >>> rules.exclude("test.py")
+            False
+            >>> # Negation works too
+            >>> rules.add_rule("!important.pyc")
+            >>> rules.exclude("important.pyc")
+            False
+            >>> # Directory patterns
+            >>> rules.add_rule("build/")
+            >>> rules.exclude("build/output.txt")
+            True
+        """
+        # Create a new pattern from the rule and add it to the existing patterns
+        new_pattern = GitWildMatchPattern(rule)
+
+        # Ensure patterns is a list that supports append
+        if not hasattr(self.spec.patterns, "append"):
+            self.spec.patterns = list(self.spec.patterns)
+
+        self.spec.patterns.append(new_pattern)

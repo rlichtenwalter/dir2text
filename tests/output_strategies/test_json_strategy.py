@@ -17,15 +17,15 @@ def test_format_start():
 
     # Test basic path
     basic = strategy.format_start("test.py", None)
-    assert basic == '{"path": "test.py", "content": "'
+    assert basic == '{"type": "file", "path": "test.py", "content": "'
 
     # Test path with special characters
     special = strategy.format_start('test"file.py', None)
-    assert special == '{"path": "test\\"file.py", "content": "'
+    assert special == '{"type": "file", "path": "test\\"file.py", "content": "'
 
     # Test with token count
     with_tokens = strategy.format_start("test.py", 42)
-    assert with_tokens == '{"path": "test.py", "content": "'
+    assert with_tokens == '{"type": "file", "path": "test.py", "content": "'
 
 
 def test_format_content():
@@ -53,6 +53,28 @@ def test_format_end():
     assert strategy.format_end(42) == '", "tokens": 42}'
 
 
+def test_format_symlink():
+    """Test the format_symlink method."""
+    strategy = JSONOutputStrategy()
+
+    # Test basic symlink
+    symlink_output = strategy.format_symlink("link.py", "./real.py")
+    parsed = json.loads(symlink_output)
+    assert parsed["type"] == "symlink"
+    assert parsed["path"] == "link.py"
+    assert parsed["target"] == "./real.py"
+
+    # Test symlink with special characters
+    special_output = strategy.format_symlink('link"with"quotes.txt', "../path/with\\backslash")
+    special_parsed = json.loads(special_output)
+    assert special_parsed["path"] == 'link"with"quotes.txt'
+    assert special_parsed["target"] == "../path/with\\backslash"
+
+    # Verify proper escaping in the raw output
+    assert '\\"' in special_output  # Should contain escaped quotes
+    assert "\\\\" in special_output  # Should contain escaped backslash
+
+
 def test_file_extension():
     """Test the get_file_extension method."""
     strategy = JSONOutputStrategy()
@@ -72,6 +94,7 @@ def test_complete_file_output():
 
     # Verify the output is valid JSON
     parsed = json.loads(complete_output)
+    assert parsed["type"] == "file"
     assert parsed["path"] == "test.py"
     assert parsed["content"] == 'def test():\n    print("Hello")'
 
@@ -89,6 +112,7 @@ def test_complete_file_output_start_tokens():
 
     # Verify the output is valid JSON
     parsed = json.loads(complete_output)
+    assert parsed["type"] == "file"
     assert parsed["path"] == "test.py"
     assert parsed["content"] == 'def test():\n    print("Hello")'
     assert parsed["tokens"] == 100
@@ -107,6 +131,7 @@ def test_complete_file_output_end_tokens():
 
     # Verify the output is valid JSON
     parsed = json.loads(complete_output)
+    assert parsed["type"] == "file"
     assert parsed["path"] == "test.py"
     assert parsed["content"] == 'def test():\n    print("Hello")'
     assert parsed["tokens"] == 100
@@ -125,6 +150,7 @@ def test_complete_file_output_both_equal_tokens():
 
     # Verify the output is valid JSON
     parsed = json.loads(complete_output)
+    assert parsed["type"] == "file"
     assert parsed["path"] == "test.py"
     assert parsed["content"] == 'def test():\n    print("Hello")'
     assert parsed["tokens"] == 100
@@ -155,6 +181,7 @@ def test_json_escaping():
 
     # Verify the output is valid JSON and preserves special characters
     parsed = json.loads(complete_output)
+    assert parsed["type"] == "file"
     assert parsed["path"] == 'test"file".py'
     assert parsed["content"] == 'line1\n"quoted"\t\\path'
 
@@ -181,7 +208,22 @@ def test_json_formatting_consistency():
 
     for args in test_cases:
         parsed = create_and_verify_json(*args)
+        assert parsed["type"] == "file"
         assert parsed["path"] == args[0]
         assert parsed["content"] == args[1]
         if len(args) > 2:
             assert parsed["tokens"] == args[2]
+
+
+def test_json_symlink_valid_format():
+    """Test that the symlink format generates valid JSON."""
+    strategy = JSONOutputStrategy()
+
+    # Test symlink format
+    symlink_json = strategy.format_symlink("link.py", "./target.py")
+
+    # Verify it's valid JSON
+    parsed = json.loads(symlink_json)
+    assert parsed["type"] == "symlink"
+    assert parsed["path"] == "link.py"
+    assert parsed["target"] == "./target.py"

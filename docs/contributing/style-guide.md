@@ -101,7 +101,8 @@ with (
 
 ```python
 # Module name: file_system_tree.py
-from typing import TypeVar, Optional
+from os import PathLike
+from typing import Optional, Union, TypeVar
 
 # Constants
 DEFAULT_CHUNK_SIZE = 8192
@@ -109,19 +110,19 @@ MAX_TOKEN_LIMIT = 150000
 
 # Type variables
 T = TypeVar('T')
-PathLike = Union[str, Path]
+PathType = Union[str, PathLike[str]]
 
 # Classes
 class FileSystemTree:
     """Tree representation of filesystem."""
     
-    def __init__(self, root_path: PathLike) -> None:
+    def __init__(self, root_path: PathType) -> None:
         # Instance variables
         self.root_path = root_path
         self._cached_data: Optional[dict] = None
 
 # Functions
-def process_directory(path: PathLike) -> None:
+def process_directory(path: PathType) -> None:
     """Process a directory."""
     pass
 ```
