@@ -10,8 +10,9 @@ A Python library and command-line tool for expressing directory structures and f
 - Multiple output formats (XML, JSON)
 - Easy extensibility for new formats
 - Support for exclusion patterns (e.g., .gitignore rules)
+- Proper symbolic link handling and loop detection
 - Optional token counting for LLM context management
-- Statistics reporting with configurable output destination
+- Summary reporting with configurable output destination
 - Safe handling of large files and directories
 
 ## Installation
@@ -53,53 +54,83 @@ Basic usage:
 ```bash
 dir2text /path/to/project
 
+# Show version information
+dir2text --version
+
 # Exclude files matching patterns from one or more exclusion files
 dir2text -e .gitignore /path/to/project
 dir2text -e .gitignore -e .npmignore -e custom-ignore /path/to/project
 
+# Exclude files with direct patterns
+dir2text -i "*.pyc" -i "node_modules/" /path/to/project
+
 # Enable token counting for LLM context management
-dir2text -c /path/to/project
+dir2text -t gpt-4 /path/to/project
 
 # Generate JSON output and save to file
 dir2text -f json -o output.json /path/to/project
+
+# Follow symbolic links
+dir2text -L /path/to/project
 
 # Skip tree or content sections
 dir2text -T /path/to/project     # Skip tree visualization
 dir2text -C /path/to/project     # Skip file contents
 ```
 
-### Statistics Reporting
+### Symbolic Link Handling
 
-Dir2text can generate statistics about the processed directory including file counts, line counts, and optionally token counts. You can control where these statistics are displayed:
+By default, symbolic links are represented as symlinks without following them:
 
 ```bash
-# Print statistics to stderr (default)
-dir2text -s /path/to/project
-
-# Print statistics to stdout
-dir2text -s stdout /path/to/project
-
-# Include statistics in the output file
-dir2text -s file -o output.txt /path/to/project
-
-# Show token counts in statistics by enabling token counting
-dir2text -s -c /path/to/project
+dir2text /path/to/project
 ```
 
-Statistics include counts of directories, files, lines, and characters. Token counts are only included when token counting is enabled with the `-c` option.
+This shows symlinks clearly marked with their targets in the tree output, and as separate elements in content output.
 
-Note that token counting (`-c`) and statistics reporting (`-s`) are separate concerns:
-- `-c` enables token counting and embeds token counts in the output markup
-- `-s` controls whether statistics are generated and where they are displayed
+To follow symbolic links during traversal (similar to Unix `find -L`):
+
+```bash
+dir2text -L /path/to/project
+```
+
+This includes the content that symlinks point to, while still protecting against symlink loops.
+
+### Summary Reporting
+
+Dir2text can generate a summary describing the processed directory including file counts, line counts, and optionally token counts. You can control where this information is displayed:
+
+```bash
+# Print summary to stderr
+dir2text -s stderr /path/to/project
+
+# Print summary to stdout
+dir2text -s stdout /path/to/project
+
+# Include summary in the output file
+dir2text -s file -o output.txt /path/to/project
+
+# Include token counts in summary by specifying a tokenizer model
+dir2text -s stderr -t gpt-4 /path/to/project
+```
+
+Summary includes counts of directories, files, symlinks, lines, and characters. Token counts are only included when a tokenizer model is specified with the `-t` option.
 
 ### Python API
 
 Basic usage:
 ```python
 from dir2text import StreamingDir2Text
+from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
+
+# Create exclusion rules (optional)
+rules = GitIgnoreExclusionRules()
+rules.add_rule("*.pyc")  # Add rules directly
+# OR load from files
+rules.load_rules(".gitignore")
 
 # Initialize the analyzer
-analyzer = StreamingDir2Text("path/to/project")
+analyzer = StreamingDir2Text("path/to/project", exclusion_rules=rules)
 
 # Stream the directory tree
 for line in analyzer.stream_tree():
@@ -111,18 +142,27 @@ for chunk in analyzer.stream_contents():
 
 # Get metrics
 print(f"Processed {analyzer.file_count} files in {analyzer.directory_count} directories")
+print(f"Found {analyzer.symlink_count} symbolic links")
 ```
 
-Memory-efficient processing with multiple exclusions and token counting:
+Memory-efficient processing with token counting:
 ```python
 from dir2text import StreamingDir2Text
+from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
+
+# Create exclusion rules from multiple files
+rules = GitIgnoreExclusionRules()
+rules.load_rules(".gitignore")
+rules.load_rules(".npmignore")
+rules.add_rule("custom.ignore")
 
 # Initialize with options
 analyzer = StreamingDir2Text(
     directory="path/to/project",
-    exclude_files=[".gitignore", ".npmignore", "custom.ignore"],  # Multiple exclusion files
+    exclusion_rules=rules,
     output_format="json",
-    tokenizer_model="gpt-4"
+    tokenizer_model="gpt-4",
+    follow_symlinks=False  # Default behavior, don't follow symlinks
 )
 
 # Process content incrementally
@@ -135,6 +175,7 @@ with open("output.json", "w") as f:
 # Print statistics
 print(f"Files: {analyzer.file_count}")
 print(f"Directories: {analyzer.directory_count}")
+print(f"Symlinks: {analyzer.symlink_count}")
 print(f"Lines: {analyzer.line_count}")
 print(f"Tokens: {analyzer.token_count}")
 print(f"Characters: {analyzer.character_count}")
@@ -143,9 +184,18 @@ print(f"Characters: {analyzer.character_count}")
 Immediate processing (for smaller directories):
 ```python
 from dir2text import Dir2Text
+from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
+
+# Create exclusion rules
+rules = GitIgnoreExclusionRules()
+rules.load_rules(".gitignore")
 
 # Process everything immediately
-analyzer = Dir2Text("path/to/project")
+analyzer = Dir2Text(
+    "path/to/project", 
+    exclusion_rules=rules,
+    follow_symlinks=True  # Optionally follow symlinks
+)
 
 # Access complete content
 print(analyzer.tree_string)
@@ -160,15 +210,39 @@ print(analyzer.content_string)
 def example():
     print("Hello, world!")
 </file>
+<symlink path="docs/api.md" target="../README.md" />
 ```
 
 ### JSON Format
 ```json
 {
+  "type": "file",
   "path": "relative/path/to/file.py",
   "content": "def example():\n    print(\"Hello, world!\")",
   "tokens": 150
 }
+{
+  "type": "symlink",
+  "path": "docs/api.md",
+  "target": "../README.md"
+}
+```
+
+## Signal Handling
+
+When using dir2text as a command-line tool, it handles system signals gracefully to ensure proper resource management and clean exits:
+
+- **SIGPIPE**: When piping output to programs like `head`, `less`, or `grep` that may terminate before reading all input, dir2text detects the closed pipe and exits cleanly without error messages.
+- **SIGINT** (Ctrl+C): Properly handles user interruption, ensuring all resources are cleaned up.
+
+This means you can safely pipe dir2text output to other commands without worrying about error messages when those commands exit:
+
+```bash
+# The first 10 lines of output
+dir2text /path/to/project | head -n 10
+
+# Only files containing "function"
+dir2text /path/to/project | grep "function"
 ```
 
 ## Development
@@ -239,7 +313,7 @@ This project is actively maintained. Issues and pull requests are welcome.
 A: Streaming allows processing of large directories and files with constant memory usage, making it suitable for processing repositories of any size.
 
 **Q: How does dir2text handle symbolic links?**  
-A: dir2text follows symbolic links to both files and directories. While this enables complete directory traversal, no symlink loop detection is currently implemented. Users should be cautious when processing directories with circular symlinks, as this could lead to infinite recursion. Future versions may add configuration options for symlink handling and loop prevention.
+A: By default, dir2text represents symlinks as symbolic links in both tree and content output without following them. With the `-L` option, it follows symlinks similar to Unix tools like `find -L`. In both modes, symlink loop detection prevents infinite recursion.
 
 **Q: Can I use this with binary files?**  
 A: The tool is designed for text files. Binary files should be excluded using the exclusion rules feature.
@@ -257,14 +331,14 @@ For other language models, using a similar model's tokenizer (like gpt-4) can pr
 **Q: What happens if I specify a model that doesn't have a dedicated tokenizer?**  
 A: The library will suggest using a well-supported model like 'gpt-4' or 'text-davinci-003' for token counting. While token counts may not exactly match your target model, they can provide useful approximations for most modern language models.
 
-**Q: How can I control where statistics are displayed?**  
-A: Use the `-s/--stats` option to control where statistics are displayed:
-  - `-s` or `-s stderr`: Print statistics to stderr (default)
-  - `-s stdout`: Print statistics to stdout
-  - `-s file`: Include statistics in the output file (requires `-o`)
+**Q: How can I control where summary information is displayed?**  
+A: Use the `-s/--summary` option to control where summary information is displayed:
+  - `-s stderr`: Print summary to stderr
+  - `-s stdout`: Print summary to stdout
+  - `-s file`: Include summary in the output file (requires `-o`)
 
-**Q: Is token counting required for statistics reporting?**  
-A: No. Basic statistics (file count, directory count, etc.) are available without token counting. Including token counts in statistics requires the `-c/--count` option to be specified in addition to `-s/--stats`.
+**Q: Is token counting required for summary reporting?**  
+A: No. Basic statistics (e.g., file count, directory count, etc.,) are available without token counting. Including token counts in summary requires the `-t/--tokenizer` option to be specified along with `-s/--summary`.
 
 ## Contact
 

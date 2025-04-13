@@ -37,6 +37,10 @@ class BaseExclusionRules(ABC):
         ...             # Simple rule parsing: if file contains '.tmp', exclude .tmp files
         ...             with open(path, 'r') as f:
         ...                 self._has_tmp = self._has_tmp or '.tmp' in f.read()
+        ...
+        ...     def add_rule(self, rule: str) -> None:
+        ...         # Direct pattern handling: if rule is '.tmp', exclude .tmp files
+        ...         self._has_tmp = self._has_tmp or '.tmp' in rule
         >>> # Create an instance for example purposes
         >>> import tempfile
         >>> with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
@@ -87,6 +91,8 @@ class BaseExclusionRules(ABC):
             ...                 raise FileNotFoundError(f"Rules file not found: {path}")
             ...             with open(path, 'r') as f:
             ...                 self._has_tmp = self._has_tmp or '.tmp' in f.read()
+            ...     def add_rule(self, rule: str) -> None:
+            ...         self._has_tmp = self._has_tmp or '.tmp' in rule
             >>> import tempfile
             >>> with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
             ...     _ = f.write('*.tmp')  # Add rule to exclude .tmp files
@@ -141,6 +147,9 @@ class BaseExclusionRules(ABC):
             ...                 content = f.read()
             ...                 self._has_tmp = self._has_tmp or '*.tmp' in content
             ...                 self._has_log = self._has_log or '*.log' in content
+            ...     def add_rule(self, rule: str) -> None:
+            ...         self._has_tmp = self._has_tmp or '*.tmp' in rule
+            ...         self._has_log = self._has_log or '*.log' in rule
             >>> import tempfile
             >>> with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
             ...     _ = f.write('*.tmp')
@@ -155,5 +164,62 @@ class BaseExclusionRules(ABC):
             False
             >>> os.unlink(f.name)  # Clean up
             >>> os.unlink(f2.name)  # Clean up
+        """
+        pass
+
+    @abstractmethod
+    def add_rule(self, rule: str) -> None:
+        """
+        Add a single exclusion rule directly.
+
+        This method must be implemented by concrete subclasses to add an individual
+        exclusion rule (pattern) without reading from a file. This allows for
+        programmatically adding rules or accepting rules from command-line arguments.
+
+        Args:
+            rule (str): The exclusion rule to add. The format depends on the specific
+                implementation (e.g., a gitignore pattern like "*.pyc").
+
+        Example:
+            >>> import os
+            >>> # Define a simple implementation
+            >>> class SimpleExclusionRules(BaseExclusionRules):
+            ...     def __init__(self, rules_files=None):
+            ...         self._has_tmp = False
+            ...         self._has_log = False
+            ...         if rules_files:
+            ...             self.load_rules(rules_files)
+            ...     def exclude(self, path: str) -> bool:
+            ...         if self._has_tmp and path.endswith('.tmp'):
+            ...             return True
+            ...         if self._has_log and path.endswith('.log'):
+            ...             return True
+            ...         return False
+            ...     def load_rules(self, rules_files):
+            ...         from pathlib import Path
+            ...         if isinstance(rules_files, (str, Path)):
+            ...             rules_files = [rules_files]
+            ...         for rules_file in rules_files:
+            ...             path = Path(rules_file)
+            ...             if not path.exists():
+            ...                 raise FileNotFoundError(f"Rules file not found: {path}")
+            ...             with open(path, 'r') as f:
+            ...                 content = f.read()
+            ...                 self._has_tmp = self._has_tmp or '*.tmp' in content
+            ...                 self._has_log = self._has_log or '*.log' in content
+            ...     def add_rule(self, rule: str) -> None:
+            ...         self._has_tmp = self._has_tmp or '*.tmp' in rule
+            ...         self._has_log = self._has_log or '*.log' in rule
+            >>> # Create rules with direct pattern
+            >>> rules = SimpleExclusionRules()
+            >>> rules.add_rule('*.tmp')
+            >>> rules.exclude('test.tmp')
+            True
+            >>> rules.exclude('test.txt')
+            False
+            >>> # Add another rule
+            >>> rules.add_rule('*.log')
+            >>> rules.exclude('app.log')
+            True
         """
         pass

@@ -5,14 +5,14 @@ with support for streaming output and token counting. It includes both streaming
 and complete processing implementations.
 """
 
-from os import PathLike
 from pathlib import Path
-from typing import Iterator, Optional, Sequence, Union
+from typing import Iterator, Optional, Union
 
 from dir2text.exceptions import TokenizationError
-from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
+from dir2text.exclusion_rules.base_rules import BaseExclusionRules
 from dir2text.file_content_printer import FileContentPrinter
-from dir2text.file_system_tree import FileSystemTree, PermissionAction
+from dir2text.file_system_tree.file_system_tree import FileSystemTree
+from dir2text.file_system_tree.permission_action import PermissionAction
 from dir2text.output_strategies.base_strategy import OutputStrategy
 from dir2text.output_strategies.json_strategy import JSONOutputStrategy
 from dir2text.output_strategies.xml_strategy import XMLOutputStrategy
@@ -41,7 +41,6 @@ class StreamingDir2Text:
 
     Attributes:
         directory (PathType): Directory being processed.
-        exclude_files (Optional[Union[PathType, Sequence[PathType]]]): Paths to exclusion rules files.
         streaming_complete (bool): Whether all streaming operations have finished.
 
     Example:
@@ -59,7 +58,7 @@ class StreamingDir2Text:
 
     Raises:
         ValueError: If directory is invalid or output format is unsupported.
-        FileNotFoundError: If directory or exclude_files doesn't exist.
+        FileNotFoundError: If directory is deleted after object creation but before streaming begins.
         PermissionError: If access is denied and permission_action is "raise".
         TokenizationError: If token counting is enabled but tokenizer initialization fails.
     """
@@ -68,46 +67,36 @@ class StreamingDir2Text:
         self,
         directory: PathType,
         *,
-        exclude_files: Optional[Union[PathType, Sequence[PathType]]] = None,
+        exclusion_rules: Optional[BaseExclusionRules] = None,
         output_format: str = "xml",
         tokenizer_model: Optional[str] = None,
         permission_action: Union[str, PermissionAction] = PermissionAction.IGNORE,
+        follow_symlinks: bool = False,
     ):
         """Initialize streaming directory analysis.
 
         Args:
             directory: Directory to process. Can be any path-like object.
-            exclude_files: Optional path(s) to exclusion rule file(s) (e.g., .gitignore)
-                      Can be a single path-like object or a sequence of path-like objects.
+            exclusion_rules: Optional exclusion rules object to filter files and directories.
+                      If None, no files will be excluded.
             output_format: Format for output ('xml' or 'json')
             tokenizer_model: Model to use for counting. If None, token counting is disabled.
             permission_action: How to handle permission errors during traversal.
                 Can be either "ignore" or "raise", or a PermissionAction enum value.
                 Defaults to "ignore".
+            follow_symlinks: Whether to follow symbolic links during traversal.
+                If False (default), symlinks are represented as symlinks in the output.
+                If True, symlinks are followed and their targets' contents are included.
 
         Raises:
-            ValueError: If directory is invalid or output format is unsupported
-            FileNotFoundError: If directory or any exclude file doesn't exist
-            PermissionError: If access is denied and permission_action is "raise"
+            ValueError: If directory is invalid or output format is unsupported.
+            FileNotFoundError: If directory is deleted after object creation but before streaming begins.
+            PermissionError: If access is denied and permission_action is "raise".
         """
         # Validate inputs
         self.directory = Path(directory)
         if not self.directory.is_dir():
             raise ValueError(f"'{directory}' is not a valid directory")
-
-        # Handle exclude_files parameter - convert to list of Path objects
-        self.exclude_files = None
-        if exclude_files is not None:
-            if isinstance(exclude_files, (str, PathLike)):
-                # Single file
-                exclude_files = [exclude_files]
-
-            self.exclude_files = []
-            for file_path in exclude_files:
-                path = Path(file_path)
-                if not path.is_file():
-                    raise FileNotFoundError(f"Exclusion file not found: {path}")
-                self.exclude_files.append(path)
 
         if output_format not in ("xml", "json"):
             raise ValueError(f"Unsupported output format: {output_format}")
@@ -121,12 +110,17 @@ class StreamingDir2Text:
                     f"Invalid permission_action: {permission_action}. " "Must be one of: 'ignore', 'raise'"
                 )
 
+        # Initialize exclusion rules if not provided
+        self._exclusion_rules = exclusion_rules
+        self.follow_symlinks = follow_symlinks
+
         # Initialize components
-        self._exclusion_rules = GitIgnoreExclusionRules(self.exclude_files) if self.exclude_files else None
-        self._fs_tree = FileSystemTree(self.directory, self._exclusion_rules, permission_action=permission_action)
+        self._fs_tree = FileSystemTree(
+            self.directory, self._exclusion_rules, permission_action=permission_action, follow_symlinks=follow_symlinks
+        )
 
         # Create counter if counting is enabled
-        self._counter = TokenCounter(model=tokenizer_model) if tokenizer_model is not None else None
+        self._counter = TokenCounter(model=tokenizer_model)
 
         # Setup output strategy
         self._strategy: OutputStrategy
@@ -140,6 +134,7 @@ class StreamingDir2Text:
         # Initialize metrics that are immediately available
         self._directory_count = self._fs_tree.get_directory_count()
         self._file_count = self._fs_tree.get_file_count()
+        self._symlink_count = self._fs_tree.get_symlink_count()
 
         # Track streaming state
         self._tree_complete = False
@@ -178,6 +173,22 @@ class StreamingDir2Text:
         return self._file_count
 
     @property
+    def symlink_count(self) -> int:
+        """Number of symlinks.
+
+        This count is final and available immediately after construction.
+
+        Returns:
+            int: Number of symlinks in the tree.
+
+        Example:
+            >>> tree = StreamingDir2Text("src")  # doctest: +SKIP
+            >>> tree.symlink_count  # doctest: +SKIP
+            3
+        """
+        return self._symlink_count
+
+    @property
     def streaming_complete(self) -> bool:
         """Whether all streaming operations have completed.
 
@@ -190,55 +201,53 @@ class StreamingDir2Text:
         return self._tree_complete and self._contents_complete
 
     @property
-    def token_count(self) -> int:
+    def token_count(self) -> Optional[int]:
         """Number of tokens processed across all operations.
 
         Returns:
-            int: Total count of tokens processed. Returns 0 if token counting is disabled
+            Optional[int]: Total count of tokens processed, or None if token counting is disabled
                 (i.e., if tokenizer_model was None during initialization).
 
         Example:
-            >>> tree = StreamingDir2Text("src")  # doctest: +SKIP
+            >>> tree = StreamingDir2Text("src", tokenizer_model="gpt-4")  # doctest: +SKIP
             >>> tree.token_count  # doctest: +SKIP
             1500
         """
-        return self._counter.get_total_tokens() if self._counter is not None else 0
+        return self._counter.get_total_tokens()
 
     @property
     def line_count(self) -> int:
         """Number of lines processed across all operations.
 
         This count accumulates during streaming. The value is partial until
-        streaming_complete is True. Returns 0 if token counting is disabled.
+        streaming_complete is True.
 
         Returns:
-            int: Total count of lines processed. Returns 0 if token counting is disabled
-                (i.e., if tokenizer_model was None during initialization).
+            int: Total count of lines processed.
 
         Example:
             >>> tree = StreamingDir2Text("src")  # doctest: +SKIP
             >>> tree.line_count  # doctest: +SKIP
             250
         """
-        return self._counter.get_total_lines() if self._counter is not None else 0
+        return self._counter.get_total_lines()
 
     @property
     def character_count(self) -> int:
         """Number of characters processed across all operations.
 
         This count accumulates during streaming. The value is partial until
-        streaming_complete is True. Returns 0 if token counting is disabled.
+        streaming_complete is True.
 
         Returns:
-            int: Total count of characters processed. Returns 0 if token counting is disabled
-                (i.e., if tokenizer_model was None during initialization).
+            int: Total count of characters processed.
 
         Example:
             >>> tree = StreamingDir2Text("src")  # doctest: +SKIP
             >>> tree.character_count  # doctest: +SKIP
             15000
         """
-        return self._counter.get_total_characters() if self._counter is not None else 0
+        return self._counter.get_total_characters()
 
     def _yield(self, text: str) -> str:
         """Return text for yielding.
@@ -264,12 +273,11 @@ class StreamingDir2Text:
         Returns:
             The input text, unchanged.
         """
-        if self._counter is not None:
-            try:
-                self._counter.count(text)
-            except TokenizationError:
-                # Continue even if token counting fails
-                pass
+        try:
+            self._counter.count(text)
+        except TokenizationError:
+            # Continue even if token counting fails
+            pass
         return self._yield(text)
 
     def stream_tree(self) -> Iterator[str]:
@@ -364,34 +372,39 @@ class Dir2Text(StreamingDir2Text):
         self,
         directory: PathType,
         *,
-        exclude_files: Optional[Union[PathType, Sequence[PathType]]] = None,
+        exclusion_rules: Optional[BaseExclusionRules] = None,
         output_format: str = "xml",
-        tokenizer_model: str = "gpt-4",
+        tokenizer_model: Optional[str] = None,
         permission_action: Union[str, PermissionAction] = PermissionAction.IGNORE,
+        follow_symlinks: bool = False,
     ):
         """Initialize and immediately process the entire directory.
 
         Args:
             directory: Directory to process. Can be any path-like object.
-            exclude_files: Optional path(s) to exclusion rule file(s) (e.g., .gitignore)
-                      Can be a single path-like object or a sequence of path-like objects.
+            exclusion_rules: Optional exclusion rules object to filter files and directories.
+                      If None, no files will be excluded.
             output_format: Format for output ('xml' or 'json')
-            tokenizer_model: Model to use for token counting
+            tokenizer_model: Model to use for token counting, or None to disable token counting
             permission_action: How to handle permission errors during traversal.
                 Can be either "ignore" or "raise", or a PermissionAction enum value.
                 Defaults to "ignore".
+            follow_symlinks: Whether to follow symbolic links during traversal.
+                If False (default), symlinks are represented as symlinks in the output.
+                If True, symlinks are followed and their targets' contents are included.
 
         Raises:
-            ValueError: If directory is invalid or output format is unsupported
-            FileNotFoundError: If directory or exclude_file doesn't exist
-            PermissionError: If access is denied and permission_action is "raise"
+            ValueError: If directory is invalid or output format is unsupported.
+            FileNotFoundError: If directory is deleted after object creation but before processing begins.
+            PermissionError: If access is denied and permission_action is "raise".
         """
         super().__init__(
             directory,
-            exclude_files=exclude_files,
+            exclusion_rules=exclusion_rules,
             output_format=output_format,
             tokenizer_model=tokenizer_model,
             permission_action=permission_action,
+            follow_symlinks=follow_symlinks,
         )
 
         # Process everything immediately

@@ -31,7 +31,7 @@ def test_format_content():
     assert strategy.format_content("Hello, world!") == "Hello, world!"
 
     # Test content with special XML characters
-    assert strategy.format_content("<test>&") == "&lt;test&gt;&amp;"
+    assert strategy.format_content("<test>&</test>") == "&lt;test&gt;&amp;&lt;/test&gt;"
 
     # Test content with multiple lines
     assert strategy.format_content("line1\nline2") == "line1\nline2"
@@ -49,6 +49,26 @@ def test_format_end():
         strategy.format_end(42)
 
 
+def test_format_symlink():
+    """Test the format_symlink method."""
+    strategy = XMLOutputStrategy()
+
+    # Test basic symlink
+    assert strategy.format_symlink("link.py", "./real.py") == '<symlink path="link.py" target="./real.py" />\n'
+
+    # Test symlink with special characters
+    assert (
+        strategy.format_symlink("link & symlink.txt", '../path/with "quotes"')
+        == '<symlink path="link &amp; symlink.txt" target="../path/with &quot;quotes&quot;" />\n'
+    )
+
+    # Test symlink with path structure
+    assert (
+        strategy.format_symlink("dir1/dir2/link.md", "../../README.md")
+        == '<symlink path="dir1/dir2/link.md" target="../../README.md" />\n'
+    )
+
+
 def test_file_extension():
     """Test the get_file_extension method."""
     strategy = XMLOutputStrategy()
@@ -64,6 +84,6 @@ def test_complete_file_output():
     output.append(strategy.format_content('def test():\n    print("Hello")'))
     output.append(strategy.format_end())
 
-    expected = '<file path="test.py" tokens="100">\ndef test():\n    print(&quot;Hello&quot;)</file>\n'
+    expected = '<file path="test.py" tokens="100">\ndef test():\n    print("Hello")</file>\n'
 
     assert "".join(output) == expected

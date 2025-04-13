@@ -15,9 +15,17 @@ class JSONOutputStrategy(OutputStrategy):
 
     This strategy formats each file's content as a JSON object with the following structure:
     {
+        "type": "file",
         "path": "relative/path/to/file",
         "content": "file content...",
         "tokens": 123  # Optional, only included if token counting is enabled
+    }
+
+    Symlinks are formatted as:
+    {
+        "type": "symlink",
+        "path": "relative/path/to/symlink",
+        "target": "target/path"
     }
 
     The strategy handles streaming content in chunks while maintaining valid JSON structure
@@ -35,12 +43,14 @@ class JSONOutputStrategy(OutputStrategy):
 
     Example:
         >>> strategy = JSONOutputStrategy()
-        >>> print(strategy.format_start("example.py", 42))
-        {"path": "example.py", "content": "
-        >>> print(strategy.format_content('print("Hello")\\n'))
-        print(\\"Hello\\")\\n
-        >>> print(strategy.format_end(42))
-        ", "tokens": 42}
+        >>> strategy.format_start("example.py", 42)
+        '{"type": "file", "path": "example.py", "content": "'
+        >>> strategy.format_content('print("Hello")\\n')
+        'print(\\\\"Hello\\\\")\\\\n'
+        >>> strategy.format_end(42)
+        '", "tokens": 42}'
+        >>> strategy.format_symlink("link.py", "./real.py")
+        '{"type": "symlink", "path": "link.py", "target": "./real.py"}'
     """
 
     def __init__(self) -> None:
@@ -82,10 +92,10 @@ class JSONOutputStrategy(OutputStrategy):
 
         Example:
             >>> strategy = JSONOutputStrategy()
-            >>> print(strategy.format_start("src/main.py", 150))
-            {"path": "src/main.py", "content": "
+            >>> strategy.format_start("src/main.py", 150)
+            '{"type": "file", "path": "src/main.py", "content": "'
         """
-        data = {"path": relative_path}
+        data = {"type": "file", "path": relative_path}
         self.token_count = file_token_count
 
         # Start the JSON object and the content field
@@ -109,10 +119,10 @@ class JSONOutputStrategy(OutputStrategy):
 
         Example:
             >>> strategy = JSONOutputStrategy()
-            >>> print(strategy.format_content('line 1\\nprint("Hello")\\n'))
-            line 1\\nprint(\\"Hello\\")\\n
-            >>> print(strategy.format_content('path/with/\\backslash'))
-            path/with/\\backslash
+            >>> strategy.format_content('line 1\\n')
+            'line 1\\\\n'
+            >>> strategy.format_content('path/with/backslash')
+            'path/with/backslash'
         """
         # Create a temporary dictionary with our content as a value to get proper JSON escaping
         temp_dict = {"content": content}
@@ -139,13 +149,11 @@ class JSONOutputStrategy(OutputStrategy):
 
         Example:
             >>> strategy = JSONOutputStrategy()
-            >>> # With token count
-            >>> print(strategy.format_end(150))
-            ", "tokens": 150}
-            >>> # Without token count
+            >>> strategy.format_end(150)
+            '", "tokens": 150}'
             >>> strategy = JSONOutputStrategy()
-            >>> print(strategy.format_end(None))
-            "}
+            >>> strategy.format_end(None)
+            '"}'
         """
         end = '"'
         if file_token_count is not None:
@@ -159,6 +167,26 @@ class JSONOutputStrategy(OutputStrategy):
             end += f', "tokens": {self.token_count}'
         end += "}"
         return end
+
+    def format_symlink(self, relative_path: str, target_path: str) -> str:
+        """Format a symbolic link as a JSON object.
+
+        Creates a complete JSON object with the symlink path and target.
+
+        Args:
+            relative_path: The relative path of the symlink being formatted.
+            target_path: The target path of the symlink.
+
+        Returns:
+            A complete JSON object representing the symlink.
+
+        Example:
+            >>> strategy = JSONOutputStrategy()
+            >>> strategy.format_symlink("docs/link.md", "../README.md")
+            '{"type": "symlink", "path": "docs/link.md", "target": "../README.md"}'
+        """
+        data = {"type": "symlink", "path": relative_path, "target": target_path}
+        return self.encoder.encode(data)
 
     def get_file_extension(self) -> str:
         """Get the file extension for JSON output.

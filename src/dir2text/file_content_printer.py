@@ -8,7 +8,7 @@ for reading files while maintaining memory-efficient streaming behavior.
 from pathlib import Path
 from typing import Iterator, Optional, Tuple, Union
 
-from .file_system_tree import FileSystemTree
+from .file_system_tree.file_system_tree import FileSystemTree
 from .io.chunked_file_reader import ChunkedFileReader
 from .output_strategies.base_strategy import OutputStrategy
 from .output_strategies.json_strategy import JSONOutputStrategy
@@ -43,7 +43,7 @@ class FileContentPrinter:
         errors (str): How to handle encoding errors when reading files.
 
     Example:
-        >>> from dir2text.file_system_tree import FileSystemTree
+        >>> from dir2text.file_system_tree.file_system_tree import FileSystemTree
         >>> tree = FileSystemTree("src")  # doctest: +SKIP
         >>> printer = FileContentPrinter(tree)  # doctest: +SKIP
         >>> for path, rel_path, content in printer.yield_file_contents():  # doctest: +SKIP
@@ -110,7 +110,7 @@ class FileContentPrinter:
         else:
             raise TypeError("output_format must be either a string ('xml' or 'json') or " "an OutputStrategy instance")
 
-    def _count_file_tokens(self, file_path: PathType, relative_path: str) -> int:
+    def _count_file_tokens(self, file_path: PathType, relative_path: str) -> Optional[int]:
         """Count tokens in a file without storing its content.
 
         Args:
@@ -118,15 +118,17 @@ class FileContentPrinter:
             relative_path: Path relative to the root directory.
 
         Returns:
-            int: Total number of tokens in the file.
+            Optional[int]: Total number of tokens in the file, or None if tokenizer is not available or
+                 doesn't have token counting capabilities.
 
         Raises:
             OSError: If there are errors reading the file.
             ValueError: If a file cannot be decoded using the specified encoding.
             LookupError: If the specified encoding is not available.
         """
-        if self.tokenizer is None:
-            return 0
+        # Only attempt token counting if a tokenizer is available with token counting capabilities
+        if self.tokenizer is None or self.tokenizer.get_total_tokens() is None:
+            return None
 
         token_count = 0
         path_obj = Path(file_path)
@@ -134,7 +136,9 @@ class FileContentPrinter:
             with open(path_obj, "r", encoding=self.encoding, errors=self.errors) as file:
                 reader = ChunkedFileReader(file)
                 for chunk in reader:
-                    token_count += self.tokenizer.count(self.output_strategy.format_content(chunk)).tokens
+                    result = self.tokenizer.count(self.output_strategy.format_content(chunk))
+                    if result.tokens is not None:
+                        token_count += result.tokens
         except UnicodeError as e:
             raise ValueError(
                 f"Failed to decode '{relative_path}' with {self.encoding} "
@@ -164,7 +168,12 @@ class FileContentPrinter:
         token_count = None
         path_obj = Path(file_path)
 
-        if self.tokenizer is not None and self.output_strategy.requires_tokens_in_start:
+        # Only count tokens if the tokenizer has token counting capabilities
+        if (
+            self.tokenizer is not None
+            and self.tokenizer.get_total_tokens() is not None
+            and self.output_strategy.requires_tokens_in_start
+        ):
             token_count = self._count_file_tokens(path_obj, relative_path)
 
         # Output start tag with token count if available
@@ -178,9 +187,14 @@ class FileContentPrinter:
                 reader = ChunkedFileReader(file)
                 for chunk in reader:
                     formatted_chunk = self.output_strategy.format_content(chunk)
-                    # Only count tokens during processing if we haven't counted them upfront
-                    if self.tokenizer is not None and not self.output_strategy.requires_tokens_in_start:
-                        token_count += self.tokenizer.count(formatted_chunk).tokens
+
+                    # Count lines and characters (and potentially tokens)
+                    if self.tokenizer is not None:
+                        result = self.tokenizer.count(formatted_chunk)
+                        # Only accumulate tokens if we're tracking them and not requiring them in start
+                        if result.tokens is not None and not self.output_strategy.requires_tokens_in_start:
+                            token_count += result.tokens
+
                     yield formatted_chunk
 
         except ValueError as e:
@@ -197,7 +211,11 @@ class FileContentPrinter:
             raise OSError(f"Failed to read '{relative_path}': {str(e)}") from e
 
         # Output end tag
-        if self.tokenizer is not None and not self.output_strategy.requires_tokens_in_start:
+        if (
+            self.tokenizer is not None
+            and self.tokenizer.get_total_tokens() is not None
+            and not self.output_strategy.requires_tokens_in_start
+        ):
             yield self.output_strategy.format_end(token_count)
         else:
             yield self.output_strategy.format_end()
@@ -223,8 +241,22 @@ class FileContentPrinter:
                 encoding configuration error.
         """
         try:
+            # Process regular files
             for file_path, relative_path in self.fs_tree.iterate_files():
                 yield file_path, relative_path, self._yield_wrapped_content(file_path, relative_path)
+
+            # Process symlinks if the tree is not following them
+            if not self.fs_tree.follow_symlinks:
+                for abs_path, rel_path, target in self.fs_tree.iterate_symlinks():
+                    # For symlinks, we yield a single formatted string instead of a content iterator
+                    symlink_str = self.output_strategy.format_symlink(rel_path, target)
+
+                    # Create a single-item iterator to maintain the same interface as file content
+                    def symlink_iterator() -> Iterator[str]:
+                        yield symlink_str
+
+                    yield abs_path, rel_path, symlink_iterator()
+
         except OSError as e:
             # Add context to filesystem iteration errors
             raise OSError(f"Failed to iterate directory structure: {str(e)}") from e
@@ -236,7 +268,7 @@ class FileContentPrinter:
             str: The file extension (including the dot) for the current output format.
 
         Example:
-            >>> from dir2text.file_system_tree import FileSystemTree
+            >>> from dir2text.file_system_tree.file_system_tree import FileSystemTree
             >>> tree = FileSystemTree("src")  # doctest: +SKIP
             >>> printer = FileContentPrinter(tree, "xml")  # doctest: +SKIP
             >>> printer.get_output_file_extension()  # doctest: +SKIP

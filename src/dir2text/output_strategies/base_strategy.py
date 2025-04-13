@@ -33,8 +33,8 @@ class OutputStrategy(ABC):
         ...         return True  # Tokens must be in opening wrapper
         ...
         ...     def format_start(self, path: str, token_count: Optional[int] = None) -> str:
-        ...         count_attr = f' tokens="{token_count}"' if token_count is not None else ''
-        ...         return f"<file path='{path}'{count_attr}>\\n"
+        ...         count_str = f' tokens="{token_count}"' if token_count is not None else ''
+        ...         return f"<file path='{path}'{count_str}>\\n"
         ...
         ...     def format_content(self, content: str) -> str:
         ...         return content
@@ -126,6 +126,23 @@ class OutputStrategy(ABC):
             ValueError: If requires_tokens_in_start is True and file_token_count
                 is provided, or if requires_tokens_in_start is False and the count
                 doesn't match what was provided to format_start.
+        """
+        pass
+
+    @abstractmethod
+    def format_symlink(self, relative_path: str, target_path: str) -> str:
+        """Format a symbolic link entry.
+
+        This method is called to format symlink information for output.
+        Unlike files, symlinks don't have content chunks, so only a single
+        method is needed.
+
+        Args:
+            relative_path: The relative path of the symlink.
+            target_path: The target path that the symlink points to.
+
+        Returns:
+            The formatted symlink string.
         """
         pass
 

@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dir2text.exceptions import TokenizationError
+from dir2text.exceptions import TokenizationError, TokenizerNotAvailableError
 from dir2text.token_counter import CountResult, TokenCounter
 
 
@@ -27,20 +27,32 @@ def mock_encoder():
 
 def test_token_counter_initialization(mock_tiktoken_available, mock_encoder):
     with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
-        counter = TokenCounter()
+        # Initialize with a model
+        counter = TokenCounter(model="gpt-4")
         assert counter.tiktoken_available
         assert counter.encoder is not None
 
+        # Initialize with no model
+        counter_no_model = TokenCounter()
+        assert counter_no_model.tiktoken_available  # Tiktoken is available
+        assert counter_no_model.encoder is None  # But no encoder because no model
+
 
 def test_token_counter_initialization_tiktoken_unavailable(mock_tiktoken_unavailable):
+    # This shouldn't raise an error if no model is specified
     counter = TokenCounter()
     assert not counter.tiktoken_available
     assert counter.encoder is None
 
+    # This should raise TokenizerNotAvailableError if model is specified
+    with pytest.raises(TokenizerNotAvailableError):
+        TokenCounter(model="gpt-4")
+
 
 def test_count(mock_tiktoken_available, mock_encoder):
     with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
-        counter = TokenCounter()
+        # With model
+        counter = TokenCounter(model="gpt-4")
         result = counter.count("Hello, world!")
         assert isinstance(result, CountResult)
         assert result.tokens == 13  # Based on our mock returning length of input
@@ -50,46 +62,81 @@ def test_count(mock_tiktoken_available, mock_encoder):
         assert counter.get_total_lines() == 0
         assert counter.get_total_characters() == 13
 
+        # Without model (token counting disabled)
+        counter_no_model = TokenCounter()
+        result = counter_no_model.count("Hello, world!")
+        assert isinstance(result, CountResult)
+        assert result.tokens is None  # None when no model
+        assert result.lines == 0
+        assert result.characters == 13
+        assert counter_no_model.get_total_tokens() is None  # None when no model
+        assert counter_no_model.get_total_lines() == 0
+        assert counter_no_model.get_total_characters() == 13
+
 
 def test_count_tiktoken_unavailable(mock_tiktoken_unavailable):
-    counter = TokenCounter()
+    counter = TokenCounter()  # No model specified
     result = counter.count("Hello, world!")
     assert isinstance(result, CountResult)
-    assert result.tokens == 0  # No tokens when tiktoken unavailable
+    assert result.tokens is None  # None when tiktoken unavailable
     assert result.lines == 0
     assert result.characters == 13
 
 
 def test_get_total_tokens(mock_tiktoken_available, mock_encoder):
     with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
-        counter = TokenCounter()
+        counter = TokenCounter(model="gpt-4")
         counter.count("Hello")
         counter.count("world!")
         assert counter.get_total_tokens() == 11
 
+        # Without model
+        counter_no_model = TokenCounter()
+        counter_no_model.count("Hello")
+        counter_no_model.count("world!")
+        assert counter_no_model.get_total_tokens() is None
+
 
 def test_get_total_lines(mock_tiktoken_available, mock_encoder):
     with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
-        counter = TokenCounter()
+        counter = TokenCounter(model="gpt-4")
         counter.count("Hello\nworld\n!")
         assert counter.get_total_lines() == 2
+
+        # Lines are counted regardless of model
+        counter_no_model = TokenCounter()
+        counter_no_model.count("Hello\nworld\n!")
+        assert counter_no_model.get_total_lines() == 2
 
 
 def test_get_total_characters(mock_tiktoken_available, mock_encoder):
     with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
-        counter = TokenCounter()
+        counter = TokenCounter(model="gpt-4")
         counter.count("Hello, world!")
         assert counter.get_total_characters() == 13
+
+        # Characters are counted regardless of model
+        counter_no_model = TokenCounter()
+        counter_no_model.count("Hello, world!")
+        assert counter_no_model.get_total_characters() == 13
 
 
 def test_reset_counts(mock_tiktoken_available, mock_encoder):
     with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
-        counter = TokenCounter()
+        counter = TokenCounter(model="gpt-4")
         counter.count("Hello, world!")
         counter.reset_counts()
         assert counter.get_total_tokens() == 0
         assert counter.get_total_lines() == 0
         assert counter.get_total_characters() == 0
+
+        # Test reset with no model
+        counter_no_model = TokenCounter()
+        counter_no_model.count("Hello, world!")
+        counter_no_model.reset_counts()
+        assert counter_no_model.get_total_tokens() is None
+        assert counter_no_model.get_total_lines() == 0
+        assert counter_no_model.get_total_characters() == 0
 
 
 def test_tokenization_error(mock_tiktoken_available):
@@ -98,14 +145,14 @@ def test_tokenization_error(mock_tiktoken_available):
         mock_encoder.encode.side_effect = Exception("Tokenization failed")
         mock_encoding.return_value = mock_encoder
 
-        counter = TokenCounter()
+        counter = TokenCounter(model="gpt-4")
         with pytest.raises(TokenizationError):
             counter.count("Hello, world!")
 
 
 def test_count_empty_string(mock_tiktoken_available, mock_encoder):
     with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
-        counter = TokenCounter()
+        counter = TokenCounter(model="gpt-4")
         result = counter.count("")
         assert result.tokens == 0
         assert result.lines == 0
@@ -117,7 +164,7 @@ def test_count_empty_string(mock_tiktoken_available, mock_encoder):
 
 def test_count_whitespace(mock_tiktoken_available, mock_encoder):
     with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
-        counter = TokenCounter()
+        counter = TokenCounter(model="gpt-4")
         result = counter.count("   \n\t\r  ")
         assert result.tokens == 8
         assert result.lines == 1
@@ -126,7 +173,7 @@ def test_count_whitespace(mock_tiktoken_available, mock_encoder):
 
 def test_count_unicode(mock_tiktoken_available, mock_encoder):
     with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
-        counter = TokenCounter()
+        counter = TokenCounter(model="gpt-4")
         text = "Hello 世界! 🌍"  # Mixed ASCII, Unicode, and emoji
         result = counter.count(text)
         assert result.tokens == len(text)
@@ -135,7 +182,7 @@ def test_count_unicode(mock_tiktoken_available, mock_encoder):
 
 def test_count_control_chars(mock_tiktoken_available, mock_encoder):
     with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
-        counter = TokenCounter()
+        counter = TokenCounter(model="gpt-4")
         text = "Hello\x00World\x1F!"  # Text with control characters
         result = counter.count(text)
         assert result.tokens == len(text)
@@ -144,7 +191,7 @@ def test_count_control_chars(mock_tiktoken_available, mock_encoder):
 
 def test_count_very_long_text(mock_tiktoken_available, mock_encoder):
     with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
-        counter = TokenCounter()
+        counter = TokenCounter(model="gpt-4")
         long_text = "x" * 1_000_000  # Test with a million characters
         result = counter.count(long_text)
         assert result.tokens == 1_000_000
@@ -179,7 +226,7 @@ def test_model_support_behavior(mock_tiktoken_available):
 def test_count_accumulation(mock_tiktoken_available, mock_encoder):
     """Test that counts accumulate correctly across multiple calls."""
     with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
-        counter = TokenCounter()
+        counter = TokenCounter(model="gpt-4")
 
         # First count
         result1 = counter.count("Hello\n")
@@ -196,28 +243,28 @@ def test_count_accumulation(mock_tiktoken_available, mock_encoder):
         assert counter.get_total_characters() == 13
 
 
-def test_count_accumulation_without_tiktoken(mock_tiktoken_unavailable):
-    """Test accumulation without token counting available."""
+def test_count_accumulation_without_model():
+    """Test accumulation without model specified."""
     counter = TokenCounter()
 
     # First count
     result1 = counter.count("Hello\n")
-    assert result1 == CountResult(lines=1, tokens=0, characters=6)
+    assert result1 == CountResult(lines=1, tokens=None, characters=6)
     assert counter.get_total_lines() == 1
-    assert counter.get_total_tokens() == 0
+    assert counter.get_total_tokens() is None
     assert counter.get_total_characters() == 6
 
     # Second count
     result2 = counter.count("World!\n")
-    assert result2 == CountResult(lines=1, tokens=0, characters=7)
+    assert result2 == CountResult(lines=1, tokens=None, characters=7)
     assert counter.get_total_lines() == 2
-    assert counter.get_total_tokens() == 0
+    assert counter.get_total_tokens() is None
     assert counter.get_total_characters() == 13
 
 
 def test_reset_counts_between_uses(mock_tiktoken_available, mock_encoder):
     with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
-        counter = TokenCounter()
+        counter = TokenCounter(model="gpt-4")
 
         # First use
         result1 = counter.count("Hello\n")
