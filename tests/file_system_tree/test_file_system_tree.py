@@ -280,3 +280,122 @@ def test_symlinks_with_exclusions(temp_directory_with_symlinks):
     symlink_paths = [s[1] for s in symlinks]
     assert "build" not in symlink_paths
     assert "src/utils/loop" in symlink_paths  # Still included
+
+
+def test_directory_exclusion_with_trailing_slash(temp_directory):
+    """Test that directory patterns with trailing slash properly exclude directories from tree.
+
+    This is a regression test for a bug where directory-only patterns like 'mydir/' would
+    exclude the contents but still show empty directories in the tree output.
+    """
+    # Create test structure: mydir/subdir/file.txt and mydir/file2.txt
+    test_dir = temp_directory / "mydir"
+    test_subdir = test_dir / "subdir"
+    test_subdir.mkdir(parents=True)
+
+    (test_dir / "file2.txt").write_text("content2")
+    (test_subdir / "file.txt").write_text("content1")
+    (temp_directory / "regular_file.txt").write_text("regular content")
+
+    # Create exclusion rules with trailing slash (directory-only pattern)
+    rules = GitIgnoreExclusionRules()
+    rules.add_rule("mydir/")
+
+    # Create tree with exclusion rules
+    fs_tree = FileSystemTree(str(temp_directory), exclusion_rules=rules)
+    tree = fs_tree.get_tree()
+
+    # The mydir directory should NOT appear in the tree at all
+    mydir_in_tree = any(node.name == "mydir" for node in tree.children)
+    assert not mydir_in_tree, "Directory 'mydir' should be completely excluded from tree"
+
+    # Files inside mydir should not be iterable
+    files = list(fs_tree.iterate_files())
+    file_paths = [f[1] for f in files]
+
+    assert "mydir/file2.txt" not in file_paths, "Files inside excluded directory should not be listed"
+    assert "mydir/subdir/file.txt" not in file_paths, "Nested files inside excluded directory should not be listed"
+    assert "regular_file.txt" in file_paths, "Regular files should still be listed"
+
+    # Tree representation should not show the excluded directory
+    tree_repr = fs_tree.get_tree_representation()
+    assert "mydir" not in tree_repr, "Excluded directory should not appear in tree representation"
+    assert "regular_file.txt" in tree_repr, "Regular files should appear in tree representation"
+
+
+def test_directory_exclusion_without_trailing_slash(temp_directory):
+    """Test that directory patterns without trailing slash properly exclude directories from tree."""
+    # Create test structure
+    test_dir = temp_directory / "mydir"
+    test_subdir = test_dir / "subdir"
+    test_subdir.mkdir(parents=True)
+
+    (test_dir / "file2.txt").write_text("content2")
+    (test_subdir / "file.txt").write_text("content1")
+    (temp_directory / "regular_file.txt").write_text("regular content")
+
+    # Create exclusion rules without trailing slash
+    rules = GitIgnoreExclusionRules()
+    rules.add_rule("mydir")
+
+    # Create tree with exclusion rules
+    fs_tree = FileSystemTree(str(temp_directory), exclusion_rules=rules)
+    tree = fs_tree.get_tree()
+
+    # The mydir directory should NOT appear in the tree
+    mydir_in_tree = any(node.name == "mydir" for node in tree.children)
+    assert not mydir_in_tree, "Directory 'mydir' should be completely excluded from tree"
+
+    # Files inside mydir should not be iterable
+    files = list(fs_tree.iterate_files())
+    file_paths = [f[1] for f in files]
+
+    assert "mydir/file2.txt" not in file_paths
+    assert "mydir/subdir/file.txt" not in file_paths
+    assert "regular_file.txt" in file_paths
+
+
+def test_trailing_slash_vs_no_slash_tree_consistency(temp_directory):
+    """Test that both trailing slash and no slash patterns result in identical tree output.
+
+    This ensures that while the gitignore pattern matching behavior differs slightly,
+    the final tree construction behavior is consistent.
+    """
+    # Create test structure
+    test_dir = temp_directory / "testdir"
+    test_subdir = test_dir / "subdir"
+    test_subdir.mkdir(parents=True)
+
+    (test_dir / "file1.txt").write_text("content1")
+    (test_subdir / "file2.txt").write_text("content2")
+    (temp_directory / "other_file.txt").write_text("other content")
+
+    # Test with trailing slash pattern
+    rules_with_slash = GitIgnoreExclusionRules()
+    rules_with_slash.add_rule("testdir/")
+    fs_tree_with_slash = FileSystemTree(str(temp_directory), exclusion_rules=rules_with_slash)
+
+    # Test without trailing slash pattern
+    rules_without_slash = GitIgnoreExclusionRules()
+    rules_without_slash.add_rule("testdir")
+    fs_tree_without_slash = FileSystemTree(str(temp_directory), exclusion_rules=rules_without_slash)
+
+    # Both should have identical tree structure
+    tree_with_slash = fs_tree_with_slash.get_tree_representation()
+    tree_without_slash = fs_tree_without_slash.get_tree_representation()
+
+    assert tree_with_slash == tree_without_slash, "Tree output should be identical regardless of trailing slash"
+
+    # Both should have identical file iteration results
+    files_with_slash = sorted([f[1] for f in fs_tree_with_slash.iterate_files()])
+    files_without_slash = sorted([f[1] for f in fs_tree_without_slash.iterate_files()])
+
+    assert files_with_slash == files_without_slash, "File iteration should be identical regardless of trailing slash"
+
+    # Neither should show the excluded directory
+    assert "testdir" not in tree_with_slash, "Excluded directory should not appear in tree (with slash)"
+    assert "testdir" not in tree_without_slash, "Excluded directory should not appear in tree (without slash)"
+
+    # Both should include other files
+    assert "other_file.txt" in files_with_slash
+    assert "other_file.txt" in files_without_slash

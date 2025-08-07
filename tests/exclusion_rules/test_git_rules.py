@@ -368,3 +368,79 @@ def test_empty_or_comment_pattern():
     # These shouldn't affect the behavior
     assert not rules.exclude("file.txt")
     assert not rules.exclude("# This is a comment")
+
+
+def test_directory_pattern_with_trailing_slash():
+    """Test that directory patterns with trailing slash work correctly.
+
+    This is a regression test for a bug where patterns like 'mydir/' would
+    not properly exclude the directory itself from tree traversal, causing
+    empty directories to appear in the output.
+    """
+    rules = GitIgnoreExclusionRules()
+    rules.add_rule("mydir/")
+
+    # The directory path without slash should NOT be excluded by direct pattern match
+    # (this is correct gitignore behavior - "mydir" doesn't match "mydir/" pattern)
+    assert not rules.exclude("mydir")
+
+    # But paths inside the directory SHOULD be excluded
+    assert rules.exclude("mydir/")
+    assert rules.exclude("mydir/file.txt")
+    assert rules.exclude("mydir/subdir/file.txt")
+    assert rules.exclude("mydir/subdir/")
+
+    # Similar named items should not be excluded
+    assert not rules.exclude("mydir_similar")
+    assert not rules.exclude("mydir_similar/file.txt")
+
+    # Files with similar names should not be excluded
+    assert not rules.exclude("mydir.txt")
+
+
+def test_directory_pattern_without_trailing_slash():
+    """Test that directory patterns without trailing slash work correctly."""
+    rules = GitIgnoreExclusionRules()
+    rules.add_rule("mydir")
+
+    # The directory itself should be excluded
+    assert rules.exclude("mydir")
+
+    # Paths inside the directory should also be excluded
+    assert rules.exclude("mydir/file.txt")
+    assert rules.exclude("mydir/subdir/file.txt")
+
+    # Similar named items should not be excluded
+    assert not rules.exclude("mydir_similar")
+    assert not rules.exclude("mydir_similar/file.txt")
+
+
+def test_trailing_slash_vs_no_slash_consistency():
+    """Test that patterns with and without trailing slash have consistent exclusion behavior.
+
+    While the pattern matching differs (mydir/ only matches directories, mydir matches
+    files and directories), both should result in complete exclusion of directory contents.
+    """
+    rules_with_slash = GitIgnoreExclusionRules()
+    rules_with_slash.add_rule("testdir/")
+
+    rules_without_slash = GitIgnoreExclusionRules()
+    rules_without_slash.add_rule("testdir")
+
+    # Test paths that should be excluded by both patterns
+    test_paths = [
+        "testdir/file.txt",
+        "testdir/subdir/file.txt",
+        "testdir/subdir/deep/file.txt",
+        "testdir/",
+    ]
+
+    for path in test_paths:
+        assert rules_with_slash.exclude(path), f"'{path}' should be excluded by 'testdir/' pattern"
+        assert rules_without_slash.exclude(path), f"'{path}' should be excluded by 'testdir' pattern"
+
+    # Test the directory name itself - this is where they differ
+    # "testdir" should not match pattern "testdir/" (directory-only pattern)
+    assert not rules_with_slash.exclude("testdir")
+    # "testdir" should match pattern "testdir" (matches files and directories)
+    assert rules_without_slash.exclude("testdir")
