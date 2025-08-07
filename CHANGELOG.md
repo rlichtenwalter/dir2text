@@ -21,7 +21,7 @@ This major version release focuses on new features, including binary file suppor
 - The `token_counting` extra now depends on a minimum tiktoken version of 0.6.0 instead of 0.8.0.
 
 ### Fixed
-- Nothing.
+- Addressed an issue where exclusion rules with a trailing slash would exclude all underlying files but still show the matching directory in the tree display.
 
 ### Known Issues
 - None
