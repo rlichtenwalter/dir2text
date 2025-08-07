@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 This project adheres at least loosely to Semantic Versioning.
 
+## Version 3.0.1 (2025-08-07)
+This patch version fixes an overly restrictive version specification for tiktoken.
+
+### Added
+- Nothing
+
+### Changed
+- Nothing
+
+### Fixed
+- Changed tiktoken dependency specification from "^0.6.0" to ">=0.6.0".
+
+### Known Issues
+- None
+
 ## Version 3.0.0 (2025-08-06)
 This major version release focuses on new features, including binary file support, maximum file size filters, and a composite exclusion rule mechanism.
 
@@ -21,7 +36,7 @@ This major version release focuses on new features, including binary file suppor
 - The `token_counting` extra now depends on a minimum tiktoken version of 0.6.0 instead of 0.8.0.
 
 ### Fixed
-- Nothing.
+- Addressed an issue where exclusion rules with a trailing slash would exclude all underlying files but still show the matching directory in the tree display.
 
 ### Known Issues
 - None
