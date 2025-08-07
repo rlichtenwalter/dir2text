@@ -70,7 +70,7 @@ class OutputStrategy(ABC):
         pass
 
     @abstractmethod
-    def format_start(self, relative_path: str, file_token_count: Optional[int] = None) -> str:
+    def format_start(self, relative_path: str, file_type: str = "text", file_token_count: Optional[int] = None) -> str:
         """Format the opening wrapper for a file's content.
 
         This method is called once at the start of each file's content to output any
@@ -78,6 +78,9 @@ class OutputStrategy(ABC):
 
         Args:
             relative_path: The relative path of the file being formatted.
+            file_type: The type of file content ("text" or "binary"). Used to
+                provide explicit type information in the output for better LLM
+                understanding of content format.
             file_token_count: Total token count for the file's content if token
                 counting is enabled. Must be provided if requires_tokens_in_start
                 is True and token counting is enabled.

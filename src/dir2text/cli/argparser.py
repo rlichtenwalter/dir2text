@@ -141,6 +141,12 @@ def create_parser(exclusion_rules: BaseExclusionRules) -> argparse.ArgumentParse
       dir2text -P fail /path/to/project    # Stop on permission errors
       dir2text -P ignore /path/to/project  # Skip silently (default)
 
+      # Process with different binary file handling
+      dir2text -B ignore /path/to/project  # Skip binary files silently (default)
+      dir2text -B warn /path/to/project    # Skip binary files with warnings
+      dir2text -B encode /path/to/project  # Include binary files as base64
+      dir2text -B fail /path/to/project    # Stop on binary files
+
       # Process only specific aspects
       dir2text -T /path/to/project     # Skip tree visualization
       dir2text -C /path/to/project     # Skip file contents
@@ -256,6 +262,13 @@ def create_parser(exclusion_rules: BaseExclusionRules) -> argparse.ArgumentParse
         choices=["ignore", "warn", "fail"],
         default="ignore",
         help="How to handle permission errors (default: ignore).",
+    )
+    parser.add_argument(
+        "-B",
+        "--binary-action",
+        choices=["ignore", "warn", "encode", "fail"],
+        default="ignore",
+        help="How to handle binary files (default: ignore).",
     )
     parser.add_argument(
         "-M",

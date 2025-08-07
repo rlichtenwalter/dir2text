@@ -53,6 +53,10 @@ def temp_project():
         (base_dir / "build" / "output.min.js").write_text("console.log('test')\n")
         (base_dir / "node_modules" / "module.js").write_text("export default {}\n")
 
+        # Create binary files for testing binary action functionality
+        (base_dir / "image.png").write_bytes(bytes(range(256)))  # True binary file
+        (base_dir / "data.bin").write_bytes(b"\x00\x01\x02\x03\x04\x05" * 50)  # Binary with null bytes
+
         # Create exclusion files
         (base_dir / ".gitignore").write_text("*.pyc\nbuild/\n")
         (base_dir / ".npmignore").write_text("*.log\ndocs/\n")
@@ -949,3 +953,133 @@ def test_cli_max_file_size_with_symlinks():
         except (OSError, AttributeError):
             # Symlinks not supported on this platform
             pytest.skip("Symlinks not supported on this platform")
+
+
+def test_cli_binary_action_ignore(temp_project):
+    """Test CLI with binary action ignore - binary files should be skipped."""
+    result = run_cli(["-B", "ignore", str(temp_project)])
+
+    assert result.returncode == 0
+
+    # Text files should be included
+    assert "main.py" in result.stdout
+    assert "def main()" in result.stdout
+
+    # Binary files should be completely absent from output
+    assert "image.png" not in result.stdout
+    assert "data.bin" not in result.stdout
+
+
+def test_cli_binary_action_warn(temp_project):
+    """Test CLI with binary action warn - should warn and skip binary files."""
+    result = run_cli(["-B", "warn", str(temp_project)])
+
+    assert result.returncode == 0
+
+    # Text files should be included
+    assert "main.py" in result.stdout
+    assert "def main()" in result.stdout
+
+    # Binary files should be absent from main output
+    assert "image.png" not in result.stdout
+    assert "data.bin" not in result.stdout
+
+    # Should have warnings in stderr about binary files
+    assert "Warning: Binary file detected:" in result.stderr
+    assert "image.png" in result.stderr or "data.bin" in result.stderr
+
+
+def test_cli_binary_action_fail(temp_project):
+    """Test CLI with binary action fail - should fail on binary files."""
+    result = run_cli(["-B", "fail", str(temp_project)])
+
+    assert result.returncode == 1  # Should exit with error code 1
+
+    # Should have error in stderr about binary file
+    assert "Error: Binary file detected:" in result.stderr
+    assert "image.png" in result.stderr or "data.bin" in result.stderr
+
+
+def test_cli_binary_action_encode(temp_project):
+    """Test CLI with binary action encode - should base64 encode binary files."""
+    result = run_cli(["-B", "encode", str(temp_project)])
+
+    assert result.returncode == 0
+
+    # Text files should be included normally
+    assert "main.py" in result.stdout
+    assert "def main()" in result.stdout
+
+    # Binary files should be included with [binary] marker
+    assert "image.png [binary]" in result.stdout or "data.bin [binary]" in result.stdout
+
+    # Should contain base64-encoded content (base64 uses A-Z, a-z, 0-9, +, /)
+    import re
+
+    base64_pattern = re.compile(r"[A-Za-z0-9+/]{20,}")  # Look for base64-like sequences
+    assert base64_pattern.search(result.stdout), "Should contain base64 encoded data"
+
+
+def test_cli_binary_action_encode_json_format(temp_project):
+    """Test CLI with binary action encode in JSON format."""
+    result = run_cli(["-B", "encode", "-f", "json", str(temp_project)])
+
+    assert result.returncode == 0
+
+    # Should have JSON format markers
+    assert '"type": "file"' in result.stdout
+    assert '"content":' in result.stdout
+
+    # Binary files should be marked with [binary]
+    assert "[binary]" in result.stdout
+
+
+def test_cli_binary_action_with_exclusions(temp_project):
+    """Test binary action with file exclusions - excluded binary files should not trigger actions."""
+    # Create a .gitignore that excludes binary files
+    gitignore_path = temp_project / "test.gitignore"
+    gitignore_path.write_text("*.png\n*.bin\n")
+
+    # With fail action, should not fail because binary files are excluded
+    result = run_cli(["-B", "fail", "-e", str(gitignore_path), str(temp_project)])
+
+    assert result.returncode == 0  # Should succeed because binary files are excluded
+
+    # Text files should still be included
+    assert "main.py" in result.stdout
+    assert "def main()" in result.stdout
+
+
+def test_cli_binary_action_default_behavior(temp_project):
+    """Test that default binary action is ignore."""
+    # Run without specifying binary action (should default to ignore)
+    result_default = run_cli([str(temp_project)])
+
+    # Run with explicit ignore
+    result_explicit = run_cli(["-B", "ignore", str(temp_project)])
+
+    # Both should behave the same
+    assert result_default.returncode == result_explicit.returncode == 0
+
+    # Both should exclude binary files
+    assert "image.png" not in result_default.stdout
+    assert "image.png" not in result_explicit.stdout
+    assert "data.bin" not in result_default.stdout
+    assert "data.bin" not in result_explicit.stdout
+
+
+def test_cli_binary_action_mixed_content_directory(temp_project):
+    """Test binary action behavior with mixed text and binary content."""
+    result = run_cli(["-B", "encode", "-C", str(temp_project)])  # Skip tree for cleaner output
+
+    assert result.returncode == 0
+
+    # Count how many files are processed
+    text_files = result.stdout.count('"type": "file"') if "-f json" in str(result) else result.stdout.count("<file")
+
+    # Should have processed both text and binary files
+    assert text_files > 0  # At least some files were processed
+
+    # Should contain both regular text content and base64 content
+    assert "def main()" in result.stdout  # Text file content
+    assert "[binary]" in result.stdout  # Binary file marker

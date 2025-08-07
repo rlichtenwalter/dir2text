@@ -17,8 +17,18 @@ class JSONOutputStrategy(OutputStrategy):
     {
         "type": "file",
         "path": "relative/path/to/file",
+        "content_type": "text",
         "content": "file content...",
         "tokens": 123  # Optional, only included if token counting is enabled
+    }
+
+    Binary files are marked with content_type: "binary":
+    {
+        "type": "file",
+        "path": "image.png",
+        "content_type": "binary",
+        "content": "base64-encoded content...",
+        "tokens": 456
     }
 
     Symlinks are formatted as:
@@ -43,8 +53,8 @@ class JSONOutputStrategy(OutputStrategy):
 
     Example:
         >>> strategy = JSONOutputStrategy()
-        >>> strategy.format_start("example.py", 42)
-        '{"type": "file", "path": "example.py", "content": "'
+        >>> strategy.format_start("example.py", "text", 42)
+        '{"type": "file", "path": "example.py", "content_type": "text", "content": "'
         >>> strategy.format_content('print("Hello")\\n')
         'print(\\\\"Hello\\\\")\\\\n'
         >>> strategy.format_end(42)
@@ -74,15 +84,16 @@ class JSONOutputStrategy(OutputStrategy):
         """
         return False
 
-    def format_start(self, relative_path: str, file_token_count: Optional[int] = None) -> str:
+    def format_start(self, relative_path: str, file_type: str = "text", file_token_count: Optional[int] = None) -> str:
         """Format the start of a JSON object for a file.
 
-        Creates the opening portion of a JSON object including the path and starting
-        the content field. The object is intentionally left unclosed to allow for
-        streaming content.
+        Creates the opening portion of a JSON object including the path, file type,
+        and starting the content field. The object is intentionally left unclosed
+        to allow for streaming content.
 
         Args:
             relative_path: The relative path of the file being formatted.
+            file_type: The type of file content ("text" or "binary").
             file_token_count: Total token count for the file. If provided, will be
                 validated against any token count provided in format_end.
 
@@ -92,10 +103,10 @@ class JSONOutputStrategy(OutputStrategy):
 
         Example:
             >>> strategy = JSONOutputStrategy()
-            >>> strategy.format_start("src/main.py", 150)
-            '{"type": "file", "path": "src/main.py", "content": "'
+            >>> strategy.format_start("src/main.py", "text", 150)
+            '{"type": "file", "path": "src/main.py", "content_type": "text", "content": "'
         """
-        data = {"type": "file", "path": relative_path}
+        data = {"type": "file", "path": relative_path, "content_type": file_type}
         self.token_count = file_token_count
 
         # Start the JSON object and the content field

@@ -15,13 +15,19 @@ class XMLOutputStrategy(OutputStrategy):
     """Output strategy that formats file content as XML elements.
 
     This strategy formats each file's content as an XML file element with the following structure:
-    <file path="relative/path/to/file" tokens="123">
+    <file path="relative/path/to/file" content_type="text" tokens="123">
     file content...
+    </file>
+
+    Binary files are marked with content_type="binary":
+    <file path="image.png" content_type="binary" tokens="456">
+    base64-encoded content...
     </file>
 
     Symlinks are formatted as self-closing elements:
     <symlink path="relative/path/to/symlink" target="target/path" />
 
+    The content_type attribute indicates whether the file contains "text" or "binary" content.
     The tokens attribute is optional and only included when token counting is enabled.
     All content is properly XML-escaped using xml.sax.saxutils.escape to ensure valid XML
     output even with special characters in file paths or content.
@@ -32,8 +38,8 @@ class XMLOutputStrategy(OutputStrategy):
 
     Example:
         >>> strategy = XMLOutputStrategy()
-        >>> print(strategy.format_start("example.py", 42), end='')
-        <file path="example.py" tokens="42">
+        >>> print(strategy.format_start("example.py", "text", 42), end='')
+        <file path="example.py" content_type="text" tokens="42">
         >>> print(strategy.format_content('print("Hello")'))
         print("Hello")
         >>> print(strategy.format_end(), end='')
@@ -69,16 +75,18 @@ class XMLOutputStrategy(OutputStrategy):
         """
         return True
 
-    def format_start(self, relative_path: str, file_token_count: Optional[int] = None) -> str:
+    def format_start(self, relative_path: str, file_type: str = "text", file_token_count: Optional[int] = None) -> str:
         """Format the opening XML tag for a file.
 
-        Creates a <file> element with the file's path as a required attribute and
-        an optional tokens attribute if token counting is enabled. All attributes
+        Creates a <file> element with the file's path and type as required attributes,
+        and an optional tokens attribute if token counting is enabled. All attributes
         must be provided here as XML syntax requires them in the opening tag.
 
         Args:
             relative_path: The relative path of the file being formatted. Will be
                 XML-escaped and included as the path attribute.
+            file_type: The type of file content ("text" or "binary"). Will be
+                included as the content_type attribute.
             file_token_count: Total token count for the file. If provided, will be
                 included as a tokens attribute.
 
@@ -87,12 +95,12 @@ class XMLOutputStrategy(OutputStrategy):
 
         Example:
             >>> strategy = XMLOutputStrategy()
-            >>> print(strategy.format_start("src/main.py", 150), end='')
-            <file path="src/main.py" tokens="150">
-            >>> print(strategy.format_start("test & demo.py"), end='')
-            <file path="test &amp; demo.py">
+            >>> print(strategy.format_start("src/main.py", "text", 150), end='')
+            <file path="src/main.py" content_type="text" tokens="150">
+            >>> print(strategy.format_start("image.png", "binary"), end='')
+            <file path="image.png" content_type="binary">
         """
-        wrapper_start = f'<file path="{xml_escape(relative_path, self._xml_entities)}"'
+        wrapper_start = f'<file path="{xml_escape(relative_path, self._xml_entities)}" content_type="{file_type}"'
         if file_token_count is not None:
             wrapper_start += f' tokens="{file_token_count}"'
         wrapper_start += ">\n"

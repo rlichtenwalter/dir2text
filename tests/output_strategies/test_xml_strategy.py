@@ -13,14 +13,23 @@ def test_format_start():
     """Test the format_start method with various inputs."""
     strategy = XMLOutputStrategy()
 
-    # Test basic path
-    assert strategy.format_start("test.py", None) == '<file path="test.py">\n'
+    # Test basic path with default text type
+    assert strategy.format_start("test.py") == '<file path="test.py" content_type="text">\n'
 
     # Test path with special characters
-    assert strategy.format_start("test & file.py", None) == '<file path="test &amp; file.py">\n'
+    assert strategy.format_start("test & file.py") == '<file path="test &amp; file.py" content_type="text">\n'
+
+    # Test with binary type
+    assert strategy.format_start("image.png", "binary") == '<file path="image.png" content_type="binary">\n'
 
     # Test with token count
-    assert strategy.format_start("test.py", 42) == '<file path="test.py" tokens="42">\n'
+    assert strategy.format_start("test.py", "text", 42) == '<file path="test.py" content_type="text" tokens="42">\n'
+
+    # Test binary file with token count
+    assert (
+        strategy.format_start("data.bin", "binary", 123)
+        == '<file path="data.bin" content_type="binary" tokens="123">\n'
+    )
 
 
 def test_format_content():
@@ -80,10 +89,10 @@ def test_complete_file_output():
     strategy = XMLOutputStrategy()
 
     output = []
-    output.append(strategy.format_start("test.py", 100))
+    output.append(strategy.format_start("test.py", "text", 100))
     output.append(strategy.format_content('def test():\n    print("Hello")'))
     output.append(strategy.format_end())
 
-    expected = '<file path="test.py" tokens="100">\ndef test():\n    print("Hello")</file>\n'
+    expected = '<file path="test.py" content_type="text" tokens="100">\ndef test():\n    print("Hello")</file>\n'
 
     assert "".join(output) == expected
