@@ -25,20 +25,35 @@ class CompositeExclusionRules(BaseExclusionRules):
         rules (List[BaseExclusionRules]): List of constituent exclusion rules.
 
     Example:
-        >>> from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
         >>> from dir2text.exclusion_rules.size_rules import SizeExclusionRules
+        >>> import tempfile
+        >>> import os
         >>>
-        >>> # Combine git exclusions with size limits
-        >>> git_rules = GitIgnoreExclusionRules(".gitignore")
-        >>> size_rules = SizeExclusionRules("100MB")
-        >>> composite = CompositeExclusionRules([git_rules, size_rules])
-        >>>
-        >>> # File excluded if either git rules match OR file is too large
-        >>> composite.exclude("node_modules/large_file.dat")  # True (git rule)
+        >>> # Create temporary files for testing
+        >>> with tempfile.TemporaryDirectory() as tmpdir:
+        ...     # Create a small file
+        ...     small_file = os.path.join(tmpdir, "small.txt")
+        ...     with open(small_file, "w") as f:
+        ...         _ = f.write("small content")
+        ...
+        ...     # Create a large file (>10 bytes)
+        ...     large_file = os.path.join(tmpdir, "large.dat")
+        ...     with open(large_file, "w") as f:
+        ...         _ = f.write("x" * 100)  # 100 bytes
+        ...
+        ...     # Create size rules (files > 50 bytes are excluded)
+        ...     size_rules = SizeExclusionRules("50B")
+        ...     composite = CompositeExclusionRules([size_rules])
+        ...
+        ...     # Test exclusions
+        ...     composite.exclude(large_file)  # True (size rule - file > 50B)
         True
-        >>> composite.exclude("my_large_data.csv")  # True (size rule)
-        True
-        >>> composite.exclude("small_script.py")  # False (neither rule matches)
+        >>> # Example with multiple rule types
+        >>> from dir2text.exclusion_rules.size_rules import SizeExclusionRules
+        >>> rule1 = SizeExclusionRules("1MB")  # Exclude files > 1MB
+        >>> rule2 = SizeExclusionRules("10KB") # Exclude files > 10KB
+        >>> composite = CompositeExclusionRules([rule1, rule2])
+        >>> composite.exclude("small_file.txt")  # False (neither rule matches without real file)
         False
     """
 

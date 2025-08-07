@@ -50,9 +50,10 @@ from dir2text.cli.argparser import create_parser, validate_args
 from dir2text.cli.safe_writer import SafeWriter
 from dir2text.cli.signal_handler import setup_signal_handling, signal_handler
 from dir2text.dir2text import StreamingDir2Text
-from dir2text.exceptions import TokenizerNotAvailableError
+from dir2text.exceptions import BinaryFileError, TokenizerNotAvailableError
 from dir2text.exclusion_rules.base_rules import BaseExclusionRules
 from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
+from dir2text.file_system_tree.binary_action import BinaryAction
 from dir2text.file_system_tree.permission_action import PermissionAction
 
 
@@ -196,6 +197,14 @@ def main() -> None:
             "fail": PermissionAction.RAISE,
         }[args.permission_action]
 
+        # Map CLI binary actions to internal enum
+        bin_action = {
+            "ignore": BinaryAction.IGNORE,
+            "warn": BinaryAction.RAISE,
+            "fail": BinaryAction.RAISE,
+            "encode": BinaryAction.ENCODE,
+        }[args.binary_action]
+
         try:
             # Initialize StreamingDir2Text with appropriate configuration
             analyzer = StreamingDir2Text(
@@ -204,6 +213,7 @@ def main() -> None:
                 output_format=args.format,
                 tokenizer_model=args.tokenizer,
                 permission_action=perm_action,
+                binary_action=bin_action,
                 follow_symlinks=args.follow_symlinks,
             )
 
@@ -264,6 +274,14 @@ def main() -> None:
                 print(f"Error: {str(e)}", file=sys.stderr)
                 sys.exit(126)
             # For "ignore", we simply continue
+
+        except BinaryFileError as e:
+            if args.binary_action == "warn":
+                print(f"Warning: {str(e)}", file=sys.stderr)
+            elif args.binary_action == "fail":
+                print(f"Error: {str(e)}", file=sys.stderr)
+                sys.exit(1)
+            # For "ignore" and "encode", we simply continue (though BinaryFileError shouldn't occur for those)
 
     except TokenizerNotAvailableError as e:
         print(f"Error: {str(e)}", file=sys.stderr)

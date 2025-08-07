@@ -76,6 +76,12 @@ dir2text -L /path/to/project
 # Skip tree or content sections
 dir2text -T /path/to/project     # Skip tree visualization
 dir2text -C /path/to/project     # Skip file contents
+
+# Handle binary files
+dir2text -B ignore /path/to/project   # Skip binary files silently (default)
+dir2text -B warn /path/to/project     # Skip binary files with warnings
+dir2text -B encode /path/to/project   # Include binary files as base64
+dir2text -B fail /path/to/project     # Stop on binary files
 ```
 
 ### Symbolic Link Handling
@@ -162,7 +168,8 @@ analyzer = StreamingDir2Text(
     exclusion_rules=rules,
     output_format="json",
     tokenizer_model="gpt-4",
-    follow_symlinks=False  # Default behavior, don't follow symlinks
+    follow_symlinks=False,  # Default behavior, don't follow symlinks
+    binary_action="ignore"  # How to handle binary files: "ignore", "warn", "encode", or "fail"
 )
 
 # Process content incrementally
@@ -194,7 +201,8 @@ rules.load_rules(".gitignore")
 analyzer = Dir2Text(
     "path/to/project", 
     exclusion_rules=rules,
-    follow_symlinks=True  # Optionally follow symlinks
+    follow_symlinks=True,  # Optionally follow symlinks
+    binary_action="encode"  # Include binary files as base64
 )
 
 # Access complete content
@@ -206,7 +214,7 @@ print(analyzer.content_string)
 
 ### XML Format
 ```xml
-<file path="relative/path/to/file.py" tokens="150">
+<file path="relative/path/to/file.py" content_type="text" tokens="150">
 def example():
     print("Hello, world!")
 </file>
@@ -218,6 +226,7 @@ def example():
 {
   "type": "file",
   "path": "relative/path/to/file.py",
+  "content_type": "text",
   "content": "def example():\n    print(\"Hello, world!\")",
   "tokens": 150
 }
@@ -316,7 +325,13 @@ A: Streaming allows processing of large directories and files with constant memo
 A: By default, dir2text represents symlinks as symbolic links in both tree and content output without following them. With the `-L` option, it follows symlinks similar to Unix tools like `find -L`. In both modes, symlink loop detection prevents infinite recursion.
 
 **Q: Can I use this with binary files?**  
-A: The tool is designed for text files. Binary files should be excluded using the exclusion rules feature.
+A: Yes! dir2text provides flexible binary file handling with the `-B/--binary-action` option:
+- `ignore` (default): Skip binary files silently
+- `warn`: Skip binary files with warnings to stderr  
+- `encode`: Include binary files as base64-encoded content
+- `fail`: Stop processing when a binary file is encountered
+
+You can also exclude binary files entirely using the exclusion rules feature for better performance.
 
 **Q: What models are supported for token counting?**  
 A: The token counting feature uses OpenAI's tiktoken library with the following primary models and encodings:

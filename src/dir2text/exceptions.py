@@ -45,3 +45,31 @@ class TokenizationError(Exception):
     """
 
     pass
+
+
+class BinaryFileError(Exception):
+    """
+    Exception raised when a binary file is encountered and binary_action is RAISE.
+
+    This exception is raised when a binary file is detected during content processing
+    and the configured binary action is set to RAISE (which maps to either warn or fail
+    at the CLI level).
+
+    Attributes:
+        file_path (str): Path to the binary file that was encountered.
+
+    Example:
+        >>> error = BinaryFileError("/path/to/binary.dat")
+        >>> str(error)
+        'Binary file detected: /path/to/binary.dat'
+    """
+
+    def __init__(self, file_path: str) -> None:
+        """
+        Initialize the exception with the path to the binary file.
+
+        Args:
+            file_path (str): Path to the binary file that was encountered.
+        """
+        self.file_path = file_path
+        super().__init__(f"Binary file detected: {file_path}")
