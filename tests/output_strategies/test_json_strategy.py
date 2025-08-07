@@ -15,17 +15,21 @@ def test_format_start():
     """Test the format_start method with various inputs."""
     strategy = JSONOutputStrategy()
 
-    # Test basic path
-    basic = strategy.format_start("test.py", None)
-    assert basic == '{"type": "file", "path": "test.py", "content": "'
+    # Test basic path with default text type
+    basic = strategy.format_start("test.py")
+    assert basic == '{"type": "file", "path": "test.py", "content_type": "text", "content": "'
 
     # Test path with special characters
-    special = strategy.format_start('test"file.py', None)
-    assert special == '{"type": "file", "path": "test\\"file.py", "content": "'
+    special = strategy.format_start('test"file.py')
+    assert special == '{"type": "file", "path": "test\\"file.py", "content_type": "text", "content": "'
+
+    # Test with binary type
+    binary = strategy.format_start("image.png", "binary")
+    assert binary == '{"type": "file", "path": "image.png", "content_type": "binary", "content": "'
 
     # Test with token count
-    with_tokens = strategy.format_start("test.py", 42)
-    assert with_tokens == '{"type": "file", "path": "test.py", "content": "'
+    with_tokens = strategy.format_start("test.py", "text", 42)
+    assert with_tokens == '{"type": "file", "path": "test.py", "content_type": "text", "content": "'
 
 
 def test_format_content():
@@ -104,7 +108,7 @@ def test_complete_file_output_start_tokens():
     strategy = JSONOutputStrategy()
 
     output = []
-    output.append(strategy.format_start("test.py", 100))
+    output.append(strategy.format_start("test.py", "text", 100))
     output.append(strategy.format_content('def test():\n    print("Hello")'))
     output.append(strategy.format_end())
 
@@ -114,6 +118,7 @@ def test_complete_file_output_start_tokens():
     parsed = json.loads(complete_output)
     assert parsed["type"] == "file"
     assert parsed["path"] == "test.py"
+    assert parsed["content_type"] == "text"
     assert parsed["content"] == 'def test():\n    print("Hello")'
     assert parsed["tokens"] == 100
 
@@ -161,7 +166,7 @@ def test_complete_file_output_both_unequal_tokens():
     strategy = JSONOutputStrategy()
 
     output = []
-    output.append(strategy.format_start("test.py", 99))
+    output.append(strategy.format_start("test.py", "text", 99))
     output.append(strategy.format_content('def test():\n    print("Hello")'))
     with pytest.raises(ValueError):
         # End token count doesn't match start token count

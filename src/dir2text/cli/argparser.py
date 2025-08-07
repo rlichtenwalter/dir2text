@@ -122,6 +122,14 @@ def create_parser(exclusion_rules: BaseExclusionRules) -> argparse.ArgumentParse
       # Mix file-based and direct pattern exclusions
       dir2text -e .gitignore -i "*.log" -i "!important.log" /path/to/project
 
+      # Limit file size to exclude large files
+      dir2text -M 50MB /path/to/project
+      dir2text -M 1.5GB /path/to/project
+      dir2text -M 2048 /path/to/project  # 2048 bytes
+
+      # Combine exclusions with size limits
+      dir2text -e .gitignore -M 100MB /path/to/project
+
       # Enable token counting for LLM context management
       dir2text -t gpt-4 /path/to/project
 
@@ -132,6 +140,12 @@ def create_parser(exclusion_rules: BaseExclusionRules) -> argparse.ArgumentParse
       dir2text -P warn /path/to/project    # Continue with warnings
       dir2text -P fail /path/to/project    # Stop on permission errors
       dir2text -P ignore /path/to/project  # Skip silently (default)
+
+      # Process with different binary file handling
+      dir2text -B ignore /path/to/project  # Skip binary files silently (default)
+      dir2text -B warn /path/to/project    # Skip binary files with warnings
+      dir2text -B encode /path/to/project  # Include binary files as base64
+      dir2text -B fail /path/to/project    # Stop on binary files
 
       # Process only specific aspects
       dir2text -T /path/to/project     # Skip tree visualization
@@ -248,6 +262,25 @@ def create_parser(exclusion_rules: BaseExclusionRules) -> argparse.ArgumentParse
         choices=["ignore", "warn", "fail"],
         default="ignore",
         help="How to handle permission errors (default: ignore).",
+    )
+    parser.add_argument(
+        "-B",
+        "--binary-action",
+        choices=["ignore", "warn", "encode", "fail"],
+        default="ignore",
+        help="How to handle binary files (default: ignore).",
+    )
+    parser.add_argument(
+        "-M",
+        "--max-file-size",
+        type=str,
+        metavar="SIZE",
+        help=(
+            "Maximum file size to include in output. Files larger than this limit will be "
+            "excluded from both the directory tree and file contents. SIZE can be specified "
+            "in human-readable format (e.g., '1GB', '500MB', '2.5K') or as raw bytes. "
+            "Supports both decimal (GB, MB, KB) and binary (GiB, MiB, KiB) units."
+        ),
     )
 
     return parser

@@ -235,7 +235,7 @@ def test_streaming_dir2text_with_complex_exclusions(temp_directory):
     """Test with more complex exclusion patterns including negations."""
     rules = GitIgnoreExclusionRules()
     rules.add_rule("*.pyc")  # Exclude .pyc files
-    rules.add_rule("src/utils/")  # Exclude utils directory
+    rules.add_rule("src/utils/*")  # Exclude utils directory contents
     rules.add_rule("!src/utils/helpers.py")  # But include helpers.py
 
     analyzer = StreamingDir2Text(temp_directory, exclusion_rules=rules)
@@ -244,7 +244,7 @@ def test_streaming_dir2text_with_complex_exclusions(temp_directory):
     # Verify .pyc file is excluded
     assert "compiled python" not in content_output
 
-    # Verify utils/ is excluded but helpers.py is included (with negation)
+    # Verify utils/* is excluded but helpers.py is included (with negation)
     assert "def helper():" in content_output
 
 

@@ -11,9 +11,11 @@ from typing import Optional
 from dir2text.output_strategies import OutputStrategy
 
 class SimpleTextStrategy(OutputStrategy):
-    def format_start(self, relative_path: str, 
+    def format_start(self, relative_path: str, file_type: str = "text",
                     file_token_count: Optional[int] = None) -> str:
         header = f"=== {relative_path} ==="
+        if file_type == "binary":
+            header += " [binary]"
         if file_token_count is not None:
             header += f" ({file_token_count} tokens)"
         return f"{header}\n"
@@ -39,9 +41,12 @@ printer = FileContentPrinter(fs_tree, SimpleTextStrategy())
 
 ```python
 class MarkdownStrategy(OutputStrategy):
-    def format_start(self, relative_path: str, 
+    def format_start(self, relative_path: str, file_type: str = "text",
                     file_token_count: Optional[int] = None) -> str:
-        header = f"## File: {relative_path}\n\n"
+        header = f"## File: {relative_path}"
+        if file_type == "binary":
+            header += " [binary]"
+        header += "\n\n"
         if file_token_count is not None:
             header += f"*Tokens: {file_token_count}*\n\n"
         return f"{header}```\n"
@@ -72,7 +77,7 @@ class HTMLStrategy(OutputStrategy):
         self.current_file = None
         self._write_css = True
     
-    def format_start(self, relative_path: str, 
+    def format_start(self, relative_path: str, file_type: str = "text",
                     file_token_count: Optional[int] = None) -> str:
         self.current_file = relative_path
         result = []
@@ -82,9 +87,13 @@ class HTMLStrategy(OutputStrategy):
             result.append(f"<style>{self.formatter.get_style_defs()}</style>")
             self._write_css = False
         
+        title = html.escape(relative_path)
+        if file_type == "binary":
+            title += " [binary]"
+        
         result.extend([
             '<div class="file-container">',
-            f'<h3>{html.escape(relative_path)}</h3>'
+            f'<h3>{title}</h3>'
         ])
         
         if file_token_count is not None:

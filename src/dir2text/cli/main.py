@@ -40,17 +40,20 @@ Example:
     $ dir2text --version
 """
 
+import argparse
 import importlib.util
 import sys
 from collections.abc import Mapping
-from typing import Optional
+from typing import List, Optional
 
 from dir2text.cli.argparser import create_parser, validate_args
 from dir2text.cli.safe_writer import SafeWriter
 from dir2text.cli.signal_handler import setup_signal_handling, signal_handler
 from dir2text.dir2text import StreamingDir2Text
-from dir2text.exceptions import TokenizerNotAvailableError
+from dir2text.exceptions import BinaryFileError, TokenizerNotAvailableError
+from dir2text.exclusion_rules.base_rules import BaseExclusionRules
 from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
+from dir2text.file_system_tree.binary_action import BinaryAction
 from dir2text.file_system_tree.permission_action import PermissionAction
 
 
@@ -86,6 +89,66 @@ def check_tiktoken_available() -> bool:
     return importlib.util.find_spec("tiktoken") is not None
 
 
+def _build_exclusion_rules(
+    git_rules: GitIgnoreExclusionRules, args: argparse.Namespace
+) -> Optional[BaseExclusionRules]:
+    """Build composite exclusion rules based on CLI arguments.
+
+    This function intelligently combines different types of exclusion rules
+    based on what was specified on the command line. It optimizes for performance
+    by avoiding unnecessary composition when only one rule type is needed.
+
+    Args:
+        git_rules: Git-based exclusion rules (may be empty if no -e/-i flags).
+        args: Parsed command-line arguments.
+
+    Returns:
+        Appropriate exclusion rules object, or None if no exclusions specified.
+    """
+    rules_list: List[BaseExclusionRules] = []
+
+    # Check if git rules have any patterns
+    git_has_patterns = bool(getattr(git_rules.spec, "patterns", []))
+    if git_has_patterns:
+        rules_list.append(git_rules)
+
+    # Add size rules if --max-file-size specified
+    if hasattr(args, "max_file_size") and args.max_file_size:
+        try:
+            from dir2text.exclusion_rules.size_rules import SizeExclusionRules
+
+            rules_list.append(SizeExclusionRules(args.max_file_size))
+        except (ValueError, ImportError) as e:
+            # Convert to a more user-friendly error
+            if "Invalid size format" in str(e):
+                print(
+                    f"Error: Invalid size format '{args.max_file_size}'. "
+                    f"Use formats like '1GB', '500MB', '2.5K', or raw bytes.",
+                    file=sys.stderr,
+                )
+                sys.exit(2)
+            elif "humanfriendly" in str(e):
+                print(
+                    "Error: humanfriendly library is required for size parsing but not available. "
+                    "This shouldn't happen as it's a required dependency.",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            else:
+                raise
+
+    # Return appropriate rules object based on what we found
+    if len(rules_list) == 0:
+        return None  # No exclusions
+    elif len(rules_list) == 1:
+        return rules_list[0]  # Single rule type - no composition overhead
+    else:
+        # Multiple rule types - use composite
+        from dir2text.exclusion_rules.composite_rules import CompositeExclusionRules
+
+        return CompositeExclusionRules(rules_list)
+
+
 def main() -> None:
     """Main entry point for the dir2text command-line interface.
 
@@ -103,11 +166,11 @@ def main() -> None:
     setup_signal_handling()
 
     try:
-        # Create the exclusion rules object that will be populated during parsing
-        exclusion_rules = GitIgnoreExclusionRules()
+        # Create the git exclusion rules object that will be populated during parsing
+        git_rules = GitIgnoreExclusionRules()
 
-        # Create parser with the exclusion rules object
-        parser = create_parser(exclusion_rules)
+        # Create parser with the git exclusion rules object
+        parser = create_parser(git_rules)
         try:
             args = parser.parse_args()
         except SystemExit:
@@ -117,6 +180,9 @@ def main() -> None:
 
         # Perform additional validation beyond what argparse supports directly
         validate_args(args)
+
+        # Build appropriate exclusion rules based on CLI arguments
+        exclusion_rules = _build_exclusion_rules(git_rules, args)
 
         # Check if tokenizer is requested but tiktoken is not available
         if args.tokenizer and not check_tiktoken_available():
@@ -131,6 +197,14 @@ def main() -> None:
             "fail": PermissionAction.RAISE,
         }[args.permission_action]
 
+        # Map CLI binary actions to internal enum
+        bin_action = {
+            "ignore": BinaryAction.IGNORE,
+            "warn": BinaryAction.RAISE,
+            "fail": BinaryAction.RAISE,
+            "encode": BinaryAction.ENCODE,
+        }[args.binary_action]
+
         try:
             # Initialize StreamingDir2Text with appropriate configuration
             analyzer = StreamingDir2Text(
@@ -139,6 +213,7 @@ def main() -> None:
                 output_format=args.format,
                 tokenizer_model=args.tokenizer,
                 permission_action=perm_action,
+                binary_action=bin_action,
                 follow_symlinks=args.follow_symlinks,
             )
 
@@ -199,6 +274,14 @@ def main() -> None:
                 print(f"Error: {str(e)}", file=sys.stderr)
                 sys.exit(126)
             # For "ignore", we simply continue
+
+        except BinaryFileError as e:
+            if args.binary_action == "warn":
+                print(f"Warning: {str(e)}", file=sys.stderr)
+            elif args.binary_action == "fail":
+                print(f"Error: {str(e)}", file=sys.stderr)
+                sys.exit(1)
+            # For "ignore" and "encode", we simply continue (though BinaryFileError shouldn't occur for those)
 
     except TokenizerNotAvailableError as e:
         print(f"Error: {str(e)}", file=sys.stderr)

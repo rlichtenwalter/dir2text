@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 This project adheres at least loosely to Semantic Versioning.
 
+## Version 3.0.0 (2025-08-06)
+This major version release focuses on new features, including binary file support, maximum file size filters, and a composite exclusion rule mechanism.
+
+### Added
+- Added support for maximum file size specification via `-M, --max-file-size`.
+- Added a size exclusion rules class to support maximum file size.
+- Added a composite exclusion rules class to support composable exclusion rules.
+- Added support for binary files with base64 encoding.
+- Provided new `-B, --binary-action` CLI option, which can accept 'ignore', 'warn', 'encode', or 'fail', which determines how binary files will be handled.
+- Implemented a binary file detection heuristic to support binary file handling.
+
+### Changed
+- **BREAKING**: The output strategies now include information related to content type, whether "text" or "binary".
+- **BREAKING**: Several API methods have new arguments related to binary file handling preceding preexisting arguments. Those using positional argument passing should carefully evaluate whether they are affected.
+- The `token_counting` extra now depends on a minimum tiktoken version of 0.6.0 instead of 0.8.0.
+
+### Fixed
+- Nothing.
+
+### Known Issues
+- None
+
 ## Version 2.0.0 (2025-04-11)
 This major version release focuses on usability enhancements, particularly in exclusion rule support, symbolic link handling, and output control.
 

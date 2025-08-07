@@ -192,6 +192,12 @@ class FileSystemTree:
             if self.exclusion_rules.exclude(relative_path):
                 return None
 
+            # For directories, also check if adding a trailing slash would match
+            # This ensures directory-only patterns like "build/" properly exclude directories
+            if path.is_dir() and not relative_path.endswith("/"):
+                if self.exclusion_rules.exclude(relative_path + "/"):
+                    return None
+
             # For patterns ending with slash that might not match symlinks,
             # also check if the path without trailing slash would be excluded
             if path.is_symlink() and not relative_path.endswith("/"):

@@ -25,6 +25,8 @@ dir2text [OPTIONS] DIRECTORY
 | `-s, --summary` | Print summary report (stderr, stdout, or file) | `dir2text dir -s stderr` |
 | `-t, --tokenizer MODEL` | Model for token counting | `dir2text dir -t gpt-4` |
 | `-P, --permission-action ACTION` | Permission error handling | `dir2text dir -P warn` |
+| `-B, --binary-action ACTION` | Binary file handling | `dir2text dir -B encode` |
+| `-M, --max-file-size SIZE` | Maximum file size to include | `dir2text dir -M 50MB` |
 
 ## Version Information
 
@@ -44,7 +46,7 @@ When the version flag is used, the program prints the version and exits immediat
 dir2text /path/to/project
 
 # Example output:
-<file path="src/main.py">
+<file path="src/main.py" content_type="text">
 def main():
     print("Hello, World!")
 </file>
@@ -56,7 +58,7 @@ def main():
 dir2text /path/to/project -f json
 
 # Example output:
-{"type": "file", "path": "src/main.py", "content": "def main():\n    print(\"Hello, World!\")\n"}
+{"type": "file", "path": "src/main.py", "content_type": "text", "content": "def main():\n    print(\"Hello, World!\")\n"}
 {"type": "symlink", "path": "link/to/readme.md", "target": "../README.md"}
 ```
 
@@ -105,7 +107,7 @@ dir2text /path/to/project -e .gitignore
 dir2text /path/to/project -e .gitignore -e .npmignore -e custom.ignore
 ```
 
-When using multiple exclusion files, they are processed in the order specified on the command line. This is important when using negation patterns (starting with `!`), as later rules can override earlier ones.
+When using multiple exclusion files, they are processed in the order specified on the command line. This is important when using negation patterns (starting with `!`), because later rules can override earlier ones.
 
 Common exclusion patterns:
 ```gitignore
@@ -128,6 +130,36 @@ dir2text /path/to/project -i "*.pyc" -i "node_modules/"
 dir2text /path/to/project -e .gitignore -i "*.log" -i "!important.log"
 ```
 
+### Limiting File Sizes
+
+Control which files are included based on their size:
+
+```bash
+# Exclude files larger than 50MB
+dir2text /path/to/project -M 50MB
+
+# Use different units
+dir2text /path/to/project -M 1GB        # 1 gigabyte
+dir2text /path/to/project -M 1GiB       # 1 gibibyte (binary)
+dir2text /path/to/project -M 2048       # 2048 bytes
+dir2text /path/to/project -M "2.5 MB"   # 2.5 megabytes (with spaces)
+
+# Combine size limits with other exclusions
+dir2text /path/to/project -e .gitignore -M 100MB
+```
+
+Supported size formats:
+- **Decimal units**: KB, MB, GB, TB, PB (powers of 1000)
+- **Binary units**: KiB, MiB, GiB, TiB, PiB (powers of 1024)
+- **Raw bytes**: Any integer number
+- **Decimal values**: 1.5MB, 2.75GB, etc.
+- **With spaces**: "1 GB", "500 MB"
+
+Files exceeding the size limit are completely excluded from both the directory tree and file contents output. Directories are never excluded based on size limits.
+
+For symbolic links, the size of the target file is checked (not the symlink itself), so large files remain excluded even when accessed through symlinks.
+```
+
 ## Permission Handling
 
 Control how permission errors are handled:
@@ -143,6 +175,88 @@ dir2text /path/to/project -P warn
 dir2text /path/to/project -P fail
 ```
 
+## Binary File Handling
+
+Control how binary files are processed:
+
+```bash
+# Ignore binary files (default) - skip silently
+dir2text /path/to/project -B ignore
+
+# Show warnings for binary files but skip them
+dir2text /path/to/project -B warn
+
+# Include binary files as base64-encoded content
+dir2text /path/to/project -B encode
+
+# Stop processing when binary files are encountered
+dir2text /path/to/project -B fail
+```
+
+### Binary File Detection
+
+Files are automatically detected as binary using a two-phase approach for optimal performance:
+
+1. **Fast extension-based detection**: Common extensions like `.jpg`, `.png`, `.mp4`, `.exe` are immediately classified as binary without reading file content
+2. **Content analysis fallback**: Files with unknown extensions are analyzed by reading a small chunk to detect:
+   - Null bytes (strong binary indicator)
+   - Text encoding compatibility (UTF-8, Latin-1, CP1252, UTF-16)
+   - Control character ratios
+
+### Binary File Actions
+
+**ignore (default)**
+```bash
+dir2text /path/to/project -B ignore
+
+# Output: Binary files are silently skipped
+<directory path="project">
+  <file path="README.md">...</file>
+  <!-- image.jpg skipped -->
+</directory>
+```
+
+**warn**
+```bash
+dir2text /path/to/project -B warn
+
+# Output: Warnings printed to stderr, files still skipped
+Warning: Skipping binary file: images/photo.jpg
+<directory path="project">
+  <file path="README.md">...</file>
+  <!-- photo.jpg skipped with warning -->
+</directory>
+```
+
+**encode** 
+```bash
+dir2text /path/to/project -B encode
+
+# Output: Binary content included as base64
+<file path="images/logo.png [binary]" content_type="binary">
+iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAAAlwSFlz
+AAALEgAACxIB0t1+/AAAABZ0RVh0Q3JlYXRpb24gVGltZQAwMS8yOS8xMC7F9wAABaJJREFUOMtV
+...
+</file>
+```
+
+**fail**
+```bash
+dir2text /path/to/project -B fail
+
+# Output: Processing stops at first binary file
+Error: Binary file encountered: images/photo.jpg
+Use --binary-action to specify how binary files should be handled.
+```
+
+### Performance Considerations
+
+The binary detection system is optimized for performance:
+
+- **Extension-based fast-path**: Files with known extensions (`.py`, `.js`, `.jpg`, `.mp4`) are classified instantly without file I/O
+- **Streaming base64 encoding**: When using `-B encode`, binary files are processed in optimized chunks to maintain constant memory usage
+- **Token counting consistency**: Base64-encoded binary files support token counting with the same streaming approach as text files
+
 ## Token Counting
 
 Token counting requires the token_counting extra:
@@ -155,7 +269,7 @@ pip install "dir2text[token_counting]"
 dir2text -t gpt-4 /path/to/project
 
 # Example output with token counts:
-<file path="src/main.py" tokens="42">
+<file path="src/main.py" content_type="text" tokens="42">
 def main():
     print("Hello, World!")
 </file>
@@ -211,20 +325,57 @@ dir2text /path/to/project \
 
 ### LLM Analysis
 ```bash
-# Prepare for LLM with token counting
+# Prepare for LLM with token counting and size limits (skip binary files)
 dir2text \
     -e .gitignore \
+    -M 1MB \
+    -B ignore \
     -t gpt-4 \
     -o project_for_llm.txt \
     /path/to/project
 
-# Include summary in a separate file
+# Include binary files as base64 for multimodal LLM analysis
 dir2text \
     -e .gitignore \
+    -M 1MB \
+    -B encode \
+    -t gpt-4 \
+    -o project_with_media.txt \
+    /path/to/project
+
+# Show binary file warnings to track what's being skipped
+dir2text \
+    -e .gitignore \
+    -M 500KB \
+    -B warn \
     -t gpt-4 \
     -s stderr \
     /path/to/project \
-    > project_for_llm.txt 2> stats.txt
+    > project_for_llm.txt 2> stats_and_warnings.txt
+
+# Focus on code files only with reasonable size limits
+dir2text \
+    -e .gitignore \
+    -i "*.md" -i "*.txt" -i "*.json" \
+    -M 100KB \
+    -B ignore \
+    -t gpt-4 \
+    /path/to/project
+```
+
+### Binary File Processing
+```bash
+# Skip binary files silently (fastest, most common)
+dir2text /path/to/project -B ignore
+
+# Get visibility into binary files without including content
+dir2text /path/to/project -B warn 2> binary_files_found.log
+
+# Include images and other binary assets for multimodal processing
+dir2text /path/to/project -B encode -o project_with_assets.txt
+
+# Ensure no binary files are present in output (strict text-only)
+dir2text /path/to/project -B fail
 ```
 
 ### Including External Content via Symlinks
@@ -250,6 +401,14 @@ dir2text -L /path/to/project -o project_with_linked_content.txt
 ```bash
 # Use appropriate permission action
 dir2text /path/to/project -P warn
+```
+
+### Binary File Errors
+```bash
+# Handle binary files based on your needs
+dir2text /path/to/project -B warn    # Show warnings but continue
+dir2text /path/to/project -B fail    # Stop at first binary file
+dir2text /path/to/project -B encode  # Include as base64
 ```
 
 ### Token Counting Errors

@@ -49,7 +49,7 @@ Trees are built with these characteristics:
 
 1. XML Format (default):
 ```xml
-<file path="src/main.py" tokens="42">
+<file path="src/main.py" content_type="text" tokens="42">
 def main():
     print("Hello, World!")
 </file>
@@ -58,7 +58,7 @@ def main():
 
 2. JSON Format:
 ```json
-{"type": "file", "path": "src/main.py", "content": "def main():\n    print(\"Hello, World!\")\n", "tokens": 42}
+{"type": "file", "path": "src/main.py", "content_type": "text", "content": "def main():\n    print(\"Hello, World!\")\n", "tokens": 42}
 {"type": "symlink", "path": "docs", "target": "./README.md"}
 ```
 
@@ -113,7 +113,7 @@ project/
 
 **Default Mode (without `-L`):**
 ```xml
-<file path="src/main.py">
+<file path="src/main.py" content_type="text">
 def main():
     print("Hello, World!")
 </file>
@@ -122,11 +122,11 @@ def main():
 
 **Follow Mode (with `-L`):**
 ```xml
-<file path="src/main.py">
+<file path="src/main.py" content_type="text">
 def main():
     print("Hello, World!")
 </file>
-<file path="link_to_src/main.py">
+<file path="link_to_src/main.py" content_type="text">
 def main():
     print("Hello, World!")
 </file>

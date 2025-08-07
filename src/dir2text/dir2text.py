@@ -11,6 +11,7 @@ from typing import Iterator, Optional, Union
 from dir2text.exceptions import TokenizationError
 from dir2text.exclusion_rules.base_rules import BaseExclusionRules
 from dir2text.file_content_printer import FileContentPrinter
+from dir2text.file_system_tree.binary_action import BinaryAction
 from dir2text.file_system_tree.file_system_tree import FileSystemTree
 from dir2text.file_system_tree.permission_action import PermissionAction
 from dir2text.output_strategies.base_strategy import OutputStrategy
@@ -71,6 +72,7 @@ class StreamingDir2Text:
         output_format: str = "xml",
         tokenizer_model: Optional[str] = None,
         permission_action: Union[str, PermissionAction] = PermissionAction.IGNORE,
+        binary_action: Union[str, BinaryAction] = BinaryAction.IGNORE,
         follow_symlinks: bool = False,
     ):
         """Initialize streaming directory analysis.
@@ -83,6 +85,9 @@ class StreamingDir2Text:
             tokenizer_model: Model to use for counting. If None, token counting is disabled.
             permission_action: How to handle permission errors during traversal.
                 Can be either "ignore" or "raise", or a PermissionAction enum value.
+                Defaults to "ignore".
+            binary_action: How to handle binary files during content processing.
+                Can be either "ignore", "raise", or "encode", or a BinaryAction enum value.
                 Defaults to "ignore".
             follow_symlinks: Whether to follow symbolic links during traversal.
                 If False (default), symlinks are represented as symlinks in the output.
@@ -110,6 +115,15 @@ class StreamingDir2Text:
                     f"Invalid permission_action: {permission_action}. " "Must be one of: 'ignore', 'raise'"
                 )
 
+        # Handle binary_action input
+        if isinstance(binary_action, str):
+            try:
+                binary_action = BinaryAction(binary_action.lower())
+            except ValueError:
+                raise ValueError(
+                    f"Invalid binary_action: {binary_action}. " "Must be one of: 'ignore', 'raise', 'encode'"
+                )
+
         # Initialize exclusion rules if not provided
         self._exclusion_rules = exclusion_rules
         self.follow_symlinks = follow_symlinks
@@ -129,7 +143,9 @@ class StreamingDir2Text:
         else:
             self._strategy = JSONOutputStrategy()
 
-        self._content_printer = FileContentPrinter(self._fs_tree, self._strategy, tokenizer=self._counter)
+        self._content_printer = FileContentPrinter(
+            self._fs_tree, self._strategy, tokenizer=self._counter, binary_action=binary_action
+        )
 
         # Initialize metrics that are immediately available
         self._directory_count = self._fs_tree.get_directory_count()
@@ -376,6 +392,7 @@ class Dir2Text(StreamingDir2Text):
         output_format: str = "xml",
         tokenizer_model: Optional[str] = None,
         permission_action: Union[str, PermissionAction] = PermissionAction.IGNORE,
+        binary_action: Union[str, BinaryAction] = BinaryAction.IGNORE,
         follow_symlinks: bool = False,
     ):
         """Initialize and immediately process the entire directory.
@@ -388,6 +405,9 @@ class Dir2Text(StreamingDir2Text):
             tokenizer_model: Model to use for token counting, or None to disable token counting
             permission_action: How to handle permission errors during traversal.
                 Can be either "ignore" or "raise", or a PermissionAction enum value.
+                Defaults to "ignore".
+            binary_action: How to handle binary files during content processing.
+                Can be either "ignore", "raise", or "encode", or a BinaryAction enum value.
                 Defaults to "ignore".
             follow_symlinks: Whether to follow symbolic links during traversal.
                 If False (default), symlinks are represented as symlinks in the output.
@@ -404,6 +424,7 @@ class Dir2Text(StreamingDir2Text):
             output_format=output_format,
             tokenizer_model=tokenizer_model,
             permission_action=permission_action,
+            binary_action=binary_action,
             follow_symlinks=follow_symlinks,
         )
 
