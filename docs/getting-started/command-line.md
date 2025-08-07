@@ -25,6 +25,7 @@ dir2text [OPTIONS] DIRECTORY
 | `-s, --summary` | Print summary report (stderr, stdout, or file) | `dir2text dir -s stderr` |
 | `-t, --tokenizer MODEL` | Model for token counting | `dir2text dir -t gpt-4` |
 | `-P, --permission-action ACTION` | Permission error handling | `dir2text dir -P warn` |
+| `-M, --max-file-size SIZE` | Maximum file size to include | `dir2text dir -M 50MB` |
 
 ## Version Information
 
@@ -128,6 +129,36 @@ dir2text /path/to/project -i "*.pyc" -i "node_modules/"
 dir2text /path/to/project -e .gitignore -i "*.log" -i "!important.log"
 ```
 
+### Limiting File Sizes
+
+Control which files are included based on their size:
+
+```bash
+# Exclude files larger than 50MB
+dir2text /path/to/project -M 50MB
+
+# Use different units
+dir2text /path/to/project -M 1GB        # 1 gigabyte
+dir2text /path/to/project -M 1GiB       # 1 gibibyte (binary)
+dir2text /path/to/project -M 2048       # 2048 bytes
+dir2text /path/to/project -M "2.5 MB"   # 2.5 megabytes (with spaces)
+
+# Combine size limits with other exclusions
+dir2text /path/to/project -e .gitignore -M 100MB
+```
+
+Supported size formats:
+- **Decimal units**: KB, MB, GB, TB, PB (powers of 1000)
+- **Binary units**: KiB, MiB, GiB, TiB, PiB (powers of 1024)
+- **Raw bytes**: Any integer number
+- **Decimal values**: 1.5MB, 2.75GB, etc.
+- **With spaces**: "1 GB", "500 MB"
+
+Files exceeding the size limit are completely excluded from both the directory tree and file contents output. Directories are never excluded based on size limits.
+
+For symbolic links, the size of the target file is checked (not the symlink itself), so large files remain excluded even when accessed through symlinks.
+```
+
 ## Permission Handling
 
 Control how permission errors are handled:
@@ -211,9 +242,10 @@ dir2text /path/to/project \
 
 ### LLM Analysis
 ```bash
-# Prepare for LLM with token counting
+# Prepare for LLM with token counting and size limits
 dir2text \
     -e .gitignore \
+    -M 1MB \
     -t gpt-4 \
     -o project_for_llm.txt \
     /path/to/project
@@ -221,10 +253,19 @@ dir2text \
 # Include summary in a separate file
 dir2text \
     -e .gitignore \
+    -M 500KB \
     -t gpt-4 \
     -s stderr \
     /path/to/project \
     > project_for_llm.txt 2> stats.txt
+
+# Focus on code files only with reasonable size limits
+dir2text \
+    -e .gitignore \
+    -i "*.md" -i "*.txt" -i "*.json" \
+    -M 100KB \
+    -t gpt-4 \
+    /path/to/project
 ```
 
 ### Including External Content via Symlinks
