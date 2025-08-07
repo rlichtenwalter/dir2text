@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 This project adheres at least loosely to Semantic Versioning.
 
+## Version 2.1.0 (2025-08-06)
+This minor version release focuses on new features, including
+
+### Added
+- Added support for maximum file size specification via `-M, --max-file-size`.
+- Added a size exclusion rules class to support maximum file size.
+- Added a composite exclusion rules class to support composable exclusion rules.
+
+### Changed
+
+### Fixed
+
 ## Version 2.0.0 (2025-04-11)
 This major version release focuses on usability enhancements, particularly in exclusion rule support, symbolic link handling, and output control.
 

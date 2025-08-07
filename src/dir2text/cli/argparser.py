@@ -122,6 +122,14 @@ def create_parser(exclusion_rules: BaseExclusionRules) -> argparse.ArgumentParse
       # Mix file-based and direct pattern exclusions
       dir2text -e .gitignore -i "*.log" -i "!important.log" /path/to/project
 
+      # Limit file size to exclude large files
+      dir2text -M 50MB /path/to/project
+      dir2text -M 1.5GB /path/to/project
+      dir2text -M 2048 /path/to/project  # 2048 bytes
+
+      # Combine exclusions with size limits
+      dir2text -e .gitignore -M 100MB /path/to/project
+
       # Enable token counting for LLM context management
       dir2text -t gpt-4 /path/to/project
 
@@ -248,6 +256,18 @@ def create_parser(exclusion_rules: BaseExclusionRules) -> argparse.ArgumentParse
         choices=["ignore", "warn", "fail"],
         default="ignore",
         help="How to handle permission errors (default: ignore).",
+    )
+    parser.add_argument(
+        "-M",
+        "--max-file-size",
+        type=str,
+        metavar="SIZE",
+        help=(
+            "Maximum file size to include in output. Files larger than this limit will be "
+            "excluded from both the directory tree and file contents. SIZE can be specified "
+            "in human-readable format (e.g., '1GB', '500MB', '2.5K') or as raw bytes. "
+            "Supports both decimal (GB, MB, KB) and binary (GiB, MiB, KiB) units."
+        ),
     )
 
     return parser

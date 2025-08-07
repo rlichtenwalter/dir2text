@@ -719,3 +719,233 @@ def test_cli_mixed_exclusions(temp_project):
     assert "main.py" in result.stdout
     assert "server.log" in result.stdout
     assert "package.json" in result.stdout
+
+
+@pytest.fixture
+def temp_project_with_size_files():
+    """Create a temporary project with files of different sizes for testing."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        base_dir = Path(tmpdir)
+
+        # Create small files
+        (base_dir / "small.txt").write_text("Small file")  # ~10 bytes
+        (base_dir / "medium.txt").write_text("x" * 500)  # 500 bytes
+
+        # Create large files
+        (base_dir / "large.txt").write_text("x" * 2000)  # 2KB
+        (base_dir / "huge.txt").write_text("x" * 1100000)  # ~1.1MB
+
+        # Create directories (should not be affected by size limits)
+        (base_dir / "src").mkdir()
+        (base_dir / "src" / "tiny.py").write_text("print('hi')")  # Very small
+
+        yield base_dir
+
+
+def test_cli_max_file_size_basic(temp_project_with_size_files):
+    """Test basic max file size functionality."""
+    project_dir = temp_project_with_size_files
+
+    # Test with 1KB limit - should exclude 2KB and 1.1MB files
+    result = run_cli(["-M", "1KB", str(project_dir)])
+
+    assert result.returncode == 0
+    assert "small.txt" in result.stdout  # ~10 bytes - included
+    assert "medium.txt" in result.stdout  # 500 bytes - included
+    assert "tiny.py" in result.stdout  # very small - included
+    assert "large.txt" not in result.stdout  # 2KB - excluded
+    assert "huge.txt" not in result.stdout  # 1.1MB - excluded
+
+
+def test_cli_max_file_size_units(temp_project_with_size_files):
+    """Test different size unit formats."""
+    project_dir = temp_project_with_size_files
+
+    # Test with bytes
+    result_bytes = run_cli(["-M", "1500", str(project_dir)])
+    assert result_bytes.returncode == 0
+    assert "medium.txt" in result_bytes.stdout  # 500 bytes - included
+    assert "large.txt" not in result_bytes.stdout  # 2KB - excluded
+
+    # Test with KB (decimal)
+    result_kb = run_cli(["-M", "1.5KB", str(project_dir)])
+    assert result_kb.returncode == 0
+    assert "medium.txt" in result_kb.stdout  # 500 bytes - included
+    assert "large.txt" not in result_kb.stdout  # 2KB - excluded
+
+    # Test with MB (decimal) - should include everything except huge file
+    result_mb = run_cli(["-M", "1MB", str(project_dir)])
+    assert result_mb.returncode == 0
+    assert "large.txt" in result_mb.stdout  # 2KB - included
+    assert "huge.txt" not in result_mb.stdout  # 1.1MB - excluded
+
+    # Test with MiB (binary)
+    result_mib = run_cli(["-M", "2MiB", str(project_dir)])
+    assert result_mib.returncode == 0
+    assert "huge.txt" in result_mib.stdout  # 1.1MB < 2MiB - included
+
+
+def test_cli_max_file_size_combined_with_exclusions(temp_project):
+    """Test max file size combined with other exclusion rules."""
+    project_dir = temp_project
+
+    # Create a large .pyc file
+    (project_dir / "large.pyc").write_text("x" * 1000)  # 1KB
+
+    # Create a small .log file
+    (project_dir / "small.log").write_text("log entry")  # ~10 bytes
+
+    gitignore_path = str(project_dir / ".gitignore")  # contains: *.pyc\nbuild/\n
+
+    # Combine git exclusions with size limit
+    result = run_cli(["-e", gitignore_path, "-M", "100", str(project_dir)])
+
+    assert result.returncode == 0
+
+    # large.pyc should be excluded by git rules (not size)
+    assert "large.pyc" not in result.stdout
+
+    # small.log should be included (not excluded by git, under size limit)
+    assert "small.log" in result.stdout
+
+    # Files over 100 bytes should be excluded by size rule
+    assert "main.py" not in result.stdout  # > 100 bytes
+    assert "README.md" not in result.stdout  # > 100 bytes
+    assert "package.json" not in result.stdout  # > 100 bytes
+
+
+def test_cli_max_file_size_invalid_format():
+    """Test error handling for invalid size formats."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Test invalid size format
+        result = run_cli(["-M", "invalid_size", tmpdir])
+        assert result.returncode == 2  # Argument error
+        assert "Invalid size format" in result.stderr
+
+        # Test another invalid format
+        result = run_cli(["-M", "1XB", tmpdir])  # Invalid unit
+        assert result.returncode == 2
+        assert "Invalid size format" in result.stderr
+
+
+def test_cli_max_file_size_directories_not_affected(temp_project_with_size_files):
+    """Test that directories are not affected by size limits."""
+    project_dir = temp_project_with_size_files
+
+    # Use a very small size limit
+    result = run_cli(["-M", "1", str(project_dir)])  # 1 byte limit
+
+    assert result.returncode == 0
+
+    # Directory should still appear in tree
+    assert "src/" in result.stdout
+
+    # But files should be excluded
+    assert "small.txt" not in result.stdout  # Even small files excluded
+    assert "medium.txt" not in result.stdout
+    assert "tiny.py" not in result.stdout
+
+
+def test_cli_max_file_size_no_tree_option(temp_project_with_size_files):
+    """Test max file size with --no-tree option."""
+    project_dir = temp_project_with_size_files
+
+    result = run_cli(["-T", "-M", "1KB", str(project_dir)])
+
+    assert result.returncode == 0
+
+    # Should not contain tree visualization
+    assert "├──" not in result.stdout
+    assert "└──" not in result.stdout
+
+    # Should contain content from small files only
+    assert "Small file" in result.stdout  # Content of small.txt
+    assert "x" * 500 in result.stdout  # Content of medium.txt
+
+    # Should not contain content from large files
+    large_content_sample = "x" * 100  # Sample of large file content
+    large_count = result.stdout.count(large_content_sample)
+    # Should be much less than what would be in the large files
+    assert large_count < 5  # Arbitrary small number
+
+
+def test_cli_max_file_size_json_format(temp_project_with_size_files):
+    """Test max file size with JSON output format."""
+    project_dir = temp_project_with_size_files
+
+    result = run_cli(["-f", "json", "-M", "1KB", str(project_dir)])
+
+    assert result.returncode == 0
+
+    # Should be valid JSON structure
+    assert '"tree":' in result.stdout
+    assert '"files":' in result.stdout
+
+    # Should contain small files
+    assert "small.txt" in result.stdout
+    assert "medium.txt" in result.stdout
+
+    # Should not contain large files
+    assert "large.txt" not in result.stdout
+    assert "huge.txt" not in result.stdout
+
+
+def test_cli_max_file_size_zero_size():
+    """Test edge case with zero size limit."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        base_dir = Path(tmpdir)
+
+        # Create an empty file
+        (base_dir / "empty.txt").write_text("")
+
+        # Create a tiny file
+        (base_dir / "tiny.txt").write_text("x")
+
+        # Test with zero size limit - should exclude all non-empty files
+        result = run_cli(["-M", "0", str(base_dir)])
+
+        assert result.returncode == 0
+
+        # Empty file should be included (size = 0, limit = 0, so 0 <= 0 is True)
+        assert "empty.txt" in result.stdout
+
+        # Any non-empty file should be excluded
+        assert "tiny.txt" not in result.stdout
+
+
+def test_cli_max_file_size_with_symlinks():
+    """Test max file size behavior with symbolic links."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        base_dir = Path(tmpdir)
+
+        # Create a large target file
+        large_file = base_dir / "large_target.txt"
+        large_file.write_text("x" * 2000)  # 2KB
+
+        # Create a small target file
+        small_file = base_dir / "small_target.txt"
+        small_file.write_text("small")  # ~5 bytes
+
+        try:
+            # Create symlinks
+            large_symlink = base_dir / "large_symlink.txt"
+            small_symlink = base_dir / "small_symlink.txt"
+
+            large_symlink.symlink_to(large_file)
+            small_symlink.symlink_to(small_file)
+
+            # Test with 1KB limit - should check target file size
+            result = run_cli(["-M", "1KB", str(base_dir)])
+
+            assert result.returncode == 0
+
+            # Small symlink should be included (target is small)
+            assert "small_symlink.txt" in result.stdout or "small_target.txt" in result.stdout
+
+            # Large symlink should be excluded (target is large)
+            assert "large_symlink.txt" not in result.stdout
+            assert "large_target.txt" not in result.stdout
+
+        except (OSError, AttributeError):
+            # Symlinks not supported on this platform
+            pytest.skip("Symlinks not supported on this platform")
