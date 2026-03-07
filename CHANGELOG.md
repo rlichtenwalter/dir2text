@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Fix `directory_count` returning -1 when tree is `None`
 - Replace fragile `rstrip("}")` with precise `rfind("}")` slice in JSON strategy
 - Simplify root node name logic that had three identical branches
+- Fix size exclusion rules resolving relative paths against CWD instead of the scanned directory
+- Fix `[project.urls]` in pyproject.toml to use `[tool.poetry.urls]` for Poetry compatibility
 
 ## [3.0.1] - 2025-08-07
 
