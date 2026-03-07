@@ -261,7 +261,7 @@ def test_safe_writer_context_manager_with_exception():
 
 
 def test_safe_writer_close_with_error():
-    """Test SafeWriter.close method handling errors."""
+    """Test SafeWriter.close method handling errors marks closed via finally."""
     # Create a mock file object that raises an error on close
     mock_file = MagicMock()
     mock_file.close.side_effect = OSError(errno.EIO, "I/O error")
@@ -275,6 +275,8 @@ def test_safe_writer_close_with_error():
 
     assert excinfo.value.errno == errno.EIO
     mock_file.close.assert_called_once()
+    # The try/finally must set _closed even when the error is re-raised
+    assert writer._closed
 
 
 def test_safe_writer_close_with_broken_pipe():

@@ -445,6 +445,45 @@ def test_always_counts_lines_and_characters(mock_tree, mock_token_counter_no_tok
         assert mock_token_counter_no_tokens.count.call_count == 2  # Called for each chunk
 
 
+def test_no_double_counting_with_requires_tokens_in_start(mock_tree, mock_token_counter):
+    """Test that tokenizer.count() is not called twice when requires_tokens_in_start is True.
+
+    When the output strategy requires tokens in the start tag (XML), _count_file_tokens
+    pre-reads the file and calls tokenizer.count(). The streaming loop must NOT call
+    tokenizer.count() again, or the tokenizer's internal totals would be doubled.
+    """
+    with (
+        patch("builtins.open", MagicMock()) as mock_open,
+        patch("dir2text.file_content_printer.ChunkedFileReader") as mock_reader,
+    ):
+        mock_open.return_value.__enter__.return_value = MagicMock()
+        mock_reader.return_value = ["chunk1", "chunk2"]
+
+        printer = FileContentPrinter(mock_tree, output_format="xml", tokenizer=mock_token_counter)
+
+        # Call _count_file_tokens to simulate pre-counting (records initial call count)
+        mock_token_counter.count.reset_mock()
+
+        # Manually invoke _yield_wrapped_content_with_info with pre-counting active.
+        # Use the real _count_file_tokens which calls tokenizer.count().
+        from dir2text.file_content_printer import FileInfo
+
+        file_info = FileInfo(path=Path("/test/file.py"), relative_path="file.py", is_binary=False)
+
+        # The XML strategy has requires_tokens_in_start=True, so the method will:
+        # 1. Call _count_file_tokens (which calls tokenizer.count per chunk)
+        # 2. Stream the file content (should NOT call tokenizer.count again)
+        with patch.object(printer, "_count_file_tokens", return_value=20) as mock_pre_count:
+            list(printer._yield_wrapped_content_with_info(file_info))
+
+            # Pre-counting was called once
+            mock_pre_count.assert_called_once()
+
+            # tokenizer.count should NOT have been called during streaming
+            # (the pre_counted flag prevents it)
+            assert mock_token_counter.count.call_count == 0
+
+
 class TestBinaryFileHandling:
     """Test binary file handling with different binary actions."""
 

@@ -282,6 +282,15 @@ def test_symlinks_with_exclusions(temp_directory_with_symlinks):
     assert "src/utils/loop" in symlink_paths  # Still included
 
 
+def test_directory_count_flat_directory(tmp_path):
+    """Test directory_count is 0 (not -1) for a flat directory with only files."""
+    (tmp_path / "a.txt").touch()
+    (tmp_path / "b.txt").touch()
+    tree = FileSystemTree(str(tmp_path))
+    assert tree.get_directory_count() == 0
+    assert tree.get_file_count() == 2
+
+
 def test_directory_exclusion_with_trailing_slash(temp_directory):
     """Test that directory patterns with trailing slash properly exclude directories from tree.
 
