@@ -189,10 +189,7 @@ def is_binary_file(file_path: PathType, chunk_size: int = 8192) -> bool:
                 control_chars = sum(1 for byte in chunk if byte < 32 and byte not in (9, 10, 13))
 
                 # If more than 1% are control characters, consider it binary
-                if len(chunk) > 0 and control_chars / len(chunk) > 0.01:
-                    return True
-
-                return False  # Valid text with minimal control chars = text
+                return len(chunk) > 0 and control_chars / len(chunk) > 0.01
             except UnicodeDecodeError:
                 # Try next encoding
                 continue

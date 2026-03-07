@@ -6,14 +6,15 @@ handling argument parsing and validation.
 
 import argparse
 import os
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, List, Optional, Sequence, Type, Union
+from typing import Any, Optional, Union
 
 from dir2text import __version__
 from dir2text.exclusion_rules.base_rules import BaseExclusionRules
 
 
-def create_exclusion_action(exclusion_rules: BaseExclusionRules) -> Type[argparse.Action]:
+def create_exclusion_action(exclusion_rules: BaseExclusionRules) -> type[argparse.Action]:
     """Create a custom action class for handling exclusion rules.
 
     This factory function creates an action class that will update the provided
@@ -34,7 +35,7 @@ def create_exclusion_action(exclusion_rules: BaseExclusionRules) -> Type[argpars
         encountered during argument parsing, preserving their order on the command line.
         """
 
-        def __init__(self, option_strings: List[str], dest: str, **kwargs: Any) -> None:
+        def __init__(self, option_strings: list[str], dest: str, **kwargs: Any) -> None:
             super().__init__(option_strings, dest, **kwargs)
 
         def __call__(
@@ -61,13 +62,13 @@ def create_exclusion_action(exclusion_rules: BaseExclusionRules) -> Type[argpars
 
             # Also maintain the original attributes for backward compatibility
             if option_string in ("-e", "--exclude"):
-                if not hasattr(namespace, "exclude") or namespace.exclude is None:
-                    namespace.exclude = []
-                namespace.exclude.append(values)
+                exclude: list[Any] = getattr(namespace, "exclude", None) or []
+                exclude.append(values)
+                namespace.exclude = exclude  # type: ignore[union-attr]
             else:  # -i/--ignore
-                if not hasattr(namespace, "ignore") or namespace.ignore is None:
-                    namespace.ignore = []
-                namespace.ignore.append(values)
+                ignore: list[Any] = getattr(namespace, "ignore", None) or []
+                ignore.append(values)
+                namespace.ignore = ignore  # type: ignore[union-attr]
 
     return ExclusionRulesAction
 

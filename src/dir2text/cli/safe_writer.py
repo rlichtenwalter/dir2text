@@ -8,7 +8,7 @@ import errno
 import os
 import types
 from pathlib import Path
-from typing import Optional, Type, Union
+from typing import Optional, Union
 
 from dir2text.cli.signal_handler import signal_handler
 
@@ -66,7 +66,7 @@ class SafeWriter:
             os.write(self.fd, data.encode("utf-8"))
         except OSError as e:
             if e.errno == errno.EPIPE:
-                raise BrokenPipeError()
+                raise BrokenPipeError() from e
             raise
 
     def close(self) -> None:
@@ -100,7 +100,7 @@ class SafeWriter:
 
     def __exit__(
         self,
-        exc_type: Optional[Type[BaseException]],
+        exc_type: Optional[type[BaseException]],
         exc_val: Optional[BaseException],
         exc_tb: Optional[types.TracebackType],
     ) -> None:

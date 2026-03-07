@@ -21,13 +21,15 @@ def parse_file_size(size_str: str) -> int:
     """
     try:
         from humanfriendly import parse_size
-    except ImportError:
-        raise ImportError("humanfriendly is required for size parsing. " "Install it with: pip install humanfriendly")
+    except ImportError as e:
+        raise ImportError(
+            "humanfriendly is required for size parsing. Install it with: pip install humanfriendly"
+        ) from e
 
     try:
         return int(parse_size(size_str))
     except Exception as e:
-        raise ValueError(f"Invalid size format '{size_str}': {e}")
+        raise ValueError(f"Invalid size format '{size_str}': {e}") from e
 
 
 class SizeExclusionRules(BaseExclusionRules):

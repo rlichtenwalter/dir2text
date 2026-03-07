@@ -38,13 +38,13 @@ class XMLOutputStrategy(OutputStrategy):
 
     Example:
         >>> strategy = XMLOutputStrategy()
-        >>> print(strategy.format_start("example.py", "text", 42), end='')
+        >>> print(strategy.format_start("example.py", "text", 42), end="")
         <file path="example.py" content_type="text" tokens="42">
         >>> print(strategy.format_content('print("Hello")'))
         print("Hello")
-        >>> print(strategy.format_end(), end='')
+        >>> print(strategy.format_end(), end="")
         </file>
-        >>> print(strategy.format_symlink("link.py", "./real.py"), end='')
+        >>> print(strategy.format_symlink("link.py", "./real.py"), end="")
         <symlink path="link.py" target="./real.py" />
 
     Note:
@@ -95,9 +95,9 @@ class XMLOutputStrategy(OutputStrategy):
 
         Example:
             >>> strategy = XMLOutputStrategy()
-            >>> print(strategy.format_start("src/main.py", "text", 150), end='')
+            >>> print(strategy.format_start("src/main.py", "text", 150), end="")
             <file path="src/main.py" content_type="text" tokens="150">
-            >>> print(strategy.format_start("image.png", "binary"), end='')
+            >>> print(strategy.format_start("image.png", "binary"), end="")
             <file path="image.png" content_type="binary">
         """
         wrapper_start = f'<file path="{xml_escape(relative_path, self._xml_entities)}" content_type="{file_type}"'
@@ -120,7 +120,7 @@ class XMLOutputStrategy(OutputStrategy):
 
         Example:
             >>> strategy = XMLOutputStrategy()
-            >>> print(strategy.format_content('if x < 10 && y > 20:'))
+            >>> print(strategy.format_content("if x < 10 && y > 20:"))
             if x &lt; 10 &amp;&amp; y &gt; 20:
             >>> print(strategy.format_content('<script src="test.js">'))
             &lt;script src="test.js"&gt;
@@ -149,7 +149,7 @@ class XMLOutputStrategy(OutputStrategy):
 
         Example:
             >>> strategy = XMLOutputStrategy()
-            >>> print(strategy.format_end(), end='')
+            >>> print(strategy.format_end(), end="")
             </file>
         """
         if file_token_count is not None:
@@ -174,7 +174,7 @@ class XMLOutputStrategy(OutputStrategy):
 
         Example:
             >>> strategy = XMLOutputStrategy()
-            >>> print(strategy.format_symlink("docs/link.md", "../README.md"), end='')
+            >>> print(strategy.format_symlink("docs/link.md", "../README.md"), end="")
             <symlink path="docs/link.md" target="../README.md" />
         """
         return (

@@ -5,8 +5,10 @@ with support for streaming output and token counting. It includes both streaming
 and complete processing implementations.
 """
 
+import contextlib
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator, Optional, Union
+from typing import Optional, Union
 
 from dir2text.exceptions import TokenizationError
 from dir2text.exclusion_rules.base_rules import BaseExclusionRules
@@ -49,7 +51,7 @@ class StreamingDir2Text:
         >>> analyzer = StreamingDir2Text("src")  # doctest: +SKIP
         >>> # Stream tree first - partial metrics available
         >>> for line in analyzer.stream_tree():  # doctest: +SKIP
-        ...     print(line, end='')  # Each line includes newline
+        ...     print(line, end="")  # Each line includes newline
         src/
         ├── file1.txt
         └── subdir/
@@ -110,19 +112,19 @@ class StreamingDir2Text:
         if isinstance(permission_action, str):
             try:
                 permission_action = PermissionAction(permission_action.lower())
-            except ValueError:
+            except ValueError as e:
                 raise ValueError(
-                    f"Invalid permission_action: {permission_action}. " "Must be one of: 'ignore', 'raise'"
-                )
+                    f"Invalid permission_action: {permission_action}. Must be one of: 'ignore', 'raise'"
+                ) from e
 
         # Handle binary_action input
         if isinstance(binary_action, str):
             try:
                 binary_action = BinaryAction(binary_action.lower())
-            except ValueError:
+            except ValueError as e:
                 raise ValueError(
-                    f"Invalid binary_action: {binary_action}. " "Must be one of: 'ignore', 'raise', 'encode'"
-                )
+                    f"Invalid binary_action: {binary_action}. Must be one of: 'ignore', 'raise', 'encode'"
+                ) from e
 
         # Initialize exclusion rules if not provided
         self._exclusion_rules = exclusion_rules
@@ -289,11 +291,8 @@ class StreamingDir2Text:
         Returns:
             The input text, unchanged.
         """
-        try:
+        with contextlib.suppress(TokenizationError):
             self._counter.count(text)
-        except TokenizationError:
-            # Continue even if token counting fails
-            pass
         return self._yield(text)
 
     def stream_tree(self) -> Iterator[str]:
@@ -314,7 +313,7 @@ class StreamingDir2Text:
         Example:
             >>> tree = StreamingDir2Text(".")  # doctest: +SKIP
             >>> for line in tree.stream_tree():  # doctest: +SKIP
-            ...     print(line, end='')  # line already includes newline
+            ...     print(line, end="")  # line already includes newline
             ./
             ├── file1.txt
             └── file2.txt
@@ -347,12 +346,12 @@ class StreamingDir2Text:
         Example:
             >>> analyzer = StreamingDir2Text(".")  # doctest: +SKIP
             >>> for chunk in analyzer.stream_contents():  # doctest: +SKIP
-            ...     print(chunk, end='')  # Process content chunks
+            ...     print(chunk, end="")  # Process content chunks
         """
         if self._contents_complete:
             raise RuntimeError("Contents have already been streamed")
 
-        for file_path, relative_path, content_iter in self._content_printer.yield_file_contents():
+        for _file_path, _relative_path, content_iter in self._content_printer.yield_file_contents():
             # Output file content
             for chunk in content_iter:
                 yield self._yield(chunk)

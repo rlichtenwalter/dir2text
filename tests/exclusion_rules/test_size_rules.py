@@ -131,9 +131,11 @@ class TestSizeExclusionRules:
         rules = SizeExclusionRules(1000)
 
         # Mock Path.is_file to return True but stat to raise PermissionError
-        with patch("pathlib.Path.is_file", return_value=True):
-            with patch("pathlib.Path.stat", side_effect=PermissionError()):
-                assert not rules.exclude("/some/path")
+        with (
+            patch("pathlib.Path.is_file", return_value=True),
+            patch("pathlib.Path.stat", side_effect=PermissionError()),
+        ):
+            assert not rules.exclude("/some/path")
 
     def test_exclude_symlink_to_large_file(self):
         """Test that symlinks to large files are excluded based on target size."""

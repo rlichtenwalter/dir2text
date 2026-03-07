@@ -214,7 +214,7 @@ def test_symlink_loop_detection(temp_directory_with_symlinks):
     assert loop_node is not None
     assert loop_node.is_symlink
     assert hasattr(loop_node, "symlink_target")
-    assert "loop" in loop_node.symlink_target or "[loop detected]" == loop_node.symlink_target
+    assert "loop" in loop_node.symlink_target or loop_node.symlink_target == "[loop detected]"
 
 
 def test_iterate_symlinks(temp_directory_with_symlinks):

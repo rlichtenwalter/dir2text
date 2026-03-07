@@ -1,11 +1,13 @@
 """Implementation of exclusion rules using .gitignore pattern syntax."""
 
+from collections.abc import Sequence
 from os import PathLike
 from pathlib import Path
-from typing import Optional, Sequence, Union
+from typing import Optional, Union, cast
 
 from pathspec import PathSpec
-from pathspec.patterns import GitWildMatchPattern  # type: ignore
+from pathspec.pattern import Pattern
+from pathspec.patterns import GitWildMatchPattern  # type: ignore[import-untyped]
 
 from dir2text.types import PathType
 
@@ -40,8 +42,8 @@ class GitIgnoreExclusionRules(BaseExclusionRules):
         >>> import tempfile
         >>> import os
         >>> # Create a temporary gitignore file
-        >>> with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
-        ...     _ = f.write('node_modules/\\n')
+        >>> with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
+        ...     _ = f.write("node_modules/\\n")
         >>> # Create rules with our temporary gitignore
         >>> rules = GitIgnoreExclusionRules(f.name)
         >>> rules.exclude("node_modules/package.json")
@@ -72,10 +74,10 @@ class GitIgnoreExclusionRules(BaseExclusionRules):
             >>> import tempfile
             >>> import os
             >>> # Create temporary gitignore files
-            >>> with tempfile.NamedTemporaryFile(mode='w', delete=False) as f1:
-            ...     _ = f1.write('*.pyc\\n')
-            >>> with tempfile.NamedTemporaryFile(mode='w', delete=False) as f2:
-            ...     _ = f2.write('*.log\\n')
+            >>> with tempfile.NamedTemporaryFile(mode="w", delete=False) as f1:
+            ...     _ = f1.write("*.pyc\\n")
+            >>> with tempfile.NamedTemporaryFile(mode="w", delete=False) as f2:
+            ...     _ = f2.write("*.log\\n")
             >>> # Initialize with both files
             >>> rules = GitIgnoreExclusionRules([f1.name, f2.name])
             >>> rules.exclude("test.pyc")
@@ -112,8 +114,8 @@ class GitIgnoreExclusionRules(BaseExclusionRules):
             >>> import tempfile
             >>> import os
             >>> # Create a temporary gitignore file
-            >>> with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
-            ...     _ = f.write('*.pyc\\n!important.pyc\\n')
+            >>> with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
+            ...     _ = f.write("*.pyc\\n!important.pyc\\n")
             >>> rules = GitIgnoreExclusionRules(f.name)
             >>> rules.exclude("test.pyc")
             True
@@ -142,10 +144,10 @@ class GitIgnoreExclusionRules(BaseExclusionRules):
             >>> import tempfile
             >>> import os
             >>> # Create temporary gitignore files
-            >>> with tempfile.NamedTemporaryFile(mode='w', delete=False) as f1:
-            ...     _ = f1.write('*.txt\\n')
-            >>> with tempfile.NamedTemporaryFile(mode='w', delete=False) as f2:
-            ...     _ = f2.write('!important.txt\\n')
+            >>> with tempfile.NamedTemporaryFile(mode="w", delete=False) as f1:
+            ...     _ = f1.write("*.txt\\n")
+            >>> with tempfile.NamedTemporaryFile(mode="w", delete=False) as f2:
+            ...     _ = f2.write("!important.txt\\n")
             >>> # Load first rules file
             >>> rules = GitIgnoreExclusionRules(f1.name)
             >>> rules.exclude("test.txt")
@@ -168,7 +170,7 @@ class GitIgnoreExclusionRules(BaseExclusionRules):
             if not path.exists():
                 raise FileNotFoundError(f"Rules file not found: {path}")
 
-            with open(path, "r") as f:
+            with open(path) as f:
                 gitignore_content = f.read().splitlines()
 
             # Add these patterns to our existing spec
@@ -178,7 +180,7 @@ class GitIgnoreExclusionRules(BaseExclusionRules):
             if not hasattr(self.spec.patterns, "extend"):
                 self.spec.patterns = list(self.spec.patterns)
 
-            self.spec.patterns.extend(new_patterns)
+            cast(list[Pattern], self.spec.patterns).extend(new_patterns)
 
     def add_rule(self, rule: str) -> None:
         """Add a single .gitignore pattern directly.
@@ -215,4 +217,4 @@ class GitIgnoreExclusionRules(BaseExclusionRules):
         if not hasattr(self.spec.patterns, "append"):
             self.spec.patterns = list(self.spec.patterns)
 
-        self.spec.patterns.append(new_pattern)
+        cast(list[Pattern], self.spec.patterns).append(new_pattern)

@@ -1,6 +1,7 @@
 """Tools for chunk-based file reading operations."""
 
-from typing import Iterator, TextIO
+from collections.abc import Iterator
+from typing import TextIO
 
 
 class ChunkedFileReader:
@@ -24,7 +25,7 @@ class ChunkedFileReader:
         TypeError: If file_obj is not a text file object.
 
     Example:
-        >>> with open('myfile.txt', 'r', encoding='utf-8') as f:  # doctest: +SKIP
+        >>> with open("myfile.txt", "r", encoding="utf-8") as f:  # doctest: +SKIP
         ...     reader = ChunkedFileReader(f)
         ...     for chunk in reader:
         ...         process_chunk(chunk)
@@ -36,7 +37,7 @@ class ChunkedFileReader:
         """Initialize the chunked reader with a file object and chunk size."""
 
         if chunk_size < self.MINIMUM_CHUNK_SIZE:
-            raise ValueError(f"chunk_size must be at least {self.MINIMUM_CHUNK_SIZE} bytes, " f"got {chunk_size}")
+            raise ValueError(f"chunk_size must be at least {self.MINIMUM_CHUNK_SIZE} bytes, got {chunk_size}")
 
         self._file: TextIO = file_obj
         self._chunk_size: int = chunk_size
@@ -76,7 +77,7 @@ class ChunkedFileReader:
             for i in range(len(content) - 1, -1, -1):
                 if content[i].isspace():
                     # Split at this whitespace character
-                    self._buffer = content[i + 1 :]  # noqa: E203
+                    self._buffer = content[i + 1 :]
                     return content[: i + 1]
 
         # If no whitespace found or content is empty, return everything

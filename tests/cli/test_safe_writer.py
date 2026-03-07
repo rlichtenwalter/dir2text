@@ -205,7 +205,7 @@ def test_safe_writer_actual_file_write(temp_output_file):
     writer.close()
 
     # Read the file and verify content
-    with open(temp_output_file, "r") as f:
+    with open(temp_output_file) as f:
         content = f.read()
 
     assert content == test_data
@@ -221,7 +221,7 @@ def test_safe_writer_unicode_handling(temp_output_file):
     writer.close()
 
     # Read the file and verify content
-    with open(temp_output_file, "r", encoding="utf-8") as f:
+    with open(temp_output_file, encoding="utf-8") as f:
         content = f.read()
 
     assert content == test_data

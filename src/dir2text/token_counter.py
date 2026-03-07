@@ -16,12 +16,17 @@ the target model's tokenization.
 """
 
 import importlib.util
-from collections import namedtuple
-from typing import Any, Optional
+from typing import Any, NamedTuple, Optional
 
 from dir2text.exceptions import TokenizationError, TokenizerNotAvailableError
 
-CountResult = namedtuple("CountResult", ["lines", "tokens", "characters"])
+
+class CountResult(NamedTuple):
+    """Result of counting lines, tokens, and characters in text."""
+
+    lines: int
+    tokens: Optional[int]
+    characters: int
 
 
 class TokenCounter:
@@ -85,7 +90,7 @@ class TokenCounter:
             except TokenizerNotAvailableError:
                 self.tiktoken_available = False
                 # If token counting was explicitly requested but not available, raise
-                raise TokenizerNotAvailableError()
+                raise TokenizerNotAvailableError() from None
         elif self.model is not None and not self.tiktoken_available:
             # If token counting was explicitly requested but not available, raise
             raise TokenizerNotAvailableError()
@@ -129,13 +134,13 @@ class TokenCounter:
 
         try:
             return tiktoken.encoding_for_model(self.model)
-        except KeyError:
+        except KeyError as e:
             raise ValueError(
                 f"Could not load tokenizer for model '{self.model}'. Consider using a "
                 "well-supported model like 'gpt-4' (cl100k_base encoding) or 'text-davinci-003' "
                 "(p50k_base encoding) for token counting. While token counts may not exactly "
                 "match your target model, they can provide useful approximations."
-            )
+            ) from e
 
     def count(self, text: str) -> CountResult:
         """Count lines, tokens, and characters in text.
@@ -182,7 +187,7 @@ class TokenCounter:
             except Exception as e:
                 # If token counting fails, we still keep the line and character counts
                 # but we need to let the caller know about the tokenization failure
-                raise TokenizationError(f"Failed to tokenize text: {str(e)}")
+                raise TokenizationError(f"Failed to tokenize text: {e!s}") from e
 
         return CountResult(lines=lines, tokens=tokens, characters=chars)
 

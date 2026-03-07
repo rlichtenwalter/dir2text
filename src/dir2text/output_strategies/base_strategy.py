@@ -33,7 +33,7 @@ class OutputStrategy(ABC):
         ...         return True  # Tokens must be in opening wrapper
         ...
         ...     def format_start(self, path: str, token_count: Optional[int] = None) -> str:
-        ...         count_str = f' tokens="{token_count}"' if token_count is not None else ''
+        ...         count_str = f' tokens="{token_count}"' if token_count is not None else ""
         ...         return f"<file path='{path}'{count_str}>\\n"
         ...
         ...     def format_content(self, content: str) -> str:

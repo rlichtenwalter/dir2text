@@ -163,16 +163,16 @@ class TestCompositeExclusionRules:
 
         assert not composite.has_rules()
 
-    def test_has_rules_no_method(self):
-        """Test has_rules with rules that don't implement has_rules method."""
-        # Create a rule without has_rules method
-        rule_without_method = Mock(spec=BaseExclusionRules)
-        del rule_without_method.has_rules  # Remove the method
+    def test_has_rules_base_class_default(self):
+        """Test has_rules with rules using base class default (returns True)."""
+        # BaseExclusionRules.has_rules() returns True by default
+        rule_with_default = Mock(spec=BaseExclusionRules)
+        rule_with_default.has_rules.return_value = True
 
-        rule_with_method = MockExclusionRules(has_rules_result=False)
-        composite = CompositeExclusionRules([rule_without_method, rule_with_method])
+        rule_with_no_rules = MockExclusionRules(has_rules_result=False)
+        composite = CompositeExclusionRules([rule_with_default, rule_with_no_rules])
 
-        # Should return True because rule_without_method is assumed to have rules
+        # Should return True because rule_with_default.has_rules() returns True
         assert composite.has_rules()
 
     def test_add_rule_object(self):

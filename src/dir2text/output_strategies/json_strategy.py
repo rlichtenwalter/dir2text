@@ -130,9 +130,9 @@ class JSONOutputStrategy(OutputStrategy):
 
         Example:
             >>> strategy = JSONOutputStrategy()
-            >>> strategy.format_content('line 1\\n')
+            >>> strategy.format_content("line 1\\n")
             'line 1\\\\n'
-            >>> strategy.format_content('path/with/backslash')
+            >>> strategy.format_content("path/with/backslash")
             'path/with/backslash'
         """
         # Create a temporary dictionary with our content as a value to get proper JSON escaping
@@ -140,7 +140,7 @@ class JSONOutputStrategy(OutputStrategy):
         # Encode the dictionary and extract just our escaped content
         json_str = self.encoder.encode(temp_dict)
         # Extract just the content portion (everything between the quotes)
-        return json_str[len('{"content": "') : -2]  # noqa: E203
+        return json_str[len('{"content": "') : -2]
 
     def format_end(self, file_token_count: Optional[int] = None) -> str:
         """Format the end of the JSON object for a file.

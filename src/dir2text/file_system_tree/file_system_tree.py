@@ -5,9 +5,11 @@ tree representations of directory structures, with support for excluding files
 and directories based on specified rules.
 """
 
+import contextlib
 import os
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator, Optional, Set, Tuple
+from typing import Optional
 
 from dir2text.exclusion_rules.base_rules import BaseExclusionRules
 from dir2text.file_system_tree.file_identifier import FileIdentifier
@@ -128,7 +130,7 @@ class FileSystemTree:
             raise NotADirectoryError(f"Root path is not a directory: {self.root_path}")
 
         # Set to track visited inodes during traversal to prevent symlink loops
-        visited_inodes: Set[FileIdentifier] = set()
+        visited_inodes: set[FileIdentifier] = set()
 
         # Build the tree structure
         self._tree = self._create_node(self.root_path, "", visited_inodes)
@@ -171,7 +173,7 @@ class FileSystemTree:
             os.stat implementation provides reasonable values for loop detection.
         """
         try:
-            stat_info = path.stat(follow_symlinks=True)  # Explicitly follow symlinks
+            stat_info = os.stat(path)  # os.stat follows symlinks by default
             return FileIdentifier(stat_info.st_dev, stat_info.st_ino)
         except (FileNotFoundError, PermissionError):
             # Return a unique identifier that won't match any real path
@@ -181,7 +183,7 @@ class FileSystemTree:
         self,
         path: Path,
         relative_path: str,
-        visited_inodes: Set[FileIdentifier],
+        visited_inodes: set[FileIdentifier],
         parent: Optional[FileSystemNode] = None,
     ) -> Optional[FileSystemNode]:
         """Recursively create tree nodes for a path and its children."""
@@ -194,15 +196,17 @@ class FileSystemTree:
 
             # For directories, also check if adding a trailing slash would match
             # This ensures directory-only patterns like "build/" properly exclude directories
-            if path.is_dir() and not relative_path.endswith("/"):
-                if self.exclusion_rules.exclude(relative_path + "/"):
-                    return None
+            if path.is_dir() and not relative_path.endswith("/") and self.exclusion_rules.exclude(relative_path + "/"):
+                return None
 
             # For patterns ending with slash that might not match symlinks,
             # also check if the path without trailing slash would be excluded
-            if path.is_symlink() and not relative_path.endswith("/"):
-                if self.exclusion_rules.exclude(relative_path + "/"):
-                    return None
+            if (
+                path.is_symlink()
+                and not relative_path.endswith("/")
+                and self.exclusion_rules.exclude(relative_path + "/")
+            ):
+                return None
 
         name = path.name
 
@@ -211,12 +215,8 @@ class FileSystemTree:
         symlink_target = None
 
         if is_symlink:
-            try:
-                # Get the symlink target
+            with contextlib.suppress(OSError, AttributeError):
                 symlink_target = os.readlink(path)
-            except (OSError, AttributeError):
-                # If we can't read the link target, proceed without it
-                pass
 
         # Get inode key for this file/directory
         file_id = self._get_file_identifier(path)
@@ -262,16 +262,14 @@ class FileSystemTree:
                 children = sorted(os.listdir(path))
             except PermissionError as e:
                 if self.permission_action == PermissionAction.RAISE:
-                    raise PermissionError(f"Access denied to {path}: {e}")
+                    raise PermissionError(f"Access denied to {path}: {e}") from e
                 # For IGNORE, we keep the directory node but skip its contents
                 return node
 
             for child in children:
                 child_path = path / child
                 child_relative_path = os.path.join(relative_path, child).replace("\\", "/")
-                child_node = self._create_node(child_path, child_relative_path, visited_inodes, parent=node)
-                if child_node is None:
-                    node.children = [c for c in node.children if c is not child_node]
+                self._create_node(child_path, child_relative_path, visited_inodes, parent=node)
 
             # Remove this inode from visited set when we're done with this branch
             # This allows revisiting the same directory through different paths
@@ -281,7 +279,7 @@ class FileSystemTree:
 
         except (OSError, PermissionError) as e:
             if self.permission_action == PermissionAction.RAISE:
-                raise PermissionError(f"Error accessing {path}: {e}")
+                raise PermissionError(f"Error accessing {path}: {e}") from e
             # For IGNORE, we keep the node but skip its contents
 
         return node
@@ -297,7 +295,7 @@ class FileSystemTree:
         self._symlink_count = 0
 
         # Track visited paths to avoid double-counting
-        visited_paths = set()
+        visited_paths: set[str] = set()
 
         def count(node: FileSystemNode, path: str) -> None:
             full_path = os.path.join(str(self.root_path), path) if path else str(self.root_path)
@@ -379,7 +377,7 @@ class FileSystemTree:
             return 0
         return self._symlink_count
 
-    def iterate_files(self) -> Iterator[Tuple[str, str]]:
+    def iterate_files(self) -> Iterator[tuple[str, str]]:
         """Iterate over all files in the tree.
 
         Yields each file's absolute path and path relative to the root directory.
@@ -407,7 +405,7 @@ class FileSystemTree:
         if self._tree is not None:
             yield from self._iterate(self._tree, "")
 
-    def iterate_symlinks(self) -> Iterator[Tuple[str, str, str]]:
+    def iterate_symlinks(self) -> Iterator[tuple[str, str, str]]:
         """Iterate over all symlinks in the tree.
 
         Yields each symlink's absolute path, path relative to the root directory,
@@ -436,8 +434,8 @@ class FileSystemTree:
             yield from self._iterate_symlinks(self._tree, "")
 
     def _iterate(
-        self, node: FileSystemNode, current_path: str, visited_paths: Optional[Set[str]] = None
-    ) -> Iterator[Tuple[str, str]]:
+        self, node: FileSystemNode, current_path: str, visited_paths: Optional[set[str]] = None
+    ) -> Iterator[tuple[str, str]]:
         """Recursive helper for iterate_files.
 
         Args:
@@ -450,7 +448,7 @@ class FileSystemTree:
         """
         # Initialize visited_paths if not provided (first call)
         if visited_paths is None:
-            visited_paths = set()
+            visited_paths = set[str]()
 
         # When following symlinks, we need to track visited paths to avoid duplication
         full_path = os.path.join(str(self.root_path), current_path) if current_path else str(self.root_path)
@@ -475,7 +473,7 @@ class FileSystemTree:
                 child_path = os.path.join(current_path, child.name) if current_path else child.name
                 yield from self._iterate(child, child_path, visited_paths)
 
-    def _iterate_symlinks(self, node: FileSystemNode, current_path: str) -> Iterator[Tuple[str, str, str]]:
+    def _iterate_symlinks(self, node: FileSystemNode, current_path: str) -> Iterator[tuple[str, str, str]]:
         """Recursive helper for iterate_symlinks.
 
         Args:
@@ -563,10 +561,7 @@ class FileSystemTree:
                     is_last_child = i == len(sorted_children) - 1
 
                     # Calculate new prefix for child - for direct children of root, don't add initial spaces
-                    if is_root:
-                        new_prefix = ""
-                    else:
-                        new_prefix = prefix + ("    " if is_last else "│   ")
+                    new_prefix = "" if is_root else prefix + ("    " if is_last else "│   ")
 
                     yield from write_node(child, new_prefix, is_last_child, is_root=False)
 

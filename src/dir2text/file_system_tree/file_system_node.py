@@ -1,11 +1,14 @@
 """Node representation for file system elements in the tree."""
 
-from typing import Any, Optional
+from __future__ import annotations
+
+from collections.abc import Iterable
+from typing import Any
 
 from anytree import Node
 
 
-class FileSystemNode(Node):  # type: ignore
+class FileSystemNode(Node):
     """Node class representing a file or directory in the filesystem tree.
 
     Extends anytree.Node to add flags indicating whether the node represents
@@ -18,7 +21,7 @@ class FileSystemNode(Node):  # type: ignore
         is_dir (bool): True if this node represents a directory, False for files.
         is_symlink (bool): True if this node represents a symbolic link.
         symlink_target (Optional[str]): Target path of the symlink, if this is a symlink.
-        children (tuple[FileSystemNode]): The child nodes (inherited from anytree.Node).
+        children (tuple[FileSystemNode, ...]): The child nodes (inherited from anytree.Node).
 
     Example:
         >>> root = FileSystemNode("root", is_dir=True)
@@ -29,13 +32,19 @@ class FileSystemNode(Node):  # type: ignore
         False
     """
 
+    children: tuple[FileSystemNode, ...]  # type: ignore[assignment]
+    is_dir: bool
+    is_symlink: bool
+    symlink_target: str | None
+
     def __init__(
         self,
         name: str,
-        parent: Optional["FileSystemNode"] = None,
+        parent: FileSystemNode | None = None,
         is_dir: bool = False,
         is_symlink: bool = False,
-        symlink_target: Optional[str] = None,
+        symlink_target: str | None = None,
+        children: Iterable[FileSystemNode] | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize a FileSystemNode.
@@ -46,6 +55,7 @@ class FileSystemNode(Node):  # type: ignore
             is_dir: Whether this node represents a directory. Defaults to False.
             is_symlink: Whether this node represents a symbolic link. Defaults to False.
             symlink_target: The target path of the symlink. Only applicable if is_symlink is True.
+            children: Child nodes. Defaults to None.
             **kwargs: Additional arguments passed to anytree.Node.
 
         Example:
@@ -55,11 +65,7 @@ class FileSystemNode(Node):  # type: ignore
             >>> node.is_dir
             False
         """
-        super().__init__(name, parent, **kwargs)
+        super().__init__(name, parent, children=children, **kwargs)
         self.is_dir = is_dir
         self.is_symlink = is_symlink
         self.symlink_target = symlink_target
-
-        # Store any additional attributes from kwargs
-        for key, value in kwargs.items():
-            setattr(self, key, value)

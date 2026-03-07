@@ -468,7 +468,7 @@ class TestBinaryFileHandling:
 
         with pytest.raises(BinaryFileError) as exc_info:
             # Try to process all files - should fail on binary file when content is consumed
-            for file_path, rel_path, content_iter in printer.yield_file_contents():
+            for _file_path, _rel_path, content_iter in printer.yield_file_contents():
                 # Actually consume the content iterator - this will trigger the exception
                 list(content_iter)
 
@@ -482,7 +482,7 @@ class TestBinaryFileHandling:
 
         # Find the binary file content
         binary_content = None
-        for file_path, rel_path, content_iter in printer.yield_file_contents():
+        for _file_path, rel_path, content_iter in printer.yield_file_contents():
             if rel_path == "binary.dat":
                 # Collect all content chunks
                 content_chunks = list(content_iter)
@@ -507,7 +507,7 @@ class TestBinaryFileHandling:
 
         # Find binary file content
         binary_content = None
-        for file_path, rel_path, content_iter in printer.yield_file_contents():
+        for _file_path, rel_path, content_iter in printer.yield_file_contents():
             if rel_path == "binary.dat":
                 binary_content = "".join(content_iter)
                 break
@@ -525,7 +525,7 @@ class TestBinaryFileHandling:
 
         # Find binary file content
         binary_content = None
-        for file_path, rel_path, content_iter in printer.yield_file_contents():
+        for _file_path, rel_path, content_iter in printer.yield_file_contents():
             if rel_path == "binary.dat":
                 binary_content = "".join(content_iter)
                 break
@@ -545,7 +545,7 @@ class TestBinaryFileHandling:
 
             # Find text file content
             text_content = None
-            for file_path, rel_path, content_iter in printer.yield_file_contents():
+            for _file_path, rel_path, content_iter in printer.yield_file_contents():
                 if rel_path == "ascii.txt":
                     text_content = "".join(content_iter)
                     break
@@ -609,7 +609,7 @@ class TestBinaryFileHandling:
 
         # Binary file should be included and base64 encoded
         binary_content = None
-        for file_path, rel_path, content_iter in contents:
+        for _file_path, rel_path, content_iter in contents:
             if rel_path == "binary.dat":
                 binary_content = "".join(content_iter)
                 break
@@ -731,7 +731,7 @@ class TestBinaryFileHandling:
 
         # Process and verify token counting works end-to-end
         total_content = ""
-        for file_path, rel_path, content_iter in printer.yield_file_contents():
+        for _file_path, rel_path, content_iter in printer.yield_file_contents():
             if rel_path == "small.bin":
                 total_content = "".join(content_iter)
                 break
