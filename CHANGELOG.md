@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Reorder text encoding list in binary detection to try discriminating encodings before latin-1
 
 ### Fixed
+- Fix `signal.SIGPIPE` crash on Windows by guarding all SIGPIPE references behind platform check
 - Fix latent closure bug in symlink iterator where loop variable was captured by reference
 - Fix stale changelog URL in `pyproject.toml` referencing `master` instead of `main`
 - Add proper exception chaining (`from e`/`from None`) to all re-raises
