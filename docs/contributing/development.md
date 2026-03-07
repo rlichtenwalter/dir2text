@@ -63,13 +63,13 @@ git rebase origin/main
 Run quality checks frequently during development:
 
 ```bash
-# Format code (black + isort)
+# Format code (ruff)
 poetry run tox -e format
 
-# Run linters
+# Run linter and check formatting (ruff)
 poetry run tox -e lint
 
-# Type checking
+# Type checking (pyright)
 poetry run tox -e typecheck
 
 # Run tests

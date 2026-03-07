@@ -1,120 +1,77 @@
-# Change Log
+# Changelog
 
 All notable changes to this project will be documented in this file.
 
-This project adheres at least loosely to Semantic Versioning.
+The format is based on [Keep a Changelog](https://keepachangelog.com/),
+and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## Version 3.0.1 (2025-08-07)
-This patch version fixes an overly restrictive version specification for tiktoken.
-
-### Added
-- Nothing
+## [Unreleased]
 
 ### Changed
-- Nothing
+- Replace black, isort, flake8, and mypy with ruff (linting + formatting) and pyright (strict type checking)
+- Update tox environments and pre-commit hooks for new tooling
+- Modernize type annotations to use builtin generics and `NamedTuple`
+- Add `has_rules()` method to `BaseExclusionRules` base class with default implementation
+- Use `os.stat()` instead of `Path.stat(follow_symlinks=)` for Python 3.9 compatibility
 
 ### Fixed
-- Changed tiktoken dependency specification from "^0.6.0" to ">=0.6.0".
+- Fix latent closure bug in symlink iterator where loop variable was captured by reference
+- Fix stale changelog URL in `pyproject.toml` referencing `master` instead of `main`
+- Add proper exception chaining (`from e`/`from None`) to all re-raises
+- Remove dead code in `_create_node` child filter that could never remove a node
 
-### Known Issues
-- None
+## [3.0.1] - 2025-08-07
 
-## Version 3.0.0 (2025-08-06)
-This major version release focuses on new features, including binary file support, maximum file size filters, and a composite exclusion rule mechanism.
+### Fixed
+- Change tiktoken dependency specification from `^0.6.0` to `>=0.6.0`
+
+## [3.0.0] - 2025-08-06
 
 ### Added
-- Added support for maximum file size specification via `-M, --max-file-size`.
-- Added a size exclusion rules class to support maximum file size.
-- Added a composite exclusion rules class to support composable exclusion rules.
-- Added support for binary files with base64 encoding.
-- Provided new `-B, --binary-action` CLI option, which can accept 'ignore', 'warn', 'encode', or 'fail', which determines how binary files will be handled.
-- Implemented a binary file detection heuristic to support binary file handling.
+- Add support for maximum file size specification via `-M, --max-file-size`
+- Add size exclusion rules class to support maximum file size
+- Add composite exclusion rules class to support composable exclusion rules
+- Add support for binary files with base64 encoding
+- Add `-B, --binary-action` CLI option accepting 'ignore', 'warn', 'encode', or 'fail'
+- Implement binary file detection heuristic
 
 ### Changed
-- **BREAKING**: The output strategies now include information related to content type, whether "text" or "binary".
-- **BREAKING**: Several API methods have new arguments related to binary file handling preceding preexisting arguments. Those using positional argument passing should carefully evaluate whether they are affected.
-- The `token_counting` extra now depends on a minimum tiktoken version of 0.6.0 instead of 0.8.0.
+- **BREAKING**: Output strategies now include content type information ("text" or "binary")
+- **BREAKING**: Several API methods have new arguments related to binary file handling preceding preexisting arguments
+- Change `token_counting` extra minimum tiktoken version from 0.8.0 to 0.6.0
 
 ### Fixed
-- Addressed an issue where exclusion rules with a trailing slash would exclude all underlying files but still show the matching directory in the tree display.
+- Fix exclusion rules with trailing slash excluding underlying files but still showing the matching directory in tree display
 
-### Known Issues
-- None
-
-## Version 2.0.0 (2025-04-11)
-This major version release focuses on usability enhancements, particularly in exclusion rule support, symbolic link handling, and output control.
+## [2.0.0] - 2025-04-11
 
 ### Added
-- Added support for format specification using `-f` as a short form of `--format`.
-- Added support for specifying multiple exclusion rules both via files (-e/--exclude) and direct patterns (-i/--ignore), preserving the exact ordering for proper pattern precedence.
-- Implemented context manager support in SafeWriter, enabling usage with `with` statements.
-- Improved signal handling during SafeWriter close operations.
+- Add support for format specification using `-f` as a short form of `--format`
+- Add support for specifying multiple exclusion rules both via files (-e/--exclude) and direct patterns (-i/--ignore)
+- Implement context manager support in SafeWriter
+- Improve signal handling during SafeWriter close operations
 
 ### Changed
-- **BREAKING**: Removed direct `exclude_files` support in StreamingDir2Text and Dir2Text, which now require a subclass of dir2text.exclusion_rules.BaseExclusionRules instead.
-- **BREAKING**: Removed the `-c, --counts` flag. Statistics reporting is now controlled exclusively through the new `-s, --summary=DEST` option, which requires a destination argument that can be 'stderr', 'stdout', or 'file' (with '-o').
-- Changed default CLI behavior to no longer print summary reports by default.
-- Modified token counting behavior so that specifying the `-t, --tokenizer MODEL` option implicitly enables token counting without requiring an additional flag.
-- Enhanced symlink handling with improved loop detection and proper interaction with exclusion rules.
-- Refactored CLI code to use SafeWriter as a context manager.
-- Improved error handling for signal interruption during SafeWriter resource cleanup.
-- Standardized interfaces on os.PathLike with os.Path in implementations instead of a mixture of str and os.Path.
-- Refactored CLI code to break out parsing, output writing, and signal handling functions separate from orchestration.
+- **BREAKING**: Remove direct `exclude_files` support in StreamingDir2Text and Dir2Text; now requires a subclass of `BaseExclusionRules`
+- **BREAKING**: Remove `-c, --counts` flag; statistics reporting now controlled through `-s, --summary=DEST`
+- Change default CLI behavior to no longer print summary reports by default
+- Modify token counting so `-t, --tokenizer MODEL` implicitly enables counting
+- Enhance symlink handling with improved loop detection and exclusion rule interaction
+- Refactor CLI code to use SafeWriter as a context manager
+- Standardize interfaces on `os.PathLike` with `Path` in implementations
 
 ### Fixed
-- Fixed a bug in SafeWriter CLI-internal class that allowed file objects to be prematurely garbage collected.
+- Fix bug in SafeWriter allowing file objects to be prematurely garbage collected
 
-### Migration Guide
-If you previously used:
-```python
-analyzer = StreamingDir2Text(directory, exclude_files=[".gitignore"])
-```
-
-You should now use:
-```python
-rules = GitIgnoreExclusionRules()
-rules.load_rules(".gitignore")
-analyzer = StreamingDir2Text(directory, exclusion_rules=rules)
-```
-
-### Known Issues
-- None.
-
-## Version 1.0.1 (2024-10-24)
-Added a project description for better presentation on PyPI.
+## [1.0.1] - 2024-10-24
 
 ### Added
-- Project description in pyproject.toml.
+- Add project description in pyproject.toml
 
-### Changed
-- Nothing.
-
-### Fixed
-- Nothing.
-
-### Known Issues
-- Symbolic link loop protection is not implemented. Application on structures with loops will hang.
-- Unit test design and converage is fair but not great. Better design and coverage are desirable.
-- Documentation is also fair but not great.
-
-## Version 1.0.0 (2024-10-24)
-This is the initial public release of dir2text. It is largely tested and stable but should still be regarded as beta.
+## [1.0.0] - 2024-10-24
 
 ### Added
-- Extensible exclusion rule system with .gitignore style exclusions supported out of the box.
-- Extensible output format system with XML and JSON supported out of the box.
-- Central streaming philosophy for large file support without high memory consumption.
-- Carefully designed API that supports efficient implementation of future new features.
-- Feature-rich CLI that exposes the bulk of the API functionality.
-
-### Changed
-- Nothing (initial public release).
-
-### Fixed
-- Nothing (initial public release).
-
-### Known Issues
-- Symbolic link loop protection is not implemented. Application on structures with loops will hang.
-- Unit test design and converage is fair but not great. Better design and coverage are desirable.
-- Documentation is also fair but not great.
-
+- Extensible exclusion rule system with .gitignore style exclusions
+- Extensible output format system with XML and JSON support
+- Streaming architecture for large file support without high memory consumption
+- Feature-rich CLI exposing the bulk of API functionality
