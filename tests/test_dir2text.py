@@ -121,9 +121,8 @@ def test_streaming_dir2text_invalid_directory():
 
 def test_streaming_dir2text_invalid_format():
     """Test initialization with invalid output format."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        with pytest.raises(ValueError):
-            StreamingDir2Text(tmpdir, output_format="invalid")
+    with tempfile.TemporaryDirectory() as tmpdir, pytest.raises(ValueError):
+        StreamingDir2Text(tmpdir, output_format="invalid")
 
 
 def test_streaming_dir2text_metrics(temp_directory):

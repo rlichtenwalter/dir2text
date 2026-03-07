@@ -1,8 +1,9 @@
 """Size-based exclusion rules for filtering files by size."""
 
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 
+from ..types import PathType
 from .base_rules import BaseExclusionRules
 
 
@@ -21,13 +22,15 @@ def parse_file_size(size_str: str) -> int:
     """
     try:
         from humanfriendly import parse_size
-    except ImportError:
-        raise ImportError("humanfriendly is required for size parsing. " "Install it with: pip install humanfriendly")
+    except ImportError as e:
+        raise ImportError(
+            "humanfriendly is required for size parsing. Install it with: pip install humanfriendly"
+        ) from e
 
     try:
         return int(parse_size(size_str))
     except Exception as e:
-        raise ValueError(f"Invalid size format '{size_str}': {e}")
+        raise ValueError(f"Invalid size format '{size_str}': {e}") from e
 
 
 class SizeExclusionRules(BaseExclusionRules):
@@ -37,6 +40,10 @@ class SizeExclusionRules(BaseExclusionRules):
     a specified size limit are excluded from processing. The size limit can
     be specified in human-readable format (e.g., '1GB', '500MB') or as raw bytes.
 
+    A root_dir must be provided to resolve relative paths passed by the tree
+    walker. Without it, relative paths would resolve against the current working
+    directory, which may differ from the directory being scanned.
+
     For symbolic links, the behavior depends on whether the symlink target
     should be followed:
     - By default, checks the target file size (more meaningful for content filtering)
@@ -44,23 +51,27 @@ class SizeExclusionRules(BaseExclusionRules):
 
     Attributes:
         max_size_bytes (int): Maximum allowed file size in bytes.
+        root_dir (Path): Root directory for resolving relative paths.
 
     Example:
         >>> # Create size-based exclusion rules
-        >>> rules = SizeExclusionRules("1MB")  # 1 megabyte limit
+        >>> rules = SizeExclusionRules("1MB", root_dir="/tmp")  # 1 megabyte limit
         >>> rules.max_size_bytes  # Check the configured limit
         1000000
         >>> rules.has_rules()  # Check if rules are configured
         True
     """
 
-    def __init__(self, max_size: Union[str, int]):
+    def __init__(self, max_size: Union[str, int], root_dir: Optional[PathType] = None):
         """Initialize size exclusion rules.
 
         Args:
             max_size: Maximum file size. Can be:
                 - String in human-readable format ('1GB', '500MB', '2.5K')
                 - Integer representing bytes
+            root_dir: Root directory for resolving relative paths. Should be
+                the directory being scanned. If None, paths are resolved
+                against the current working directory.
 
         Raises:
             ValueError: If max_size format is invalid
@@ -74,12 +85,14 @@ class SizeExclusionRules(BaseExclusionRules):
             self.max_size_bytes = max_size
         else:
             raise ValueError(f"max_size must be string or int, got {type(max_size)}")
+        self.root_dir = Path(root_dir) if root_dir is not None else None
 
     def exclude(self, path: str) -> bool:
         """Check if a file should be excluded based on size.
 
         Args:
-            path: File path to check (can be relative or absolute).
+            path: File path to check. Typically a relative path from the tree
+                walker, resolved against root_dir if provided.
 
         Returns:
             True if the file exceeds the size limit and should be excluded,
@@ -92,6 +105,8 @@ class SizeExclusionRules(BaseExclusionRules):
         """
         try:
             path_obj = Path(path)
+            if self.root_dir is not None and not path_obj.is_absolute():
+                path_obj = self.root_dir / path_obj
 
             # Only check files, not directories
             if not path_obj.is_file():

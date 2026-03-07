@@ -6,9 +6,10 @@ for reading files while maintaining memory-efficient streaming behavior.
 """
 
 import base64
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator, Optional, Tuple, Union
+from typing import Optional, Union
 
 from .exceptions import BinaryFileError
 from .file_system_tree.binary_action import BinaryAction
@@ -73,7 +74,7 @@ class FileContentPrinter:
         >>> printer = FileContentPrinter(tree)  # doctest: +SKIP
         >>> for path, rel_path, content in printer.yield_file_contents():  # doctest: +SKIP
         ...     for chunk in content:
-        ...         print(chunk, end='')  # Process chunks as they arrive
+        ...         print(chunk, end="")  # Process chunks as they arrive
     """
 
     def __init__(
@@ -117,7 +118,7 @@ class FileContentPrinter:
         except LookupError as e:
             raise LookupError(f"Encoding '{encoding}' is not available") from e
         except UnicodeError as e:
-            raise UnicodeError(f"Encoding '{encoding}' validation failed: {str(e)}") from e
+            raise UnicodeError(f"Encoding '{encoding}' validation failed: {e!s}") from e
 
         self.fs_tree = fs_tree
         self.tokenizer = tokenizer
@@ -137,7 +138,7 @@ class FileContentPrinter:
         elif isinstance(output_format, OutputStrategy):
             self.output_strategy = output_format
         else:
-            raise TypeError("output_format must be either a string ('xml' or 'json') or " "an OutputStrategy instance")
+            raise TypeError("output_format must be either a string ('xml' or 'json') or an OutputStrategy instance")
 
     def _create_file_info(self, file_path: str, relative_path: str) -> FileInfo:
         """Create FileInfo with binary detection results.
@@ -190,7 +191,7 @@ class FileContentPrinter:
         token_count = 0
         path_obj = Path(file_path)
         try:
-            with open(path_obj, "r", encoding=self.encoding, errors=self.errors) as file:
+            with open(path_obj, encoding=self.encoding, errors=self.errors) as file:
                 reader = ChunkedFileReader(file)
                 for chunk in reader:
                     result = self.tokenizer.count(self.output_strategy.format_content(chunk))
@@ -198,11 +199,10 @@ class FileContentPrinter:
                         token_count += result.tokens
         except UnicodeError as e:
             raise ValueError(
-                f"Failed to decode '{relative_path}' with {self.encoding} "
-                f"encoding (errors='{self.errors}'): {str(e)}"
+                f"Failed to decode '{relative_path}' with {self.encoding} encoding (errors='{self.errors}'): {e!s}"
             ) from e
         except OSError as e:
-            raise OSError(f"Failed to read '{relative_path}': {str(e)}") from e
+            raise OSError(f"Failed to read '{relative_path}': {e!s}") from e
 
         return token_count
 
@@ -244,7 +244,7 @@ class FileContentPrinter:
             return total_tokens
 
         except OSError as e:
-            raise OSError(f"Failed to count tokens in binary file '{relative_path}': {str(e)}") from e
+            raise OSError(f"Failed to count tokens in binary file '{relative_path}': {e!s}") from e
 
     def _yield_wrapped_binary_content(self, file_path: PathType, relative_path: str) -> Iterator[str]:
         """Stream a binary file's content as base64-encoded chunks.
@@ -265,15 +265,16 @@ class FileContentPrinter:
         # This ensures consistent token counting behavior across all file types
         token_count = None
 
-        # Calculate token count for base64 content if required in start tag
-        # This mirrors the same pattern used for text files
+        # Pre-count tokens when the strategy needs them in the start tag.
+        # Track whether we pre-counted to avoid double-counting in the streaming loop.
+        pre_counted = False
         if (
             self.tokenizer is not None
             and self.tokenizer.get_total_tokens() is not None
             and self.output_strategy.requires_tokens_in_start
         ):
-            # Pre-count tokens for start tag (requires full file read)
             token_count = self._count_binary_file_tokens(path_obj, relative_path)
+            pre_counted = True
 
         yield self.output_strategy.format_start(relative_path + " [binary]", "binary", token_count)
 
@@ -298,18 +299,17 @@ class FileContentPrinter:
                     b64_chunk = base64.b64encode(binary_chunk).decode("ascii")
                     formatted_chunk = self.output_strategy.format_content(b64_chunk)
 
-                    # Count tokens in streaming mode (mirrors text file behavior)
-                    if self.tokenizer is not None:
+                    # Count in streaming mode unless we already pre-counted.
+                    if self.tokenizer is not None and not pre_counted:
                         result = self.tokenizer.count(formatted_chunk)
-                        # Only accumulate tokens if we're tracking them and not requiring them in start
-                        if result.tokens is not None and not self.output_strategy.requires_tokens_in_start:
+                        if result.tokens is not None and isinstance(token_count, int):
                             token_count += result.tokens
 
                     yield formatted_chunk
 
         except OSError as e:
             # Add context to OS-level errors
-            raise OSError(f"Failed to read binary file '{relative_path}': {str(e)}") from e
+            raise OSError(f"Failed to read binary file '{relative_path}': {e!s}") from e
 
         # Output end tag with token count if available (mirrors text file behavior)
         if (
@@ -376,13 +376,16 @@ class FileContentPrinter:
         # Proceed with text file handling
         token_count = None
 
-        # Only count tokens if the tokenizer has token counting capabilities
+        # Pre-count tokens when the strategy needs them in the start tag.
+        # Track whether we pre-counted to avoid double-counting in the streaming loop.
+        pre_counted = False
         if (
             self.tokenizer is not None
             and self.tokenizer.get_total_tokens() is not None
             and self.output_strategy.requires_tokens_in_start
         ):
             token_count = self._count_file_tokens(file_info.path, file_info.relative_path)
+            pre_counted = True
 
         # Output start tag with token count if available
         yield self.output_strategy.format_start(file_info.relative_path, "text", token_count)
@@ -391,23 +394,24 @@ class FileContentPrinter:
             token_count = 0
 
         try:
-            with open(file_info.path, "r", encoding=self.encoding, errors=self.errors) as file:
+            with open(file_info.path, encoding=self.encoding, errors=self.errors) as file:
                 reader = ChunkedFileReader(file)
                 for chunk in reader:
                     formatted_chunk = self.output_strategy.format_content(chunk)
 
-                    # Count lines and characters (and potentially tokens)
-                    if self.tokenizer is not None:
+                    # Count in streaming mode unless we already pre-counted.
+                    # Pre-counting already updated the tokenizer's internal totals,
+                    # so calling count() again would double-count.
+                    if self.tokenizer is not None and not pre_counted:
                         result = self.tokenizer.count(formatted_chunk)
-                        # Only accumulate tokens if we're tracking them and not requiring them in start
-                        if result.tokens is not None and not self.output_strategy.requires_tokens_in_start:
+                        if result.tokens is not None and isinstance(token_count, int):
                             token_count += result.tokens
 
                     yield formatted_chunk
 
         except OSError as e:
             # Add context to OS-level errors
-            raise OSError(f"Failed to read '{file_info.relative_path}': {str(e)}") from e
+            raise OSError(f"Failed to read '{file_info.relative_path}': {e!s}") from e
 
         # Output end tag
         if (
@@ -419,7 +423,7 @@ class FileContentPrinter:
         else:
             yield self.output_strategy.format_end()
 
-    def yield_file_contents(self) -> Iterator[Tuple[str, str, Iterator[str]]]:
+    def yield_file_contents(self) -> Iterator[tuple[str, str, Iterator[str]]]:
         """Stream file content with metadata and formatting.
 
         This method implements the core streaming functionality of the printer. It yields
@@ -458,15 +462,16 @@ class FileContentPrinter:
                     # For symlinks, we yield a single formatted string instead of a content iterator
                     symlink_str = self.output_strategy.format_symlink(rel_path, target)
 
-                    # Create a single-item iterator to maintain the same interface as file content
-                    def symlink_iterator() -> Iterator[str]:
-                        yield symlink_str
+                    # Create a single-item iterator to maintain the same interface as file content.
+                    # Capture symlink_str via default argument to avoid late-binding closure bug.
+                    def symlink_iterator(s: str = symlink_str) -> Iterator[str]:
+                        yield s
 
                     yield abs_path, rel_path, symlink_iterator()
 
         except OSError as e:
             # Add context to filesystem iteration errors
-            raise OSError(f"Failed to iterate directory structure: {str(e)}") from e
+            raise OSError(f"Failed to iterate directory structure: {e!s}") from e
 
     def get_output_file_extension(self) -> str:
         """Get the appropriate file extension for the current output format.

@@ -20,9 +20,9 @@ def test_binary_action_comparison():
     assert BinaryAction.IGNORE == "ignore"
     assert BinaryAction.RAISE == "raise"
     assert BinaryAction.ENCODE == "encode"
-    assert "ignore" == BinaryAction.IGNORE
-    assert "raise" == BinaryAction.RAISE
-    assert "encode" == BinaryAction.ENCODE
+    assert BinaryAction.IGNORE == "ignore"
+    assert BinaryAction.RAISE == "raise"
+    assert BinaryAction.ENCODE == "encode"
     assert BinaryAction.IGNORE != "raise"
     assert BinaryAction.RAISE != "ignore"
     assert BinaryAction.ENCODE != "ignore"

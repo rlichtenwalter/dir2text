@@ -15,21 +15,19 @@
 
 ```toml
 # pyproject.toml
-[tool.black]
+[tool.ruff]
 line-length = 120
-target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+target-version = "py39"
 
-[tool.isort]
-profile = "black"
-multi_line_output = 3
-include_trailing_comma = true
-force_grid_wrap = 0
-use_parentheses = true
-line_length = 120
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "S", "C4", "SIM", "RUF"]
 
-[tool.flake8]
-max-line-length = 120
-extend-select = ["B", "C", "E", "F", "W", "B950"]
+[tool.ruff.lint.isort]
+known-first-party = ["dir2text"]
+
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.9"
 ```
 
 ### Import Organization

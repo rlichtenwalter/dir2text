@@ -11,7 +11,7 @@ class TokenizerNotAvailableError(Exception):
 
     Example:
         >>> error = TokenizerNotAvailableError()
-        >>> str(error).startswith('Tokenizer (tiktoken) is not installed')
+        >>> str(error).startswith("Tokenizer (tiktoken) is not installed")
         True
     """
 

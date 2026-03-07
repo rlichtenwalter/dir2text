@@ -212,6 +212,26 @@ def test_empty_list_does_not_exclude():
     assert not rules.exclude("file.py")
 
 
+def test_has_rules_empty():
+    """Test has_rules returns False when no patterns are loaded."""
+    rules = GitIgnoreExclusionRules()
+    assert not rules.has_rules()
+
+
+def test_has_rules_with_file(temp_gitignore):
+    """Test has_rules returns True when patterns are loaded from file."""
+    rules = GitIgnoreExclusionRules(temp_gitignore)
+    assert rules.has_rules()
+
+
+def test_has_rules_after_add_rule():
+    """Test has_rules returns True after adding a rule."""
+    rules = GitIgnoreExclusionRules()
+    assert not rules.has_rules()
+    rules.add_rule("*.pyc")
+    assert rules.has_rules()
+
+
 def test_add_rule_basic():
     """Test basic functionality of add_rule method."""
     rules = GitIgnoreExclusionRules()

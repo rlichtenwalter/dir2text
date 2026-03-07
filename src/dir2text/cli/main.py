@@ -44,7 +44,7 @@ import argparse
 import importlib.util
 import sys
 from collections.abc import Mapping
-from typing import List, Optional
+from typing import Optional
 
 from dir2text.cli.argparser import create_parser, validate_args
 from dir2text.cli.safe_writer import SafeWriter
@@ -105,7 +105,7 @@ def _build_exclusion_rules(
     Returns:
         Appropriate exclusion rules object, or None if no exclusions specified.
     """
-    rules_list: List[BaseExclusionRules] = []
+    rules_list: list[BaseExclusionRules] = []
 
     # Check if git rules have any patterns
     git_has_patterns = bool(getattr(git_rules.spec, "patterns", []))
@@ -117,7 +117,7 @@ def _build_exclusion_rules(
         try:
             from dir2text.exclusion_rules.size_rules import SizeExclusionRules
 
-            rules_list.append(SizeExclusionRules(args.max_file_size))
+            rules_list.append(SizeExclusionRules(args.max_file_size, root_dir=args.directory))
         except (ValueError, ImportError) as e:
             # Convert to a more user-friendly error
             if "Invalid size format" in str(e):
@@ -269,29 +269,29 @@ def main() -> None:
 
         except PermissionError as e:
             if args.permission_action == "warn":
-                print(f"Warning: {str(e)}", file=sys.stderr)
+                print(f"Warning: {e!s}", file=sys.stderr)
             elif args.permission_action == "fail":
-                print(f"Error: {str(e)}", file=sys.stderr)
+                print(f"Error: {e!s}", file=sys.stderr)
                 sys.exit(126)
             # For "ignore", we simply continue
 
         except BinaryFileError as e:
             if args.binary_action == "warn":
-                print(f"Warning: {str(e)}", file=sys.stderr)
+                print(f"Warning: {e!s}", file=sys.stderr)
             elif args.binary_action == "fail":
-                print(f"Error: {str(e)}", file=sys.stderr)
+                print(f"Error: {e!s}", file=sys.stderr)
                 sys.exit(1)
             # For "ignore" and "encode", we simply continue (though BinaryFileError shouldn't occur for those)
 
     except TokenizerNotAvailableError as e:
-        print(f"Error: {str(e)}", file=sys.stderr)
+        print(f"Error: {e!s}", file=sys.stderr)
         print("To enable token counting, install dir2text with the 'token_counting' extra:", file=sys.stderr)
         print('    pip install "dir2text[token_counting]"', file=sys.stderr)
         print("    # or with Poetry:", file=sys.stderr)
         print('    poetry add "dir2text[token_counting]"', file=sys.stderr)
         sys.exit(1)
     except Exception as e:
-        print(f"Error: {str(e)}", file=sys.stderr)
+        print(f"Error: {e!s}", file=sys.stderr)
         sys.exit(1)
 
     # Handle exit codes based on received signals

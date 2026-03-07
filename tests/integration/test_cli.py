@@ -157,12 +157,10 @@ def run_cli(args, cwd=None, capture_output=True, timeout=10):
     Returns:
         CompletedProcess object with stdout/stderr as text if capture_output=True
     """
-    cmd = [sys.executable, "-m", "dir2text.cli.main"] + args
+    cmd = [sys.executable, "-m", "dir2text.cli.main", *args]
 
     if capture_output:
-        result = subprocess.run(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=cwd, timeout=timeout
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd, timeout=timeout)
     else:
         result = subprocess.run(cmd, text=True, cwd=cwd, timeout=timeout)
 
@@ -306,7 +304,7 @@ def test_cli_output_file_verification(temp_project):
         assert not result.stdout
 
         # Read the output file
-        with open(output_path, "r") as f:
+        with open(output_path) as f:
             file_content = f.read()
 
         # Verify file contains expected content
@@ -438,7 +436,7 @@ def test_cli_sigpipe_handling(temp_project):
         # Create a subprocess that pipes output through 'head'
         # This will cause a SIGPIPE when head closes the pipe
         process = subprocess.Popen(
-            f"{sys.executable} -m dir2text.cli.main {str(temp_project)} | head -n 5",
+            f"{sys.executable} -m dir2text.cli.main {temp_project!s} | head -n 5",
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -457,7 +455,7 @@ def test_cli_sigpipe_handling(temp_project):
             return_code = process.returncode
 
         # Output should be limited by head, and process should exit cleanly
-        stdout, stderr = process.communicate()
+        _stdout, stderr = process.communicate()
 
         # Process should exit without error message
         assert not stderr or not stderr.strip()
@@ -535,7 +533,7 @@ def test_cli_summary_to_file(temp_project):
         assert result.returncode == 0, f"Command failed with stderr: {result.stderr}"
 
         # Verify summary appear in the output file
-        with open(output_path, "r") as f:
+        with open(output_path) as f:
             content = f.read()
             assert "Directories:" in content
             assert "Files:" in content

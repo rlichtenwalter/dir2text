@@ -183,7 +183,7 @@ def test_count_unicode(mock_tiktoken_available, mock_encoder):
 def test_count_control_chars(mock_tiktoken_available, mock_encoder):
     with patch("tiktoken.encoding_for_model", return_value=mock_encoder):
         counter = TokenCounter(model="gpt-4")
-        text = "Hello\x00World\x1F!"  # Text with control characters
+        text = "Hello\x00World\x1f!"  # Text with control characters
         result = counter.count(text)
         assert result.tokens == len(text)
         assert result.characters == len(text)

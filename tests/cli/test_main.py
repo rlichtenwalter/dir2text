@@ -63,7 +63,6 @@ def test_main_token_counting_with_tiktoken(mock_tiktoken_available):
         patch("dir2text.cli.main.SafeWriter"),
         patch("sys.exit"),
     ):
-
         # We need to handle other exceptions that might occur due to our mocking
         try:
             main()
