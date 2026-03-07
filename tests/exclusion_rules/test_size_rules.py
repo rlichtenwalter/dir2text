@@ -154,6 +154,38 @@ class TestSizeExclusionRules:
             finally:
                 Path(target_path).unlink()
 
+    def test_exclude_relative_path_with_root_dir(self):
+        """Test that relative paths are resolved against root_dir, not CWD."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create a file larger than the limit inside a subdirectory
+            sub_dir = Path(temp_dir) / "sub"
+            sub_dir.mkdir()
+            large_file = sub_dir / "large.txt"
+            large_file.write_text("x" * 100)
+
+            # Without root_dir, a relative path like "sub/large.txt" would resolve
+            # against CWD and likely fail to find the file (returning False)
+            rules_without_root = SizeExclusionRules(10)
+            # This returns False because Path("sub/large.txt").is_file() fails from CWD
+            assert not rules_without_root.exclude("sub/large.txt")
+
+            # With root_dir, the relative path resolves correctly
+            rules_with_root = SizeExclusionRules(10, root_dir=temp_dir)
+            assert rules_with_root.exclude("sub/large.txt")
+
+    def test_exclude_absolute_path_ignores_root_dir(self):
+        """Test that absolute paths are not affected by root_dir."""
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            f.write(b"this content exceeds 10 bytes")
+            temp_path = f.name
+
+        try:
+            rules = SizeExclusionRules(10, root_dir="/some/other/dir")
+            # Absolute path should work regardless of root_dir
+            assert rules.exclude(temp_path)
+        finally:
+            Path(temp_path).unlink()
+
     def test_has_rules(self):
         """Test the has_rules method."""
         rules = SizeExclusionRules(1000)

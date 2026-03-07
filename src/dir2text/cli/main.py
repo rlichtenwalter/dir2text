@@ -117,7 +117,7 @@ def _build_exclusion_rules(
         try:
             from dir2text.exclusion_rules.size_rules import SizeExclusionRules
 
-            rules_list.append(SizeExclusionRules(args.max_file_size))
+            rules_list.append(SizeExclusionRules(args.max_file_size, root_dir=args.directory))
         except (ValueError, ImportError) as e:
             # Convert to a more user-friendly error
             if "Invalid size format" in str(e):
