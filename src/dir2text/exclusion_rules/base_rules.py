@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
 from dir2text.types import PathType
 
@@ -18,15 +19,15 @@ class BaseExclusionRules(ABC):
         >>> # Example of a file-supporting rule implementation
         >>> from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
         >>> git_rules = GitIgnoreExclusionRules()
-        >>> git_rules.add_rule('*.pyc')  # Add rule programmatically
-        >>> git_rules.exclude('test.pyc')
+        >>> git_rules.add_rule("*.pyc")  # Add rule programmatically
+        >>> git_rules.exclude("test.pyc")
         True
-        >>> git_rules.exclude('test.py')
+        >>> git_rules.exclude("test.py")
         False
         >>>
         >>> # Example of a non-file-supporting rule implementation
         >>> from dir2text.exclusion_rules.size_rules import SizeExclusionRules
-        >>> size_rules = SizeExclusionRules('1MB')  # Constructor-only configuration
+        >>> size_rules = SizeExclusionRules("1MB")  # Constructor-only configuration
         >>> size_rules.max_size_bytes
         1000000
         >>> # size_rules.load_rules('file.txt')  # Would raise NotImplementedError
@@ -56,27 +57,34 @@ class BaseExclusionRules(ABC):
             ...     def __init__(self, rules_files: Union[PathType, Sequence[PathType]]):
             ...         self._has_tmp = False
             ...         self.load_rules(rules_files)
+            ...
             ...     def exclude(self, path: str) -> bool:
-            ...         return self._has_tmp and path.endswith('.tmp')
+            ...         return self._has_tmp and path.endswith(".tmp")
+            ...
             ...     def load_rules(self, rules_files: Union[PathType, Sequence[PathType]]) -> None:
             ...         from pathlib import Path
+            ...
             ...         if isinstance(rules_files, PathType):
             ...             rules_files = [rules_files]
             ...         for rules_file in rules_files:
             ...             path = Path(rules_file)
             ...             if not path.exists():
             ...                 raise FileNotFoundError(f"Rules file not found: {path}")
-            ...             with open(path, 'r') as f:
-            ...                 self._has_tmp = self._has_tmp or '.tmp' in f.read()
+            ...             with open(path, "r") as f:
+            ...                 self._has_tmp = self._has_tmp or ".tmp" in f.read()
+            ...
+            ...     def has_rules(self) -> bool:
+            ...         return self._has_tmp
+            ...
             ...     def add_rule(self, rule: str) -> None:
-            ...         self._has_tmp = self._has_tmp or '.tmp' in rule
+            ...         self._has_tmp = self._has_tmp or ".tmp" in rule
             >>> import tempfile
-            >>> with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
-            ...     _ = f.write('*.tmp')  # Add rule to exclude .tmp files
+            >>> with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
+            ...     _ = f.write("*.tmp")  # Add rule to exclude .tmp files
             >>> rules = SimpleExclusionRules(f.name)
             >>> rules.exclude("build/temp.tmp")  # Should match
             True
-            >>> rules.exclude("main.py")         # Should not match
+            >>> rules.exclude("main.py")  # Should not match
             False
             >>> os.unlink(f.name)  # Clean up
         """
@@ -118,3 +126,12 @@ class BaseExclusionRules(ABC):
             NotImplementedError: If this rule type doesn't support adding individual rules.
         """
         raise NotImplementedError(f"{self.__class__.__name__} doesn't support adding individual rules.")
+
+    @abstractmethod
+    def has_rules(self) -> bool:
+        """Check if this rule set has any rules configured.
+
+        Returns:
+            True if rules are configured, False otherwise.
+        """
+        pass

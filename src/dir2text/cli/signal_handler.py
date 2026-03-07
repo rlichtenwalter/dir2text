@@ -2,6 +2,10 @@
 
 This module provides signal handlers for managing interruptions
 and ensuring proper cleanup during command-line operation.
+
+SIGPIPE is only available on Unix-like systems. On Windows, the SIGPIPE
+handler is not registered and sigpipe_received is never set, but the
+interface remains consistent so callers don't need platform checks.
 """
 
 import atexit
@@ -10,7 +14,9 @@ import signal
 import sys
 from threading import Event
 from types import FrameType
-from typing import Optional
+from typing import Any, Optional
+
+_HAS_SIGPIPE = hasattr(signal, "SIGPIPE")
 
 
 class SignalHandler:
@@ -19,10 +25,13 @@ class SignalHandler:
     This class manages SIGPIPE and SIGINT signals to ensure proper cleanup and
     appropriate exit behavior when the program is interrupted.
 
+    On Windows, SIGPIPE does not exist. The sigpipe_received event is still
+    available but is never set, so callers can check it unconditionally.
+
     Attributes:
         sigpipe_received: Event that is set when a SIGPIPE signal is received.
         sigint_received: Event that is set when a SIGINT signal is received.
-        original_sigpipe_handler: Original SIGPIPE signal handler.
+        original_sigpipe_handler: Original SIGPIPE signal handler, or None on Windows.
         original_sigint_handler: Original SIGINT signal handler.
     """
 
@@ -30,7 +39,7 @@ class SignalHandler:
         """Initialize signal handler with original handlers preserved."""
         self.sigpipe_received = Event()
         self.sigint_received = Event()
-        self.original_sigpipe_handler = signal.getsignal(signal.SIGPIPE)
+        self.original_sigpipe_handler: Any = signal.getsignal(signal.SIGPIPE) if _HAS_SIGPIPE else None
         self.original_sigint_handler = signal.getsignal(signal.SIGINT)
 
     def handle_sigpipe(self, signum: int, frame: Optional[FrameType]) -> None:
@@ -41,7 +50,8 @@ class SignalHandler:
             frame: The current stack frame.
         """
         self.sigpipe_received.set()
-        signal.signal(signal.SIGPIPE, self.original_sigpipe_handler)
+        if _HAS_SIGPIPE:
+            signal.signal(signal.SIGPIPE, self.original_sigpipe_handler)
 
     def handle_sigint(self, signum: int, frame: Optional[FrameType]) -> None:
         """Handle SIGINT signal.
@@ -59,8 +69,13 @@ signal_handler = SignalHandler()
 
 
 def setup_signal_handling() -> None:
-    """Configure signal handlers for SIGPIPE and SIGINT."""
-    signal.signal(signal.SIGPIPE, signal_handler.handle_sigpipe)
+    """Configure signal handlers for SIGPIPE and SIGINT.
+
+    SIGPIPE handler is only registered on platforms that support it (Unix).
+    SIGINT handler is registered on all platforms.
+    """
+    if _HAS_SIGPIPE:
+        signal.signal(signal.SIGPIPE, signal_handler.handle_sigpipe)
     signal.signal(signal.SIGINT, signal_handler.handle_sigint)
 
 

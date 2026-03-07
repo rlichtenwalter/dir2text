@@ -214,7 +214,7 @@ def test_symlink_loop_detection(temp_directory_with_symlinks):
     assert loop_node is not None
     assert loop_node.is_symlink
     assert hasattr(loop_node, "symlink_target")
-    assert "loop" in loop_node.symlink_target or "[loop detected]" == loop_node.symlink_target
+    assert "loop" in loop_node.symlink_target or loop_node.symlink_target == "[loop detected]"
 
 
 def test_iterate_symlinks(temp_directory_with_symlinks):
@@ -280,6 +280,15 @@ def test_symlinks_with_exclusions(temp_directory_with_symlinks):
     symlink_paths = [s[1] for s in symlinks]
     assert "build" not in symlink_paths
     assert "src/utils/loop" in symlink_paths  # Still included
+
+
+def test_directory_count_flat_directory(tmp_path):
+    """Test directory_count is 0 (not -1) for a flat directory with only files."""
+    (tmp_path / "a.txt").touch()
+    (tmp_path / "b.txt").touch()
+    tree = FileSystemTree(str(tmp_path))
+    assert tree.get_directory_count() == 0
+    assert tree.get_file_count() == 2
 
 
 def test_directory_exclusion_with_trailing_slash(temp_directory):

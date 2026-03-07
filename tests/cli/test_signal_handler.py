@@ -204,6 +204,34 @@ def test_cleanup_with_sigint(mock_os):
             signal_handler.sigint_received.clear()
 
 
+def test_sigpipe_guard_when_unavailable():
+    """Test that SignalHandler works when SIGPIPE is not available (e.g., Windows)."""
+    with patch("dir2text.cli.signal_handler._HAS_SIGPIPE", False):
+        handler = SignalHandler()
+        # original_sigpipe_handler should be None when SIGPIPE is unavailable
+        assert handler.original_sigpipe_handler is None
+        # sigpipe_received event should exist but never be set
+        assert not handler.sigpipe_received.is_set()
+
+        # handle_sigpipe should still work (sets event, skips signal restore)
+        handler.handle_sigpipe(0, None)
+        assert handler.sigpipe_received.is_set()
+
+
+def test_setup_signal_handling_without_sigpipe(mock_signal):
+    """Test setup_signal_handling only registers SIGINT when SIGPIPE is unavailable."""
+    mock_signal.reset_mock()
+    with (
+        patch("signal.signal", mock_signal),
+        patch("dir2text.cli.signal_handler._HAS_SIGPIPE", False),
+    ):
+        setup_signal_handling()
+
+    # Only SIGINT should be registered
+    assert mock_signal.call_count == 1
+    mock_signal.assert_called_once_with(signal.SIGINT, signal_handler.handle_sigint)
+
+
 def test_singleton_instance():
     """Test that the provided singleton instance is properly initialized."""
     # The imported signal_handler should already be initialized

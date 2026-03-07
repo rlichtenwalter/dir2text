@@ -17,7 +17,7 @@ def test_permission_action_comparison():
     """Test comparing PermissionAction enum with strings."""
     assert PermissionAction.IGNORE == "ignore"
     assert PermissionAction.RAISE == "raise"
-    assert "ignore" == PermissionAction.IGNORE
-    assert "raise" == PermissionAction.RAISE
+    assert PermissionAction.IGNORE == "ignore"
+    assert PermissionAction.RAISE == "raise"
     assert PermissionAction.IGNORE != "raise"
     assert PermissionAction.RAISE != "ignore"

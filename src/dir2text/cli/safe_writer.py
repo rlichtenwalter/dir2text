@@ -8,7 +8,7 @@ import errno
 import os
 import types
 from pathlib import Path
-from typing import Optional, Type, Union
+from typing import Optional, Union
 
 from dir2text.cli.signal_handler import signal_handler
 
@@ -66,7 +66,7 @@ class SafeWriter:
             os.write(self.fd, data.encode("utf-8"))
         except OSError as e:
             if e.errno == errno.EPIPE:
-                raise BrokenPipeError()
+                raise BrokenPipeError() from e
             raise
 
     def close(self) -> None:
@@ -78,17 +78,15 @@ class SafeWriter:
         if self._closed:
             return
 
-        if self._file_obj is not None:
-            try:
+        try:
+            if self._file_obj is not None:
                 self._file_obj.close()
-            except OSError as e:
-                # Handle broken pipe errors during close gracefully
-                if e.errno != errno.EPIPE:
-                    # Re-raise errors that aren't related to broken pipes
-                    raise
-                # For broken pipe errors, continue and mark as closed
-
-        self._closed = True
+        except OSError as e:
+            if e.errno != errno.EPIPE:
+                raise
+            # For broken pipe errors, continue and mark as closed
+        finally:
+            self._closed = True
 
     def __enter__(self) -> "SafeWriter":
         """Enter the context manager.
@@ -100,7 +98,7 @@ class SafeWriter:
 
     def __exit__(
         self,
-        exc_type: Optional[Type[BaseException]],
+        exc_type: Optional[type[BaseException]],
         exc_val: Optional[BaseException],
         exc_tb: Optional[types.TracebackType],
     ) -> None:

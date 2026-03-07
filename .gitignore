@@ -73,3 +73,9 @@ dmypy.json
 
 # pyenv
 .python-version
+
+# Ruff
+.ruff_cache/
+
+# Claude Code
+.claude/

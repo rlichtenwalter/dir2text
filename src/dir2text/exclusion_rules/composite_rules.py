@@ -1,6 +1,6 @@
 """Composite exclusion rules for combining multiple rule types."""
 
-from typing import List, Sequence
+from collections.abc import Sequence
 
 from .base_rules import BaseExclusionRules
 
@@ -51,7 +51,7 @@ class CompositeExclusionRules(BaseExclusionRules):
         >>> # Example with multiple rule types
         >>> from dir2text.exclusion_rules.size_rules import SizeExclusionRules
         >>> rule1 = SizeExclusionRules("1MB")  # Exclude files > 1MB
-        >>> rule2 = SizeExclusionRules("10KB") # Exclude files > 10KB
+        >>> rule2 = SizeExclusionRules("10KB")  # Exclude files > 10KB
         >>> composite = CompositeExclusionRules([rule1, rule2])
         >>> composite.exclude("small_file.txt")  # False (neither rule matches without real file)
         False
@@ -78,9 +78,9 @@ class CompositeExclusionRules(BaseExclusionRules):
         # Validate that all rules implement the correct interface
         for i, rule in enumerate(rules):
             if not isinstance(rule, BaseExclusionRules):
-                raise TypeError(f"Rule at index {i} must implement BaseExclusionRules, " f"got {type(rule)}")
+                raise TypeError(f"Rule at index {i} must implement BaseExclusionRules, got {type(rule)}")
 
-        self.rules: List[BaseExclusionRules] = list(rules)
+        self.rules: list[BaseExclusionRules] = list(rules)
 
     def exclude(self, path: str) -> bool:
         """Check if a path should be excluded by any constituent rule.
@@ -110,16 +110,7 @@ class CompositeExclusionRules(BaseExclusionRules):
             and uses it if available. For rules that don't implement has_rules(),
             assumes they have rules configured.
         """
-        for rule in self.rules:
-            # Check if rule has the has_rules method and use it
-            if hasattr(rule, "has_rules") and callable(rule.has_rules):
-                if rule.has_rules():
-                    return True
-            else:
-                # For rules without has_rules method, assume they have rules
-                # This maintains backward compatibility
-                return True
-        return False
+        return any(rule.has_rules() for rule in self.rules)
 
     def add_rule_object(self, rule: BaseExclusionRules) -> None:
         """Add another exclusion rule object to this composite.
@@ -159,7 +150,7 @@ class CompositeExclusionRules(BaseExclusionRules):
         """
         return len(self.rules)
 
-    def get_rules(self) -> List[BaseExclusionRules]:
+    def get_rules(self) -> list[BaseExclusionRules]:
         """Get a copy of the constituent rules list.
 
         Returns:

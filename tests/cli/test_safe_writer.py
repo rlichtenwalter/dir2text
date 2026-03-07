@@ -205,7 +205,7 @@ def test_safe_writer_actual_file_write(temp_output_file):
     writer.close()
 
     # Read the file and verify content
-    with open(temp_output_file, "r") as f:
+    with open(temp_output_file) as f:
         content = f.read()
 
     assert content == test_data
@@ -221,7 +221,7 @@ def test_safe_writer_unicode_handling(temp_output_file):
     writer.close()
 
     # Read the file and verify content
-    with open(temp_output_file, "r", encoding="utf-8") as f:
+    with open(temp_output_file, encoding="utf-8") as f:
         content = f.read()
 
     assert content == test_data
@@ -261,7 +261,7 @@ def test_safe_writer_context_manager_with_exception():
 
 
 def test_safe_writer_close_with_error():
-    """Test SafeWriter.close method handling errors."""
+    """Test SafeWriter.close method handling errors marks closed via finally."""
     # Create a mock file object that raises an error on close
     mock_file = MagicMock()
     mock_file.close.side_effect = OSError(errno.EIO, "I/O error")
@@ -275,6 +275,8 @@ def test_safe_writer_close_with_error():
 
     assert excinfo.value.errno == errno.EIO
     mock_file.close.assert_called_once()
+    # The try/finally must set _closed even when the error is re-raised
+    assert writer._closed
 
 
 def test_safe_writer_close_with_broken_pipe():

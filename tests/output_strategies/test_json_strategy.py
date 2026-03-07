@@ -220,6 +220,18 @@ def test_json_formatting_consistency():
             assert parsed["tokens"] == args[2]
 
 
+def test_format_start_path_with_closing_brace():
+    """Test that a path containing '}' produces valid JSON (regression for rfind fix)."""
+    strategy = JSONOutputStrategy()
+    output = []
+    output.append(strategy.format_start("dir}name/file.py"))
+    output.append(strategy.format_content("content"))
+    output.append(strategy.format_end())
+    parsed = json.loads("".join(output))
+    assert parsed["path"] == "dir}name/file.py"
+    assert parsed["content"] == "content"
+
+
 def test_json_symlink_valid_format():
     """Test that the symlink format generates valid JSON."""
     strategy = JSONOutputStrategy()
