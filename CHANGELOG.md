@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+No changes yet.
+
+## [3.0.2] - 2026-03-07
+
 ### Changed
 - Replace black, isort, flake8, and mypy with ruff (linting + formatting) and pyright (strict type checking)
 - Update tox environments and pre-commit hooks for new tooling
