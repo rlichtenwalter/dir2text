@@ -95,6 +95,14 @@ class GitIgnoreExclusionRules(BaseExclusionRules):
         if rules_files is not None:
             self.load_rules(rules_files)
 
+    def has_rules(self) -> bool:
+        """Check if any exclusion patterns are configured.
+
+        Returns:
+            True if at least one pattern has been loaded or added, False otherwise.
+        """
+        return len(self.spec.patterns) > 0
+
     def exclude(self, path: str) -> bool:
         """Check if a path should be excluded based on the loaded .gitignore patterns.
 

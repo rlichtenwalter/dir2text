@@ -265,15 +265,16 @@ class FileContentPrinter:
         # This ensures consistent token counting behavior across all file types
         token_count = None
 
-        # Calculate token count for base64 content if required in start tag
-        # This mirrors the same pattern used for text files
+        # Pre-count tokens when the strategy needs them in the start tag.
+        # Track whether we pre-counted to avoid double-counting in the streaming loop.
+        pre_counted = False
         if (
             self.tokenizer is not None
             and self.tokenizer.get_total_tokens() is not None
             and self.output_strategy.requires_tokens_in_start
         ):
-            # Pre-count tokens for start tag (requires full file read)
             token_count = self._count_binary_file_tokens(path_obj, relative_path)
+            pre_counted = True
 
         yield self.output_strategy.format_start(relative_path + " [binary]", "binary", token_count)
 
@@ -298,15 +299,10 @@ class FileContentPrinter:
                     b64_chunk = base64.b64encode(binary_chunk).decode("ascii")
                     formatted_chunk = self.output_strategy.format_content(b64_chunk)
 
-                    # Count tokens in streaming mode (mirrors text file behavior)
-                    if self.tokenizer is not None:
+                    # Count in streaming mode unless we already pre-counted.
+                    if self.tokenizer is not None and not pre_counted:
                         result = self.tokenizer.count(formatted_chunk)
-                        # Only accumulate tokens if we're tracking them and not requiring them in start
-                        if (
-                            result.tokens is not None
-                            and not self.output_strategy.requires_tokens_in_start
-                            and isinstance(token_count, int)
-                        ):
+                        if result.tokens is not None and isinstance(token_count, int):
                             token_count += result.tokens
 
                     yield formatted_chunk
@@ -380,13 +376,16 @@ class FileContentPrinter:
         # Proceed with text file handling
         token_count = None
 
-        # Only count tokens if the tokenizer has token counting capabilities
+        # Pre-count tokens when the strategy needs them in the start tag.
+        # Track whether we pre-counted to avoid double-counting in the streaming loop.
+        pre_counted = False
         if (
             self.tokenizer is not None
             and self.tokenizer.get_total_tokens() is not None
             and self.output_strategy.requires_tokens_in_start
         ):
             token_count = self._count_file_tokens(file_info.path, file_info.relative_path)
+            pre_counted = True
 
         # Output start tag with token count if available
         yield self.output_strategy.format_start(file_info.relative_path, "text", token_count)
@@ -400,15 +399,12 @@ class FileContentPrinter:
                 for chunk in reader:
                     formatted_chunk = self.output_strategy.format_content(chunk)
 
-                    # Count lines and characters (and potentially tokens)
-                    if self.tokenizer is not None:
+                    # Count in streaming mode unless we already pre-counted.
+                    # Pre-counting already updated the tokenizer's internal totals,
+                    # so calling count() again would double-count.
+                    if self.tokenizer is not None and not pre_counted:
                         result = self.tokenizer.count(formatted_chunk)
-                        # Only accumulate tokens if we're tracking them and not requiring them in start
-                        if (
-                            result.tokens is not None
-                            and not self.output_strategy.requires_tokens_in_start
-                            and isinstance(token_count, int)
-                        ):
+                        if result.tokens is not None and isinstance(token_count, int):
                             token_count += result.tokens
 
                     yield formatted_chunk

@@ -111,8 +111,7 @@ class JSONOutputStrategy(OutputStrategy):
 
         # Start the JSON object and the content field
         start = self.encoder.encode(data)
-        start = start.rstrip("}")  # Remove the closing brace
-        start += ', "content": "'
+        start = start[: start.rfind("}")] + ', "content": "'
 
         return start
 

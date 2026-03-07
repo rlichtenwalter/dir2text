@@ -73,6 +73,9 @@ class BaseExclusionRules(ABC):
             ...             with open(path, "r") as f:
             ...                 self._has_tmp = self._has_tmp or ".tmp" in f.read()
             ...
+            ...     def has_rules(self) -> bool:
+            ...         return self._has_tmp
+            ...
             ...     def add_rule(self, rule: str) -> None:
             ...         self._has_tmp = self._has_tmp or ".tmp" in rule
             >>> import tempfile
@@ -124,14 +127,11 @@ class BaseExclusionRules(ABC):
         """
         raise NotImplementedError(f"{self.__class__.__name__} doesn't support adding individual rules.")
 
+    @abstractmethod
     def has_rules(self) -> bool:
         """Check if this rule set has any rules configured.
 
         Returns:
             True if rules are configured, False otherwise.
-
-        Note:
-            The default implementation returns True, assuming rules are present.
-            Subclasses should override this to provide accurate reporting.
         """
-        return True
+        pass

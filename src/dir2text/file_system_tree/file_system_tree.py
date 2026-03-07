@@ -135,25 +135,9 @@ class FileSystemTree:
         # Build the tree structure
         self._tree = self._create_node(self.root_path, "", visited_inodes)
 
-        # Handle the root node name specifically
+        # Set the root node name to the resolved directory name
         if self._tree:
-            original_path_str = str(self.root_path)
-            resolved_path = self.root_path.resolve()
-
-            # Get the real directory name
-            real_dir_name = resolved_path.name
-
-            # For relative paths, include the original specification
-            if not self.root_path.is_absolute():
-                if original_path_str in [".", "./"]:
-                    # For current directory, just use the real name
-                    self._tree.name = real_dir_name
-                else:
-                    # For other relative paths (like '../'), include both the name and the specification
-                    self._tree.name = f"{real_dir_name}"
-            else:
-                # For absolute paths, just use the directory name
-                self._tree.name = real_dir_name
+            self._tree.name = self.root_path.resolve().name
 
         self._count_files_and_directories()
 
@@ -199,10 +183,12 @@ class FileSystemTree:
             if path.is_dir() and not relative_path.endswith("/") and self.exclusion_rules.exclude(relative_path + "/"):
                 return None
 
-            # For patterns ending with slash that might not match symlinks,
-            # also check if the path without trailing slash would be excluded
+            # For symlinks, also check directory-style patterns. A symlink to a
+            # directory may not report is_dir()=True if the target is inaccessible,
+            # but should still be excluded by directory-only patterns like "build/".
             if (
                 path.is_symlink()
+                and not path.is_dir()
                 and not relative_path.endswith("/")
                 and self.exclusion_rules.exclude(relative_path + "/")
             ):
@@ -325,7 +311,7 @@ class FileSystemTree:
 
         if self._tree:
             count(self._tree, "")
-        self._directory_count -= 1  # Subtract 1 to exclude the root directory from the count
+            self._directory_count -= 1  # Subtract 1 to exclude the root directory from the count
 
     def get_file_count(self) -> int:
         """Get the total number of files in the tree.
@@ -448,7 +434,7 @@ class FileSystemTree:
         """
         # Initialize visited_paths if not provided (first call)
         if visited_paths is None:
-            visited_paths = set[str]()
+            visited_paths = set()
 
         # When following symlinks, we need to track visited paths to avoid duplication
         full_path = os.path.join(str(self.root_path), current_path) if current_path else str(self.root_path)

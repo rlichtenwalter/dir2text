@@ -11,14 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Replace black, isort, flake8, and mypy with ruff (linting + formatting) and pyright (strict type checking)
 - Update tox environments and pre-commit hooks for new tooling
 - Modernize type annotations to use builtin generics and `NamedTuple`
-- Add `has_rules()` method to `BaseExclusionRules` base class with default implementation
+- Add abstract `has_rules()` method to `BaseExclusionRules` requiring subclass implementation
+- Add `has_rules()` implementation to `GitIgnoreExclusionRules` based on pattern count
 - Use `os.stat()` instead of `Path.stat(follow_symlinks=)` for Python 3.9 compatibility
+- Reorder text encoding list in binary detection to try discriminating encodings before latin-1
 
 ### Fixed
 - Fix latent closure bug in symlink iterator where loop variable was captured by reference
 - Fix stale changelog URL in `pyproject.toml` referencing `master` instead of `main`
 - Add proper exception chaining (`from e`/`from None`) to all re-raises
 - Remove dead code in `_create_node` child filter that could never remove a node
+- Fix token double-counting when output strategy requires tokens in start tag (XML)
+- Fix `SafeWriter._closed` not being set when `close()` raises a non-EPIPE error
+- Fix `directory_count` returning -1 when tree is `None`
+- Replace fragile `rstrip("}")` with precise `rfind("}")` slice in JSON strategy
+- Simplify root node name logic that had three identical branches
 
 ## [3.0.1] - 2025-08-07
 

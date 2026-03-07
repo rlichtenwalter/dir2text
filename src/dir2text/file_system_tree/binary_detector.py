@@ -178,7 +178,7 @@ def is_binary_file(file_path: PathType, chunk_size: int = 8192) -> bool:
             return True
 
         # Try to decode with multiple common text encodings
-        text_encodings = ["utf-8", "latin-1", "cp1252", "utf-16", "utf-16-le", "utf-16-be"]
+        text_encodings = ["utf-8", "utf-16", "utf-16-le", "utf-16-be", "cp1252", "latin-1"]
 
         for encoding in text_encodings:
             try:

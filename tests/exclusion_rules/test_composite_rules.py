@@ -163,16 +163,23 @@ class TestCompositeExclusionRules:
 
         assert not composite.has_rules()
 
-    def test_has_rules_base_class_default(self):
-        """Test has_rules with rules using base class default (returns True)."""
-        # BaseExclusionRules.has_rules() returns True by default
-        rule_with_default = Mock(spec=BaseExclusionRules)
-        rule_with_default.has_rules.return_value = True
-
+    def test_has_rules_empty_git_rules(self):
+        """Test has_rules returns False for empty GitIgnoreExclusionRules."""
+        git_rules = GitIgnoreExclusionRules()  # No patterns loaded
         rule_with_no_rules = MockExclusionRules(has_rules_result=False)
-        composite = CompositeExclusionRules([rule_with_default, rule_with_no_rules])
+        composite = CompositeExclusionRules([git_rules, rule_with_no_rules])
 
-        # Should return True because rule_with_default.has_rules() returns True
+        # Should return False because neither rule has rules configured
+        assert not composite.has_rules()
+
+    def test_has_rules_loaded_git_rules(self):
+        """Test has_rules returns True when GitIgnoreExclusionRules has patterns."""
+        git_rules = GitIgnoreExclusionRules()
+        git_rules.add_rule("*.pyc")
+        rule_with_no_rules = MockExclusionRules(has_rules_result=False)
+        composite = CompositeExclusionRules([git_rules, rule_with_no_rules])
+
+        # Should return True because git_rules has a pattern
         assert composite.has_rules()
 
     def test_add_rule_object(self):
