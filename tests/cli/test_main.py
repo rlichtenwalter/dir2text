@@ -46,7 +46,7 @@ def test_main_token_counting_without_tiktoken(mock_tiktoken_unavailable):
         stderr_output = stderr.getvalue()
         assert "Error: Token counting was requested with -t/--tokenizer" in stderr_output
         assert 'pip install "dir2text[token_counting]"' in stderr_output
-        assert 'poetry add "dir2text[token_counting]"' in stderr_output
+        assert 'uv pip install "dir2text[token_counting]"' in stderr_output
 
         # Verify exit code
         mock_exit.assert_called_once_with(1)

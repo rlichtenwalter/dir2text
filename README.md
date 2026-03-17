@@ -17,18 +17,6 @@ A Python library and command-line tool for expressing directory structures and f
 
 ## Installation
 
-This project uses [Poetry](https://python-poetry.org/) for dependency management. We recommend using Poetry for the best development experience, but we also provide traditional pip installation.
-
-### Using Poetry (Recommended)
-
-1. First, [install Poetry](https://python-poetry.org/docs/#installation) if you haven't already.
-2. Install dir2text:
-   ```bash
-   poetry add dir2text
-   ```
-
-### Using pip
-
 ```bash
 pip install dir2text
 ```
@@ -37,10 +25,6 @@ pip install dir2text
 
 Install with token counting support (for LLM context management):
 ```bash
-# With Poetry
-poetry add "dir2text[token_counting]"
-
-# With pip
 pip install "dir2text[token_counting]"
 ```
 
@@ -199,7 +183,7 @@ rules.load_rules(".gitignore")
 
 # Process everything immediately
 analyzer = Dir2Text(
-    "path/to/project", 
+    "path/to/project",
     exclusion_rules=rules,
     follow_symlinks=True,  # Optionally follow symlinks
     binary_action="encode"  # Include binary files as base64
@@ -256,33 +240,72 @@ dir2text /path/to/project | grep "function"
 
 ## Development
 
-### Setup Development Environment
+### Prerequisites
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/rlichtenwalter/dir2text.git
-   cd dir2text
-   ```
+- Python 3.9.1 or later
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) for dependency management
+- Git for version control
+- Optional: Rust compiler and Cargo (for token counting feature)
 
-2. Install development dependencies:
-   ```bash
-   poetry install --with dev
-   ```
-
-3. Install pre-commit hooks:
-   ```bash
-   poetry run pre-commit install
-   ```
-
-### Running Tests
+### Setup
 
 ```bash
-# Run specific quality control categories
-poetry run tox -e format    # Run formatters
-poetry run tox -e lint      # Run linters
-poetry run tox -e test      # Run tests
-poetry run tox -e coverage  # Run test coverage analysis
+git clone https://github.com/rlichtenwalter/dir2text.git
+cd dir2text
+
+# Install all dependencies (creates virtual environment automatically)
+uv sync --group dev --extra all
+
+# Install pre-commit hooks
+uv run pre-commit install --hook-type pre-commit --hook-type pre-push
 ```
+
+### Quality Checks
+
+```bash
+# Format code (auto-fix lint issues + reformat)
+uv run ruff check --fix src tests
+uv run ruff format src tests
+
+# Lint (check only, no modifications)
+uv run ruff check src tests
+uv run ruff format --check src tests
+
+# Type check
+uv run pyright src
+
+# Run unit tests
+uv run pytest
+
+# Run tests with coverage
+uv run pytest --cov=dir2text --cov-report=xml
+
+# Run CLI integration tests
+uv run pytest tests/integration/test_cli.py --run-cli-tests
+```
+
+### Pre-commit Hooks
+
+The project uses a two-tier hook strategy:
+
+- **On commit**: Auto-formatting with ruff (fix + format)
+- **On push**: Linting, format check, type checking, unit tests, and integration tests
+
+Hooks run automatically after setup. To run all hooks manually:
+
+```bash
+uv run pre-commit run --all-files          # Commit-stage hooks
+uv run pre-commit run --all-files --hook-stage pre-push  # Push-stage hooks
+```
+
+### CI Pipeline
+
+CI runs automatically on pushes and pull requests to `main` and `develop`:
+
+1. **Lint & Format** — ruff check + format verification
+2. **Type Check** — pyright strict mode
+3. **Test Matrix** — pytest across Python 3.9, 3.10, 3.11, 3.12, 3.13
+4. **Build** — package build + wheel verification
 
 ## Contributing
 
@@ -291,10 +314,15 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 1. Fork the repository
 2. Create a new branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
-4. Run the test suite
+4. Run the quality checks (see above)
 5. Commit your changes (`git commit -m 'Add some amazing feature'`)
 6. Push to the branch (`git push origin feature/amazing-feature`)
 7. Open a Pull Request
+
+## Requirements
+
+- Python 3.9.1+
+- Optional: Rust compiler and Cargo (for token counting feature)
 
 ## License
 
@@ -306,34 +334,28 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - .gitignore pattern matching uses [pathspec](https://github.com/cpburnz/python-pathspec)
 - Token counting functionality is provided by OpenAI's [tiktoken](https://github.com/openai/tiktoken)
 
-## Requirements
-
-- Python 3.9+
-- Poetry (recommended) or pip
-- Optional: Rust compiler and Cargo (for token counting feature)
-
 ## Project Status
 
 This project is actively maintained. Issues and pull requests are welcome.
 
 ## FAQ
 
-**Q: Why use streaming processing?**  
+**Q: Why use streaming processing?**
 A: Streaming allows processing of large directories and files with constant memory usage, making it suitable for processing repositories of any size.
 
-**Q: How does dir2text handle symbolic links?**  
+**Q: How does dir2text handle symbolic links?**
 A: By default, dir2text represents symlinks as symbolic links in both tree and content output without following them. With the `-L` option, it follows symlinks similar to Unix tools like `find -L`. In both modes, symlink loop detection prevents infinite recursion.
 
-**Q: Can I use this with binary files?**  
+**Q: Can I use this with binary files?**
 A: Yes! dir2text provides flexible binary file handling with the `-B/--binary-action` option:
 - `ignore` (default): Skip binary files silently
-- `warn`: Skip binary files with warnings to stderr  
+- `warn`: Skip binary files with warnings to stderr
 - `encode`: Include binary files as base64-encoded content
 - `fail`: Stop processing when a binary file is encountered
 
 You can also exclude binary files entirely using the exclusion rules feature for better performance.
 
-**Q: What models are supported for token counting?**  
+**Q: What models are supported for token counting?**
 A: The token counting feature uses OpenAI's tiktoken library with the following primary models and encodings:
 - cl100k_base encoding:
   - GPT-4 models (gpt-4, gpt-4-32k)
@@ -343,16 +365,16 @@ A: The token counting feature uses OpenAI's tiktoken library with the following 
 
 For other language models, using a similar model's tokenizer (like gpt-4) can provide useful approximations of token counts. While the counts may not exactly match your target model's tokenization, they can give a good general estimate. The default model is "gpt-4", which uses cl100k_base encoding and provides a good general-purpose tokenization.
 
-**Q: What happens if I specify a model that doesn't have a dedicated tokenizer?**  
+**Q: What happens if I specify a model that doesn't have a dedicated tokenizer?**
 A: The library will suggest using a well-supported model like 'gpt-4' or 'text-davinci-003' for token counting. While token counts may not exactly match your target model, they can provide useful approximations for most modern language models.
 
-**Q: How can I control where summary information is displayed?**  
+**Q: How can I control where summary information is displayed?**
 A: Use the `-s/--summary` option to control where summary information is displayed:
   - `-s stderr`: Print summary to stderr
   - `-s stdout`: Print summary to stdout
   - `-s file`: Include summary in the output file (requires `-o`)
 
-**Q: Is token counting required for summary reporting?**  
+**Q: Is token counting required for summary reporting?**
 A: No. Basic statistics (e.g., file count, directory count, etc.,) are available without token counting. Including token counts in summary requires the `-t/--tokenizer` option to be specified along with `-s/--summary`.
 
 ## Contact

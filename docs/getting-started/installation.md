@@ -5,12 +5,10 @@ This guide covers installation methods for dir2text and its optional token count
 ## Prerequisites
 
 - Python 3.9.1 or later
-- pip or Poetry for package management
+- pip for package installation
 - Optional: Rust compiler and Cargo (for token counting feature)
 
 ## Basic Installation
-
-### Using pip
 
 ```bash
 # Basic installation
@@ -18,16 +16,6 @@ pip install dir2text
 
 # With token counting support
 pip install "dir2text[token_counting]"
-```
-
-### Using Poetry
-
-```bash
-# Basic installation
-poetry add dir2text
-
-# With token counting support
-poetry add "dir2text[token_counting]"
 ```
 
 ## Token Counting Support
@@ -110,23 +98,6 @@ If you encounter permission errors:
    - Run command prompt as administrator
    - Use a virtual environment
 
-### Poetry Installation Issues
-
-If Poetry installation fails:
-1. Update Poetry:
-   ```bash
-   poetry self update
-   ```
-2. Clear Poetry's cache:
-   ```bash
-   poetry cache clear . --all
-   ```
-3. Try creating a new virtual environment:
-   ```bash
-   poetry env remove --all
-   poetry install
-   ```
-
 ## Platform-Specific Notes
 
 ### Unix-like Systems
@@ -144,21 +115,13 @@ If Poetry installation fails:
 ## Upgrading
 
 ```bash
-# Using pip
 pip install --upgrade dir2text
-
-# Using Poetry
-poetry update dir2text
 ```
 
 ## Uninstallation
 
 ```bash
-# Using pip
 pip uninstall dir2text
-
-# Using Poetry
-poetry remove dir2text
 ```
 
 ## Getting Help

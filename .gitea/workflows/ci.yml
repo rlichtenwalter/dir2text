@@ -1,7 +1,7 @@
 # dir2text CI Pipeline
 #
 # Runs on every push and pull request to ensure code quality.
-# Uses Poetry for dependency management.
+# Uses uv for dependency management and task orchestration.
 #
 # Gitea Actions is compatible with GitHub Actions syntax.
 # See: https://docs.gitea.com/usage/actions/overview
@@ -34,17 +34,17 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install Poetry
-        run: pip install poetry
+      - name: Install uv
+        run: pip install uv
 
       - name: Install dependencies
-        run: poetry install --with dev -E all
+        run: uv sync --group dev --extra all
 
       - name: Run ruff linter
-        run: poetry run ruff check src/ tests/
+        run: uv run ruff check src/ tests/
 
       - name: Check formatting
-        run: poetry run ruff format --check src/ tests/
+        run: uv run ruff format --check src/ tests/
 
   # ==========================================================================
   # Type Check
@@ -61,14 +61,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install Poetry
-        run: pip install poetry
+      - name: Install uv
+        run: pip install uv
 
       - name: Install dependencies
-        run: poetry install --with dev -E all
+        run: uv sync --group dev --extra all
 
       - name: Run pyright
-        run: poetry run pyright src/
+        run: uv run pyright src/
 
   # ==========================================================================
   # Test Matrix
@@ -91,14 +91,14 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install Poetry
-        run: pip install poetry
+      - name: Install uv
+        run: pip install uv
 
       - name: Install dependencies
-        run: poetry install --with dev -E all
+        run: uv sync --group dev --extra all
 
       - name: Run tests
-        run: poetry run pytest tests/ -v
+        run: uv run pytest tests/ -v
 
   # ==========================================================================
   # Build Check
@@ -116,11 +116,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install Poetry
-        run: pip install poetry
+      - name: Install uv
+        run: pip install uv
 
       - name: Build package
-        run: poetry build
+        run: uv build
 
       - name: Verify wheel
         run: |

@@ -18,34 +18,58 @@ repos:
   - repo: local
     hooks:
       # --- Commit stage: formatting ---
-      - id: tox-format
-        name: Formatting
-        entry: tox -e format
+      - id: ruff-fix
+        name: Ruff fix
+        entry: uv run ruff check --fix src tests
         language: system
         types: [python]
         pass_filenames: false
         stages: [pre-commit]
 
-      # --- Push stage: linting + tests ---
-      - id: tox-lint
+      - id: ruff-format
+        name: Ruff format
+        entry: uv run ruff format src tests
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [pre-commit]
+
+      # --- Push stage: linting + type checking + tests ---
+      - id: lint
         name: Linting
-        entry: tox -e lint
+        entry: uv run ruff check src tests
         language: system
         types: [python]
         pass_filenames: false
         stages: [pre-push]
 
-      - id: tox-test
+      - id: format-check
+        name: Format check
+        entry: uv run ruff format --check src tests
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: typecheck
+        name: Type checking
+        entry: uv run pyright src
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: test
         name: Unit Tests
-        entry: tox -e test
+        entry: uv run pytest
         language: system
         types: [python]
         pass_filenames: false
         stages: [pre-push]
 
-      - id: tox-integration
+      - id: integration
         name: CLI Integration Tests
-        entry: tox -e integration
+        entry: uv run pytest tests/integration/test_cli.py --run-cli-tests
         language: system
         types: [python]
         pass_filenames: false
