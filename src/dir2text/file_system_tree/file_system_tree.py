@@ -141,7 +141,7 @@ class FileSystemTree:
 
         self._count_files_and_directories()
 
-    def _get_file_identifier(self, path: Path) -> FileIdentifier:
+    def _get_file_identifier(self, path: Path) -> Optional[FileIdentifier]:
         """Get a FileIdentifier for a file/directory based on its inode and device.
 
         This is used to detect loops in the filesystem caused by symbolic links.
@@ -150,7 +150,8 @@ class FileSystemTree:
             path: Path to get inode information for.
 
         Returns:
-            A FileIdentifier object that uniquely identifies the file/directory.
+            A FileIdentifier object that uniquely identifies the file/directory,
+            or None if the file's identity could not be determined.
 
         Note:
             On Windows, st_ino might not be as reliable as on Unix systems, but Python's
@@ -160,8 +161,7 @@ class FileSystemTree:
             stat_info = os.stat(path)  # os.stat follows symlinks by default
             return FileIdentifier(stat_info.st_dev, stat_info.st_ino)
         except (FileNotFoundError, PermissionError):
-            # Return a unique identifier that won't match any real path
-            return FileIdentifier(-1, -1)
+            return None
 
     def _create_node(
         self,
@@ -208,7 +208,7 @@ class FileSystemTree:
         file_id = self._get_file_identifier(path)
 
         # Check if we've seen this inode before (symlink loop)
-        loop_detected = file_id.device_id != -1 and file_id in visited_inodes
+        loop_detected = file_id is not None and file_id in visited_inodes
 
         # Determine if it's a directory (follow symlinks if configured)
         try:
@@ -240,8 +240,8 @@ class FileSystemTree:
 
         # For directories (or followed symlinks to directories), process children
         try:
-            # Add this inode to visited set (unless it's the error indicator)
-            if file_id.device_id != -1:
+            # Add this inode to visited set if identity is known
+            if file_id is not None:
                 visited_inodes.add(file_id)
 
             try:
@@ -260,7 +260,7 @@ class FileSystemTree:
             # Remove this inode from visited set when we're done with this branch
             # This allows revisiting the same directory through different paths
             # that aren't part of a loop
-            if file_id.device_id != -1 and file_id in visited_inodes:
+            if file_id is not None and file_id in visited_inodes:
                 visited_inodes.remove(file_id)
 
         except (OSError, PermissionError) as e:

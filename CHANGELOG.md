@@ -7,7 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-No changes yet.
+### Fixed
+- Replace magic sentinel `FileIdentifier(-1, -1)` with `Optional[FileIdentifier]` to eliminate ambiguity in symlink loop detection
 
 ## [3.0.2] - 2026-03-07
 
