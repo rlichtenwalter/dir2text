@@ -109,6 +109,7 @@ def test_file_system_tree_empty_directory(temp_directory):
     empty_dir.mkdir()
     fs_tree = FileSystemTree(str(temp_directory))
     tree = fs_tree.get_tree()
+    assert tree is not None
     empty_node = next((node for node in tree.children if node.name == "empty_dir"), None)
     assert empty_node is not None
     assert empty_node.children == ()
@@ -124,6 +125,7 @@ def test_symlink_detection(temp_directory_with_symlinks):
     # Test with default behavior (don't follow symlinks)
     fs_tree = FileSystemTree(str(tmp_path))
     tree = fs_tree.get_tree()
+    assert tree is not None
 
     # Get the build symlink node
     build_node = next((node for node in tree.children if node.name == "build"), None)
@@ -156,6 +158,7 @@ def test_follow_symlinks(temp_directory_with_symlinks):
     # Test with follow_symlinks=True
     fs_tree = FileSystemTree(str(tmp_path), follow_symlinks=True)
     tree = fs_tree.get_tree()
+    assert tree is not None
 
     # Now build should be treated as a directory, not a symlink
     build_node = next((node for node in tree.children if node.name == "build"), None)
@@ -203,6 +206,7 @@ def test_symlink_loop_detection(temp_directory_with_symlinks):
     tree = fs_tree.get_tree()
 
     # Verify the loop is detected by checking tree structure
+    assert tree is not None
     # Find the loop node (utils/loop)
     loop_node = None
     for node in tree.descendants:
@@ -264,6 +268,7 @@ def test_symlinks_with_exclusions(temp_directory_with_symlinks):
 
     # Check that excluded symlinks aren't in the tree
     tree = fs_tree.get_tree()
+    assert tree is not None
     build_node = next((node for node in tree.children if node.name == "build"), None)
     assert build_node is None  # Should be excluded
 
@@ -313,6 +318,7 @@ def test_directory_exclusion_with_trailing_slash(temp_directory):
     # Create tree with exclusion rules
     fs_tree = FileSystemTree(str(temp_directory), exclusion_rules=rules)
     tree = fs_tree.get_tree()
+    assert tree is not None
 
     # The mydir directory should NOT appear in the tree at all
     mydir_in_tree = any(node.name == "mydir" for node in tree.children)
@@ -350,6 +356,7 @@ def test_directory_exclusion_without_trailing_slash(temp_directory):
     # Create tree with exclusion rules
     fs_tree = FileSystemTree(str(temp_directory), exclusion_rules=rules)
     tree = fs_tree.get_tree()
+    assert tree is not None
 
     # The mydir directory should NOT appear in the tree
     mydir_in_tree = any(node.name == "mydir" for node in tree.children)

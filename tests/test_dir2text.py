@@ -256,6 +256,7 @@ def test_streaming_dir2text_with_token_counting(temp_directory, mock_token_count
 
         # We should have multiple chunks of content counted, each adding tokens
         # The exact number doesn't matter as long as it's consistent with the mock
+        assert analyzer.token_count is not None
         assert analyzer.token_count > 0
         assert analyzer.line_count > 0
         assert analyzer.character_count > 0
@@ -426,6 +427,7 @@ def test_dir2text_with_token_counting(temp_directory, mock_token_counter):
     """Test Dir2Text with token counting enabled."""
     with patch("dir2text.dir2text.TokenCounter", return_value=mock_token_counter):
         analyzer = Dir2Text(temp_directory, tokenizer_model="gpt-4")
+        assert analyzer.token_count is not None
         assert analyzer.token_count > 0
         assert analyzer.line_count > 0
         assert analyzer.character_count > 0
@@ -449,10 +451,12 @@ def test_counting_in_all_modes(temp_directory, mock_token_counter):
         list(analyzer1.stream_contents())
         assert analyzer1.line_count > 0
         assert analyzer1.character_count > 0
+        assert analyzer1.token_count is not None
         assert analyzer1.token_count > 0
 
         # Test complete mode
         analyzer2 = Dir2Text(temp_directory, tokenizer_model="gpt-4")
         assert analyzer2.line_count > 0
         assert analyzer2.character_count > 0
+        assert analyzer2.token_count is not None
         assert analyzer2.token_count > 0

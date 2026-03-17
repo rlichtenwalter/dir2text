@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Removed
+- Remove unused `detection_error` field from `FileInfo` dataclass
+
 ### Fixed
 - Replace magic sentinel `FileIdentifier(-1, -1)` with `Optional[FileIdentifier]` to eliminate ambiguity in symlink loop detection
 - Correct misleading code comments about metrics counting delegation and binary detection error handling
+- Add missing `None` assertions in tests for `Optional` return types from `get_tree()` and `token_count`
 
 ## [3.0.2] - 2026-03-07
 

@@ -34,13 +34,11 @@ class FileInfo:
         path: Absolute path to the file.
         relative_path: Relative path for display purposes.
         is_binary: True if file is binary, False if text, None if not yet determined.
-        detection_error: OSError encountered during binary detection, if any.
     """
 
     path: Path
     relative_path: str
     is_binary: Optional[bool] = None
-    detection_error: Optional[OSError] = None
 
 
 class FileContentPrinter:
@@ -155,19 +153,15 @@ class FileContentPrinter:
         """
         path_obj = Path(file_path)
         is_binary = None
-        detection_error = None
 
         try:
             is_binary = is_binary_file(path_obj)
-        except OSError as e:
+        except OSError:
             # Binary detection failed (e.g., permission error). Default to text path
             # so the subsequent open() surfaces the same error with proper context.
             is_binary = False
-            detection_error = e
 
-        return FileInfo(
-            path=path_obj, relative_path=relative_path, is_binary=is_binary, detection_error=detection_error
-        )
+        return FileInfo(path=path_obj, relative_path=relative_path, is_binary=is_binary)
 
     def _count_file_tokens(self, file_path: PathType, relative_path: str) -> Optional[int]:
         """Count tokens in a file without storing its content.
