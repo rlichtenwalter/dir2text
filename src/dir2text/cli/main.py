@@ -230,7 +230,13 @@ def main() -> None:
 
                     # Process contents if enabled
                     if not args.no_contents:
-                        for chunk in analyzer.stream_contents():
+                        # For "warn" mode, use a callback so streaming continues past binary files.
+                        # For "fail" mode, let BinaryFileError propagate to terminate processing.
+                        def _warn_binary(e: BinaryFileError) -> None:
+                            print(f"Warning: {e!s}", file=sys.stderr)
+
+                        on_binary = _warn_binary if args.binary_action == "warn" else None
+                        for chunk in analyzer.stream_contents(on_binary_file=on_binary):
                             safe_writer.write(chunk)
 
                     # Handle summary reporting based on the --summary argument

@@ -18,9 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Remove tox dependency and configuration
 
 ### Fixed
+- Fix binary action "warn" mode terminating after first binary file instead of continuing
 - Replace magic sentinel `FileIdentifier(-1, -1)` with `Optional[FileIdentifier]` to eliminate ambiguity in symlink loop detection
 - Correct misleading code comments about metrics counting delegation and binary detection error handling
 - Add missing `None` assertions in tests for `Optional` return types from `get_tree()` and `token_count`
+- Fix integration tests with incorrect assertions for binary action, max file size, JSON format, and gitignore negation
 
 ## [3.0.2] - 2026-03-07
 
