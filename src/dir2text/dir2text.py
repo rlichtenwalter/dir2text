@@ -337,7 +337,8 @@ class StreamingDir2Text:
             on_binary_file: Optional callback invoked when a binary file raises
                 BinaryFileError. When provided, the callback is called and streaming
                 continues to the next file. When None (default), the exception
-                propagates to the caller.
+                propagates to the caller. If the callback itself raises, that
+                exception propagates immediately and terminates streaming.
 
         Returns:
             Iterator yielding chunks of file contents in the specified format.

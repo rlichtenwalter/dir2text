@@ -282,12 +282,11 @@ def main() -> None:
             # For "ignore", we simply continue
 
         except BinaryFileError as e:
-            if args.binary_action == "warn":
-                print(f"Warning: {e!s}", file=sys.stderr)
-            elif args.binary_action == "fail":
+            # Only reachable for "fail" mode. "warn" is handled via the on_binary_file
+            # callback inside stream_contents(). "ignore" and "encode" do not raise.
+            if args.binary_action == "fail":
                 print(f"Error: {e!s}", file=sys.stderr)
                 sys.exit(1)
-            # For "ignore" and "encode", we simply continue (though BinaryFileError shouldn't occur for those)
 
     except TokenizerNotAvailableError as e:
         print(f"Error: {e!s}", file=sys.stderr)
