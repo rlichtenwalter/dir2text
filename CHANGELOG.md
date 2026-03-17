@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+No changes yet.
+
+## [3.1.0] - 2026-03-16
+
 ### Changed
 - Migrate from Poetry and tox to uv for dependency management, builds, and task orchestration
 - Update pre-commit hooks to use direct `uv run` commands instead of tox environments
