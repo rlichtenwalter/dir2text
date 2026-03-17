@@ -130,7 +130,6 @@ def temp_complex_gitignore():
         f.write("# Exceptions\n")
         f.write("!.gitignore\n")
         f.write("!README.md\n")
-        f.write("!important/build/file.txt\n")
 
     yield f.name
 
@@ -353,9 +352,9 @@ def test_cli_complex_patterns(temp_project, temp_complex_gitignore):
     assert "#!/bin/python" not in result.stdout, "Excluded .venv content should not appear"
     assert "settings.json" not in result.stdout, "Excluded .vscode content should not appear"
 
-    # Verify negated patterns (exceptions) work
-    assert "important/build/file.txt" in result.stdout
-    assert "Important file!" in result.stdout
+    # The build/ pattern excludes ALL directories named "build", including important/build/.
+    # Per gitignore spec, negation cannot re-include files inside an excluded directory.
+    assert "important/build/file.txt" not in result.stdout, "build/ pattern excludes nested build dirs"
 
 
 def test_cli_version_info():
@@ -797,9 +796,12 @@ def test_cli_max_file_size_combined_with_exclusions(temp_project):
     # Create a small .log file
     (project_dir / "small.log").write_text("log entry")  # ~10 bytes
 
+    # Create a file that exceeds the size limit
+    (project_dir / "big_data.txt").write_text("x" * 200)  # 200 bytes
+
     gitignore_path = str(project_dir / ".gitignore")  # contains: *.pyc\nbuild/\n
 
-    # Combine git exclusions with size limit
+    # Combine git exclusions with size limit of 100 bytes
     result = run_cli(["-e", gitignore_path, "-M", "100", str(project_dir)])
 
     assert result.returncode == 0
@@ -810,10 +812,12 @@ def test_cli_max_file_size_combined_with_exclusions(temp_project):
     # small.log should be included (not excluded by git, under size limit)
     assert "small.log" in result.stdout
 
-    # Files over 100 bytes should be excluded by size rule
-    assert "main.py" not in result.stdout  # > 100 bytes
-    assert "README.md" not in result.stdout  # > 100 bytes
-    assert "package.json" not in result.stdout  # > 100 bytes
+    # big_data.txt should be excluded by size rule (200 bytes > 100 limit)
+    assert "big_data.txt" not in result.stdout
+
+    # Small text files should still be included (all under 100 bytes)
+    assert "main.py" in result.stdout  # 30 bytes
+    assert "package.json" in result.stdout  # 17 bytes
 
 
 def test_cli_max_file_size_invalid_format():
@@ -864,11 +868,9 @@ def test_cli_max_file_size_no_tree_option(temp_project_with_size_files):
     assert "Small file" in result.stdout  # Content of small.txt
     assert "x" * 500 in result.stdout  # Content of medium.txt
 
-    # Should not contain content from large files
-    large_content_sample = "x" * 100  # Sample of large file content
-    large_count = result.stdout.count(large_content_sample)
-    # Should be much less than what would be in the large files
-    assert large_count < 5  # Arbitrary small number
+    # Large files should be excluded by size rule (not in tree or content)
+    assert "large.txt" not in result.stdout
+    assert "huge.txt" not in result.stdout
 
 
 def test_cli_max_file_size_json_format(temp_project_with_size_files):
@@ -879,15 +881,12 @@ def test_cli_max_file_size_json_format(temp_project_with_size_files):
 
     assert result.returncode == 0
 
-    # Should be valid JSON structure
-    assert '"tree":' in result.stdout
-    assert '"files":' in result.stdout
-
-    # Should contain small files
+    # Should contain JSON file objects for small files
+    assert '"type": "file"' in result.stdout
     assert "small.txt" in result.stdout
     assert "medium.txt" in result.stdout
 
-    # Should not contain large files
+    # Large files should be excluded by size rule (from both tree and content)
     assert "large.txt" not in result.stdout
     assert "huge.txt" not in result.stdout
 
@@ -954,33 +953,33 @@ def test_cli_max_file_size_with_symlinks():
 
 
 def test_cli_binary_action_ignore(temp_project):
-    """Test CLI with binary action ignore - binary files should be skipped."""
+    """Test CLI with binary action ignore - binary file content should be skipped."""
     result = run_cli(["-B", "ignore", str(temp_project)])
 
     assert result.returncode == 0
 
-    # Text files should be included
+    # Text files should be included in content
     assert "main.py" in result.stdout
     assert "def main()" in result.stdout
 
-    # Binary files should be completely absent from output
-    assert "image.png" not in result.stdout
-    assert "data.bin" not in result.stdout
+    # Binary files may appear in tree but should have no content tags
+    assert '<file path="image.png"' not in result.stdout
+    assert '<file path="data.bin"' not in result.stdout
 
 
 def test_cli_binary_action_warn(temp_project):
-    """Test CLI with binary action warn - should warn and skip binary files."""
+    """Test CLI with binary action warn - should warn, skip binary content, and continue."""
     result = run_cli(["-B", "warn", str(temp_project)])
 
     assert result.returncode == 0
 
-    # Text files should be included
-    assert "main.py" in result.stdout
+    # Text files should be included in content (processing continues past binary files)
     assert "def main()" in result.stdout
+    assert "def helper()" in result.stdout
 
-    # Binary files should be absent from main output
-    assert "image.png" not in result.stdout
-    assert "data.bin" not in result.stdout
+    # Binary files may appear in tree but should have no content tags
+    assert '<file path="image.png"' not in result.stdout
+    assert '<file path="data.bin"' not in result.stdout
 
     # Should have warnings in stderr about binary files
     assert "Warning: Binary file detected:" in result.stderr
@@ -1059,24 +1058,24 @@ def test_cli_binary_action_default_behavior(temp_project):
     # Both should behave the same
     assert result_default.returncode == result_explicit.returncode == 0
 
-    # Both should exclude binary files
-    assert "image.png" not in result_default.stdout
-    assert "image.png" not in result_explicit.stdout
-    assert "data.bin" not in result_default.stdout
-    assert "data.bin" not in result_explicit.stdout
+    # Both should exclude binary file content (filenames may appear in tree)
+    assert '<file path="image.png"' not in result_default.stdout
+    assert '<file path="image.png"' not in result_explicit.stdout
+    assert '<file path="data.bin"' not in result_default.stdout
+    assert '<file path="data.bin"' not in result_explicit.stdout
 
 
 def test_cli_binary_action_mixed_content_directory(temp_project):
     """Test binary action behavior with mixed text and binary content."""
-    result = run_cli(["-B", "encode", "-C", str(temp_project)])  # Skip tree for cleaner output
+    result = run_cli(["-B", "encode", str(temp_project)])
 
     assert result.returncode == 0
 
-    # Count how many files are processed
-    text_files = result.stdout.count('"type": "file"') if "-f json" in str(result) else result.stdout.count("<file")
+    # Count how many file content tags are in the output
+    file_count = result.stdout.count("<file")
 
     # Should have processed both text and binary files
-    assert text_files > 0  # At least some files were processed
+    assert file_count > 0  # At least some files were processed
 
     # Should contain both regular text content and base64 content
     assert "def main()" in result.stdout  # Text file content

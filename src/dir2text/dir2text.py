@@ -6,11 +6,11 @@ and complete processing implementations.
 """
 
 import contextlib
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Optional, Union
 
-from dir2text.exceptions import TokenizationError
+from dir2text.exceptions import BinaryFileError, TokenizationError
 from dir2text.exclusion_rules.base_rules import BaseExclusionRules
 from dir2text.file_content_printer import FileContentPrinter
 from dir2text.file_system_tree.binary_action import BinaryAction
@@ -330,8 +330,15 @@ class StreamingDir2Text:
         yield self._count_and_yield(final_newline)
         self._tree_complete = True
 
-    def stream_contents(self) -> Iterator[str]:
+    def stream_contents(self, on_binary_file: Optional[Callable[[BinaryFileError], None]] = None) -> Iterator[str]:
         """Stream file contents chunk by chunk.
+
+        Args:
+            on_binary_file: Optional callback invoked when a binary file raises
+                BinaryFileError. When provided, the callback is called and streaming
+                continues to the next file. When None (default), the exception
+                propagates to the caller. If the callback itself raises, that
+                exception propagates immediately and terminates streaming.
 
         Returns:
             Iterator yielding chunks of file contents in the specified format.
@@ -339,6 +346,7 @@ class StreamingDir2Text:
         Raises:
             RuntimeError: If contents have already been streamed.
             PermissionError: If access is denied and permission_action is "raise".
+            BinaryFileError: If a binary file is encountered and no callback is provided.
 
         Note:
             - Can only be called once
@@ -355,8 +363,14 @@ class StreamingDir2Text:
         for _file_path, _relative_path, content_iter in self._content_printer.yield_file_contents():
             # Content chunks are counted inside FileContentPrinter via the shared
             # TokenCounter. Use _yield (not _count_and_yield) to avoid double-counting.
-            for chunk in content_iter:
-                yield self._yield(chunk)
+            try:
+                for chunk in content_iter:
+                    yield self._yield(chunk)
+            except BinaryFileError as e:
+                if on_binary_file is not None:
+                    on_binary_file(e)
+                    continue
+                raise
 
             # Separator newline is not part of file content, so count it here
             yield self._count_and_yield("\n")
