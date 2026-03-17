@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 - Replace magic sentinel `FileIdentifier(-1, -1)` with `Optional[FileIdentifier]` to eliminate ambiguity in symlink loop detection
+- Correct misleading code comments about metrics counting delegation and binary detection error handling
 
 ## [3.0.2] - 2026-03-07
 
