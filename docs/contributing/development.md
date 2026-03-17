@@ -5,7 +5,7 @@
 ### Prerequisites
 
 - Python 3.9.1 or later
-- Poetry for dependency management
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) for dependency management
 - Git for version control
 - A Rust compiler and Cargo (for token counting development)
 
@@ -17,23 +17,14 @@ git clone https://github.com/rlichtenwalter/dir2text.git
 cd dir2text
 ```
 
-2. Install Poetry if you haven't already:
+2. Install dependencies (creates virtual environment automatically):
 ```bash
-curl -sSL https://install.python-poetry.org | python3 -
+uv sync --group dev --extra all
 ```
 
-3. Install dependencies:
+3. Install pre-commit hooks:
 ```bash
-# Install all dependencies including development ones
-poetry install --with dev
-
-# Include token counting support
-poetry install --with dev -E token_counting
-```
-
-4. Install pre-commit hooks:
-```bash
-poetry run pre-commit install
+uv run pre-commit install --hook-type pre-commit --hook-type pre-push
 ```
 
 ## Development Workflow
@@ -55,7 +46,7 @@ git checkout -b docs/topic-name
 2. Keep your branch up to date:
 ```bash
 git fetch origin
-git rebase origin/main
+git rebase origin/develop
 ```
 
 ### Code Quality
@@ -63,33 +54,38 @@ git rebase origin/main
 Run quality checks frequently during development:
 
 ```bash
-# Format code (ruff)
-poetry run tox -e format
+# Format code (auto-fix lint issues + reformat)
+uv run ruff check --fix src tests
+uv run ruff format src tests
 
-# Run linter and check formatting (ruff)
-poetry run tox -e lint
+# Lint (check only)
+uv run ruff check src tests
+uv run ruff format --check src tests
 
 # Type checking (pyright)
-poetry run tox -e typecheck
+uv run pyright src
 
 # Run tests
-poetry run tox -e test
+uv run pytest
 ```
 
 ### Running Tests
 
 ```bash
 # Run all tests
-poetry run pytest
+uv run pytest
 
 # Run specific test file
-poetry run pytest tests/test_file_system_tree.py
+uv run pytest tests/test_file_system_tree.py
 
 # Run specific test
-poetry run pytest tests/test_file_system_tree.py::test_function_name
+uv run pytest tests/test_file_system_tree.py::test_function_name
 
 # Run with coverage
-poetry run tox -e coverage
+uv run pytest --cov=dir2text --cov-report=xml
+
+# Run CLI integration tests
+uv run pytest tests/integration/test_cli.py --run-cli-tests
 ```
 
 ## Project Structure
@@ -161,13 +157,13 @@ Example:
 ```python
 class ExampleClass:
     """Class purpose and behavior.
-    
+
     Detailed description of the class, its behavior, and important
     notes about usage.
-    
+
     Attributes:
         attr_name: Description of attribute
-        
+
     Example:
         >>> obj = ExampleClass()
         >>> obj.method()
@@ -190,7 +186,7 @@ def example_method(self, param: str) -> bool:
 
     Raises:
         ValueError: Description of when this is raised
-        
+
     Example:
         >>> obj.example_method("test")
         True
@@ -227,12 +223,12 @@ def test_instance():
 
 class TestTestedClass:
     """Tests for TestedClass."""
-    
+
     def test_basic_operation(self, test_instance):
         """Test basic operations."""
         result = test_instance.operation()
         assert result == expected
-    
+
     def test_error_conditions(self, test_instance):
         """Test error handling."""
         with pytest.raises(ValueError):
@@ -255,11 +251,11 @@ def test_file_processing():
     content = "test content"
     test_file = tmp_path / "test.txt"
     test_file.write_text(content)
-    
+
     # Act
     processor = FileProcessor(test_file)
     result = processor.process()
-    
+
     # Assert
     assert result.content == content
     assert result.lines == 1
@@ -288,12 +284,8 @@ def test_tree_building(test_directory):
 
 2. Create Release Commit:
 ```bash
-# Update version
-poetry version patch  # or minor, major
-
-# Update changelog
 git add pyproject.toml CHANGELOG.md
-git commit -m "Release version X.Y.Z"
+git commit -m "chore: release version X.Y.Z"
 ```
 
 3. Tag Release:
@@ -305,8 +297,8 @@ git push origin vX.Y.Z
 4. Build and Publish:
 ```bash
 # Build distribution
-poetry build
+uv build
 
 # Publish to PyPI
-poetry publish
+uv publish --token $PYPI_TOKEN
 ```

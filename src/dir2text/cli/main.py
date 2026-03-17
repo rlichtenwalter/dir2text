@@ -287,8 +287,8 @@ def main() -> None:
         print(f"Error: {e!s}", file=sys.stderr)
         print("To enable token counting, install dir2text with the 'token_counting' extra:", file=sys.stderr)
         print('    pip install "dir2text[token_counting]"', file=sys.stderr)
-        print("    # or with Poetry:", file=sys.stderr)
-        print('    poetry add "dir2text[token_counting]"', file=sys.stderr)
+        print("    # or with uv:", file=sys.stderr)
+        print('    uv pip install "dir2text[token_counting]"', file=sys.stderr)
         sys.exit(1)
     except Exception as e:
         print(f"Error: {e!s}", file=sys.stderr)

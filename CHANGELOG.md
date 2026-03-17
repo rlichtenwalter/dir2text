@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Migrate from Poetry and tox to uv for dependency management, builds, and task orchestration
+- Update pre-commit hooks to use direct `uv run` commands instead of tox environments
+- Update CI pipeline to use uv instead of Poetry
+- Replace Poetry references in error messages and documentation with pip/uv equivalents
+
 ### Removed
 - Remove unused `detection_error` field from `FileInfo` dataclass
+- Remove tox dependency and configuration
 
 ### Fixed
 - Replace magic sentinel `FileIdentifier(-1, -1)` with `Optional[FileIdentifier]` to eliminate ambiguity in symlink loop detection

@@ -1,55 +1,61 @@
-[tool.poetry]
+[project]
 name = "dir2text"
 version = "3.0.2"
 description = "A Python library and command-line tool for expressing directory structures and file contents in formats suitable for Large Language Models (LLMs). It combines directory tree visualization with file contents in a memory-efficient, streaming format."
-repository = "https://github.com/rlichtenwalter/dir2text.git"
-authors = ["Ryan N. Lichtenwalter <rlichtenwalter@gmail.com>"]
-maintainers = ["Ryan N. Lichtenwalter <rlichtenwalter@gmail.com>"]
-packages = [{include = "dir2text", from = "src"}]
-keywords = ["large language model", "LLM", "token", "tokenizer", "SLOC", "tree", "code assistant"]
 readme = "README.md"
 license = "MIT"
+requires-python = ">=3.9.1"
+authors = [
+    {name = "Ryan N. Lichtenwalter", email = "rlichtenwalter@gmail.com"},
+]
+maintainers = [
+    {name = "Ryan N. Lichtenwalter", email = "rlichtenwalter@gmail.com"},
+]
+keywords = ["large language model", "LLM", "token", "tokenizer", "SLOC", "tree", "code assistant"]
 classifiers = [
-  "Development Status :: 4 - Beta",
-  "Intended Audience :: Developers",
-  "Topic :: Software Development",
-  "License :: OSI Approved :: MIT License",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "anytree>=2.12.0,<3",
+    "pathspec>=0.12.1,<0.13",
+    "humanfriendly>=10.0,<11",
 ]
 
-[tool.poetry.urls]
-issues = "https://github.com/rlichtenwalter/dir2text/issues"
-changelog = "https://github.com/rlichtenwalter/dir2text/blob/main/CHANGELOG.md"
+[project.optional-dependencies]
+token_counting = ["tiktoken>=0.6.0"]
+all = ["tiktoken>=0.6.0"]
 
-[tool.poetry.dependencies]
-python = ">=3.9.1,<4.0"
-anytree = "^2.12.0"
-pathspec = "^0.12.1"
-tiktoken = {version = ">=0.6.0", optional = true}
-humanfriendly = "^10.0"
+[project.urls]
+Repository = "https://github.com/rlichtenwalter/dir2text.git"
+Issues = "https://github.com/rlichtenwalter/dir2text/issues"
+Changelog = "https://github.com/rlichtenwalter/dir2text/blob/main/CHANGELOG.md"
 
-[tool.poetry.extras]
-token_counting = ["tiktoken"]
-all = ["tiktoken"]
-
-[tool.poetry.group.dev.dependencies]
-pre-commit = "^4.0.1"
-pyright = "^1.1.408"
-pytest = "^8.3.0"
-pytest-cov = "^5.0.0"
-ruff = "^0.15.5"
-tox = "^4.23.0"
+[project.scripts]
+dir2text = "dir2text.cli.main:main"
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.poetry.scripts]
-dir2text = "dir2text.cli.main:main"
+[tool.hatch.build.targets.wheel]
+packages = ["src/dir2text"]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.0.1,<5",
+    "pyright>=1.1.408,<2",
+    "pytest>=8.3.0,<9",
+    "pytest-cov>=5.0.0,<6",
+    "ruff>=0.15.5,<0.16",
+]
 
 [tool.ruff]
 line-length = 120

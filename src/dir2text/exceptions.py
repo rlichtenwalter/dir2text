@@ -25,7 +25,7 @@ class TokenizerNotAvailableError(Exception):
         """
         self.message = (
             f"{message} To enable token counting, install dir2text with the 'token_counting' "
-            "extra: 'pip install dir2text[token_counting]' or 'poetry install --extras token_counting'."
+            "extra: 'pip install dir2text[token_counting]'."
         )
         super().__init__(self.message)
 
