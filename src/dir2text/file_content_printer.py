@@ -160,7 +160,8 @@ class FileContentPrinter:
         try:
             is_binary = is_binary_file(path_obj)
         except OSError as e:
-            # Consistent error handling: treat as text file when detection fails
+            # Binary detection failed (e.g., permission error). Default to text path
+            # so the subsequent open() surfaces the same error with proper context.
             is_binary = False
             detection_error = e
 

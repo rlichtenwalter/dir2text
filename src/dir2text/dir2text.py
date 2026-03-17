@@ -268,12 +268,13 @@ class StreamingDir2Text:
         return self._counter.get_total_characters()
 
     def _yield(self, text: str) -> str:
-        """Return text for yielding.
+        """Return text for yielding without counting.
 
-        Helper method to provide a means of outputting text.
+        Used for content chunks where counting is already handled by
+        FileContentPrinter via the shared TokenCounter instance.
 
         Args:
-            text: Text to count and yield.
+            text: Text to yield.
 
         Returns:
             The input text, unchanged.
@@ -352,11 +353,12 @@ class StreamingDir2Text:
             raise RuntimeError("Contents have already been streamed")
 
         for _file_path, _relative_path, content_iter in self._content_printer.yield_file_contents():
-            # Output file content
+            # Content chunks are counted inside FileContentPrinter via the shared
+            # TokenCounter. Use _yield (not _count_and_yield) to avoid double-counting.
             for chunk in content_iter:
                 yield self._yield(chunk)
 
-            # Add separator newline
+            # Separator newline is not part of file content, so count it here
             yield self._count_and_yield("\n")
 
         self._contents_complete = True
