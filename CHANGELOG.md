@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 - Branch protection hook (no-commit-to-branch) for main and develop
+- Bandit security scanning in development workflow
+- Makefile with standard development targets (format, lint, typecheck, security, test, check)
 
 ## [3.1.0] - 2026-03-16
 
