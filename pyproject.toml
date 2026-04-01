@@ -51,6 +51,7 @@ packages = ["src/dir2text"]
 [dependency-groups]
 dev = [
     "bandit>=1.7.0,<2",
+    "deptry>=0.22.0",
     "pre-commit>=4.0.1,<5",
     "pyright>=1.1.408,<2",
     "pytest>=8.3.0,<9",
@@ -109,6 +110,10 @@ exclude_dirs = ["tests"]
 skips = [
     "B406",   # xml.sax.saxutils.escape is used for output escaping, not XML parsing
 ]
+
+[tool.deptry]
+extend_exclude = [".venv", "tests", "__pycache__", ".pytest_cache", "build", "dist"]
+known_first_party = ["dir2text"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"

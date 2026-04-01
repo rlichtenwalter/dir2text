@@ -62,6 +62,13 @@ repos:
         pass_filenames: false
         stages: [pre-push]
 
+      - id: deps
+        name: Dependency check (via Makefile)
+        entry: make deps
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
       - id: test
         name: Unit Tests
         entry: uv run pytest
