@@ -1,4 +1,4 @@
-.PHONY: help install format lint typecheck security test check clean
+.PHONY: help install format lint typecheck security deps test check clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -20,10 +20,13 @@ typecheck: ## Run type checker
 security: ## Run security scan with bandit
 	uv run bandit -c pyproject.toml -r src/
 
+deps: ## Check dependency hygiene with deptry
+	uv run deptry .
+
 test: ## Run tests
 	uv run pytest
 
-check: format lint typecheck security test ## Run all checks
+check: format lint typecheck security deps test ## Run all checks
 
 clean: ## Clean build artifacts
 	rm -rf .pytest_cache .ruff_cache __pycache__ dist build *.egg-info

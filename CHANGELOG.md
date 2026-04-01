@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Add deptry dependency hygiene checking with Makefile target and pre-push hook
 - Branch protection hook (no-commit-to-branch) for main and develop
 - Bandit security scanning in development workflow
 - Makefile with standard development targets (format, lint, typecheck, security, test, check)
