@@ -9,7 +9,6 @@ import base64
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Union
 
 from .exceptions import BinaryFileError
 from .file_system_tree.binary_action import BinaryAction
@@ -38,7 +37,7 @@ class FileInfo:
 
     path: Path
     relative_path: str
-    is_binary: Optional[bool] = None
+    is_binary: bool | None = None
 
 
 class FileContentPrinter:
@@ -78,8 +77,8 @@ class FileContentPrinter:
     def __init__(
         self,
         fs_tree: FileSystemTree,
-        output_format: Union[str, OutputStrategy] = "xml",
-        tokenizer: Optional[TokenCounter] = None,
+        output_format: str | OutputStrategy = "xml",
+        tokenizer: TokenCounter | None = None,
         encoding: str = "utf-8",
         errors: str = "strict",
         binary_action: BinaryAction = BinaryAction.IGNORE,
@@ -163,7 +162,7 @@ class FileContentPrinter:
 
         return FileInfo(path=path_obj, relative_path=relative_path, is_binary=is_binary)
 
-    def _count_file_tokens(self, file_path: PathType, relative_path: str) -> Optional[int]:
+    def _count_file_tokens(self, file_path: PathType, relative_path: str) -> int | None:
         """Count tokens in a file without storing its content.
 
         Args:
@@ -201,7 +200,7 @@ class FileContentPrinter:
 
         return token_count
 
-    def _count_binary_file_tokens(self, file_path: PathType, relative_path: str) -> Optional[int]:
+    def _count_binary_file_tokens(self, file_path: PathType, relative_path: str) -> int | None:
         """Pre-count tokens in a binary file's base64 content for start tag display.
 
         This method is only used when the output strategy requires tokens in the start tag,

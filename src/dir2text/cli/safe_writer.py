@@ -8,7 +8,6 @@ import errno
 import os
 import types
 from pathlib import Path
-from typing import Optional, Union
 
 from dir2text.cli.signal_handler import signal_handler
 
@@ -25,7 +24,7 @@ class SafeWriter:
         fd: The actual file descriptor being written to.
     """
 
-    def __init__(self, file: Union[int, Path]):
+    def __init__(self, file: int | Path):
         """Initialize the safe writer.
 
         Args:
@@ -98,9 +97,9 @@ class SafeWriter:
 
     def __exit__(
         self,
-        exc_type: Optional[type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[types.TracebackType],
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: types.TracebackType | None,
     ) -> None:
         """Exit the context manager and close resources.
 

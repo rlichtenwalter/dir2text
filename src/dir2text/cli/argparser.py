@@ -8,7 +8,7 @@ import argparse
 import os
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 from dir2text import __version__
 from dir2text.exclusion_rules.base_rules import BaseExclusionRules
@@ -42,8 +42,8 @@ def create_exclusion_action(exclusion_rules: BaseExclusionRules) -> type[argpars
             self,
             parser: argparse.ArgumentParser,
             namespace: argparse.Namespace,
-            values: Union[str, Sequence[Any], None],
-            option_string: Optional[str] = None,
+            values: str | Sequence[Any] | None,
+            option_string: str | None = None,
         ) -> None:
             # Process based on the option type
             if option_string in ("-e", "--exclude"):

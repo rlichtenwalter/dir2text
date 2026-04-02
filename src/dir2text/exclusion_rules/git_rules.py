@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from os import PathLike
 from pathlib import Path
-from typing import Optional, Union, cast
+from typing import cast
 
 from pathspec import PathSpec
 from pathspec.pattern import Pattern
@@ -60,7 +60,7 @@ class GitIgnoreExclusionRules(BaseExclusionRules):
         even on Windows systems, to match Git's behavior.
     """
 
-    def __init__(self, rules_files: Optional[Union[PathType, Sequence[PathType]]] = None):
+    def __init__(self, rules_files: PathType | Sequence[PathType] | None = None):
         """Initialize GitIgnoreExclusionRules with patterns from specified files.
 
         Args:
@@ -133,7 +133,7 @@ class GitIgnoreExclusionRules(BaseExclusionRules):
         """
         return self.spec.match_file(path)
 
-    def load_rules(self, rules_files: Union[PathType, Sequence[PathType]]) -> None:
+    def load_rules(self, rules_files: PathType | Sequence[PathType]) -> None:
         """Load and combine .gitignore patterns from one or more files.
 
         This method reads patterns from the specified file(s) and adds them to the

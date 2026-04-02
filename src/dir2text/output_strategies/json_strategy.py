@@ -5,7 +5,6 @@ supporting flexible token count placement and proper JSON escaping.
 """
 
 import json
-from typing import Optional
 
 from .base_strategy import OutputStrategy
 
@@ -70,7 +69,7 @@ class JSONOutputStrategy(OutputStrategy):
         token count tracking.
         """
         self.encoder = json.JSONEncoder()
-        self.token_count: Optional[int] = None
+        self.token_count: int | None = None
 
     @property
     def requires_tokens_in_start(self) -> bool:
@@ -84,7 +83,7 @@ class JSONOutputStrategy(OutputStrategy):
         """
         return False
 
-    def format_start(self, relative_path: str, file_type: str = "text", file_token_count: Optional[int] = None) -> str:
+    def format_start(self, relative_path: str, file_type: str = "text", file_token_count: int | None = None) -> str:
         """Format the start of a JSON object for a file.
 
         Creates the opening portion of a JSON object including the path, file type,
@@ -141,7 +140,7 @@ class JSONOutputStrategy(OutputStrategy):
         # Extract just the content portion (everything between the quotes)
         return json_str[len('{"content": "') : -2]
 
-    def format_end(self, file_token_count: Optional[int] = None) -> str:
+    def format_end(self, file_token_count: int | None = None) -> str:
         """Format the end of the JSON object for a file.
 
         Closes the content string and the JSON object, optionally including the
