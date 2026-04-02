@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Bandit security scanning in development workflow
 - Makefile with standard development targets (format, lint, typecheck, security, test, check)
 
+### Changed
+- Drop Python 3.9 support (EOL October 2025) — minimum is now Python 3.10
+- Pin dev tool versions for fleet-wide consistency (ruff 0.15.8, pyright 1.1.408, bandit 1.9.4, deptry 0.25.1, pytest 9.0.2)
+
 ## [3.1.0] - 2026-03-16
 
 ### Changed

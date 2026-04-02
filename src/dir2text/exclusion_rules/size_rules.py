@@ -1,7 +1,6 @@
 """Size-based exclusion rules for filtering files by size."""
 
 from pathlib import Path
-from typing import Optional, Union
 
 from ..types import PathType
 from .base_rules import BaseExclusionRules
@@ -62,7 +61,7 @@ class SizeExclusionRules(BaseExclusionRules):
         True
     """
 
-    def __init__(self, max_size: Union[str, int], root_dir: Optional[PathType] = None):
+    def __init__(self, max_size: str | int, root_dir: PathType | None = None):
         """Initialize size exclusion rules.
 
         Args:

@@ -9,7 +9,6 @@ import contextlib
 import os
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Optional
 
 from dir2text.exclusion_rules.base_rules import BaseExclusionRules
 from dir2text.file_system_tree.file_identifier import FileIdentifier
@@ -59,7 +58,7 @@ class FileSystemTree:
     def __init__(
         self,
         root_path: PathType,
-        exclusion_rules: Optional[BaseExclusionRules] = None,
+        exclusion_rules: BaseExclusionRules | None = None,
         permission_action: PermissionAction = PermissionAction.IGNORE,
         follow_symlinks: bool = False,
     ) -> None:
@@ -83,12 +82,12 @@ class FileSystemTree:
         self.exclusion_rules = exclusion_rules
         self.permission_action = permission_action
         self.follow_symlinks = follow_symlinks
-        self._tree: Optional[FileSystemNode] = None
+        self._tree: FileSystemNode | None = None
         self._file_count: int = 0
         self._directory_count: int = 0
         self._symlink_count: int = 0
 
-    def get_tree(self) -> Optional[FileSystemNode]:
+    def get_tree(self) -> FileSystemNode | None:
         """Get the root node of the filesystem tree.
 
         Builds the tree if it hasn't been built yet. The tree is built lazily on first
@@ -141,7 +140,7 @@ class FileSystemTree:
 
         self._count_files_and_directories()
 
-    def _get_file_identifier(self, path: Path) -> Optional[FileIdentifier]:
+    def _get_file_identifier(self, path: Path) -> FileIdentifier | None:
         """Get a FileIdentifier for a file/directory based on its inode and device.
 
         This is used to detect loops in the filesystem caused by symbolic links.
@@ -168,8 +167,8 @@ class FileSystemTree:
         path: Path,
         relative_path: str,
         visited_inodes: set[FileIdentifier],
-        parent: Optional[FileSystemNode] = None,
-    ) -> Optional[FileSystemNode]:
+        parent: FileSystemNode | None = None,
+    ) -> FileSystemNode | None:
         """Recursively create tree nodes for a path and its children."""
         # Special handling for exclusion: check for both with and without trailing slash
         # This ensures that patterns like "build/" will also match symlinks named "build"
@@ -420,7 +419,7 @@ class FileSystemTree:
             yield from self._iterate_symlinks(self._tree, "")
 
     def _iterate(
-        self, node: FileSystemNode, current_path: str, visited_paths: Optional[set[str]] = None
+        self, node: FileSystemNode, current_path: str, visited_paths: set[str] | None = None
     ) -> Iterator[tuple[str, str]]:
         """Recursive helper for iterate_files.
 

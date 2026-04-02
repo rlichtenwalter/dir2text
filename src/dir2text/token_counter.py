@@ -16,7 +16,7 @@ the target model's tokenization.
 """
 
 import importlib.util
-from typing import Any, NamedTuple, Optional
+from typing import Any, NamedTuple
 
 from dir2text.exceptions import TokenizationError, TokenizerNotAvailableError
 
@@ -25,7 +25,7 @@ class CountResult(NamedTuple):
     """Result of counting lines, tokens, and characters in text."""
 
     lines: int
-    tokens: Optional[int]
+    tokens: int | None
     characters: int
 
 
@@ -68,7 +68,7 @@ class TokenCounter:
             a model) but tiktoken is not installed.
     """
 
-    def __init__(self, model: Optional[str] = None):
+    def __init__(self, model: str | None = None):
         """Initialize the counter.
 
         Args:
@@ -82,7 +82,7 @@ class TokenCounter:
         """
         self.model = model
         self.tiktoken_available = self._check_tiktoken()
-        self.encoder: Optional[Any] = None
+        self.encoder: Any | None = None
 
         if self.model is not None and self.tiktoken_available:
             try:
@@ -95,7 +95,7 @@ class TokenCounter:
             # If token counting was explicitly requested but not available, raise
             raise TokenizerNotAvailableError()
 
-        self._total_tokens: Optional[int] = None if self.model is None or not self.tiktoken_available else 0
+        self._total_tokens: int | None = None if self.model is None or not self.tiktoken_available else 0
         self._total_lines = 0
         self._total_characters = 0
 
@@ -107,7 +107,7 @@ class TokenCounter:
         """
         return importlib.util.find_spec("tiktoken") is not None
 
-    def _get_encoder(self) -> Optional[Any]:
+    def _get_encoder(self) -> Any | None:
         """Get the tiktoken encoder for the specified model.
 
         Returns:
@@ -191,7 +191,7 @@ class TokenCounter:
 
         return CountResult(lines=lines, tokens=tokens, characters=chars)
 
-    def get_total_tokens(self) -> Optional[int]:
+    def get_total_tokens(self) -> int | None:
         """Get the total number of tokens counted so far.
 
         Returns:

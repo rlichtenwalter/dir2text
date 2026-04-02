@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from typing import Union
 
 from dir2text.types import PathType
 
@@ -90,7 +89,7 @@ class BaseExclusionRules(ABC):
         """
         pass
 
-    def load_rules(self, rules_files: Union[PathType, Sequence[PathType]]) -> None:
+    def load_rules(self, rules_files: PathType | Sequence[PathType]) -> None:
         """
         Load and parse exclusion rules from one or more files.
 

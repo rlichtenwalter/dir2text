@@ -6,7 +6,6 @@ for handling file content formatting, including requirements for token count pla
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
 
 class OutputStrategy(ABC):
@@ -70,7 +69,7 @@ class OutputStrategy(ABC):
         pass
 
     @abstractmethod
-    def format_start(self, relative_path: str, file_type: str = "text", file_token_count: Optional[int] = None) -> str:
+    def format_start(self, relative_path: str, file_type: str = "text", file_token_count: int | None = None) -> str:
         """Format the opening wrapper for a file's content.
 
         This method is called once at the start of each file's content to output any
@@ -111,7 +110,7 @@ class OutputStrategy(ABC):
         pass
 
     @abstractmethod
-    def format_end(self, file_token_count: Optional[int] = None) -> str:
+    def format_end(self, file_token_count: int | None = None) -> str:
         """Format the closing wrapper for a file's content.
 
         This method is called once at the end of each file's content to output any

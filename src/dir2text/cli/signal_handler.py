@@ -14,7 +14,7 @@ import signal
 import sys
 from threading import Event
 from types import FrameType
-from typing import Any, Optional
+from typing import Any
 
 _HAS_SIGPIPE = hasattr(signal, "SIGPIPE")
 
@@ -42,7 +42,7 @@ class SignalHandler:
         self.original_sigpipe_handler: Any = signal.getsignal(signal.SIGPIPE) if _HAS_SIGPIPE else None
         self.original_sigint_handler = signal.getsignal(signal.SIGINT)
 
-    def handle_sigpipe(self, signum: int, frame: Optional[FrameType]) -> None:
+    def handle_sigpipe(self, signum: int, frame: FrameType | None) -> None:
         """Handle SIGPIPE signal.
 
         Args:
@@ -53,7 +53,7 @@ class SignalHandler:
         if _HAS_SIGPIPE:
             signal.signal(signal.SIGPIPE, self.original_sigpipe_handler)
 
-    def handle_sigint(self, signum: int, frame: Optional[FrameType]) -> None:
+    def handle_sigint(self, signum: int, frame: FrameType | None) -> None:
         """Handle SIGINT signal.
 
         Args:

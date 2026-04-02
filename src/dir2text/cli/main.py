@@ -44,7 +44,6 @@ import argparse
 import importlib.util
 import sys
 from collections.abc import Mapping
-from typing import Optional
 
 from dir2text.cli.argparser import create_parser, validate_args
 from dir2text.cli.safe_writer import SafeWriter
@@ -57,7 +56,7 @@ from dir2text.file_system_tree.binary_action import BinaryAction
 from dir2text.file_system_tree.permission_action import PermissionAction
 
 
-def format_counts(counts: Mapping[str, Optional[int]]) -> str:
+def format_counts(counts: Mapping[str, int | None]) -> str:
     """Format the counts into a human-readable string.
 
     Args:
@@ -89,9 +88,7 @@ def check_tiktoken_available() -> bool:
     return importlib.util.find_spec("tiktoken") is not None
 
 
-def _build_exclusion_rules(
-    git_rules: GitIgnoreExclusionRules, args: argparse.Namespace
-) -> Optional[BaseExclusionRules]:
+def _build_exclusion_rules(git_rules: GitIgnoreExclusionRules, args: argparse.Namespace) -> BaseExclusionRules | None:
     """Build composite exclusion rules based on CLI arguments.
 
     This function intelligently combines different types of exclusion rules

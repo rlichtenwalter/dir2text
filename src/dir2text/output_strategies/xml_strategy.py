@@ -5,7 +5,6 @@ ensuring proper XML structure and escaping while enforcing that metadata
 attributes like token counts must appear in opening tags.
 """
 
-from typing import Optional
 from xml.sax.saxutils import escape as xml_escape
 
 from .base_strategy import OutputStrategy
@@ -75,7 +74,7 @@ class XMLOutputStrategy(OutputStrategy):
         """
         return True
 
-    def format_start(self, relative_path: str, file_type: str = "text", file_token_count: Optional[int] = None) -> str:
+    def format_start(self, relative_path: str, file_type: str = "text", file_token_count: int | None = None) -> str:
         """Format the opening XML tag for a file.
 
         Creates a <file> element with the file's path and type as required attributes,
@@ -129,7 +128,7 @@ class XMLOutputStrategy(OutputStrategy):
         escaped = xml_escape(content)
         return escaped
 
-    def format_end(self, file_token_count: Optional[int] = None) -> str:
+    def format_end(self, file_token_count: int | None = None) -> str:
         """Format the closing XML tag for a file.
 
         Creates the closing </file> tag to match the opening tag created by format_start.

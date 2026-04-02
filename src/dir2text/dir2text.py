@@ -8,7 +8,6 @@ and complete processing implementations.
 import contextlib
 from collections.abc import Callable, Iterator
 from pathlib import Path
-from typing import Optional, Union
 
 from dir2text.exceptions import BinaryFileError, TokenizationError
 from dir2text.exclusion_rules.base_rules import BaseExclusionRules
@@ -70,11 +69,11 @@ class StreamingDir2Text:
         self,
         directory: PathType,
         *,
-        exclusion_rules: Optional[BaseExclusionRules] = None,
+        exclusion_rules: BaseExclusionRules | None = None,
         output_format: str = "xml",
-        tokenizer_model: Optional[str] = None,
-        permission_action: Union[str, PermissionAction] = PermissionAction.IGNORE,
-        binary_action: Union[str, BinaryAction] = BinaryAction.IGNORE,
+        tokenizer_model: str | None = None,
+        permission_action: str | PermissionAction = PermissionAction.IGNORE,
+        binary_action: str | BinaryAction = BinaryAction.IGNORE,
         follow_symlinks: bool = False,
     ):
         """Initialize streaming directory analysis.
@@ -219,7 +218,7 @@ class StreamingDir2Text:
         return self._tree_complete and self._contents_complete
 
     @property
-    def token_count(self) -> Optional[int]:
+    def token_count(self) -> int | None:
         """Number of tokens processed across all operations.
 
         Returns:
@@ -330,7 +329,7 @@ class StreamingDir2Text:
         yield self._count_and_yield(final_newline)
         self._tree_complete = True
 
-    def stream_contents(self, on_binary_file: Optional[Callable[[BinaryFileError], None]] = None) -> Iterator[str]:
+    def stream_contents(self, on_binary_file: Callable[[BinaryFileError], None] | None = None) -> Iterator[str]:
         """Stream file contents chunk by chunk.
 
         Args:
@@ -403,11 +402,11 @@ class Dir2Text(StreamingDir2Text):
         self,
         directory: PathType,
         *,
-        exclusion_rules: Optional[BaseExclusionRules] = None,
+        exclusion_rules: BaseExclusionRules | None = None,
         output_format: str = "xml",
-        tokenizer_model: Optional[str] = None,
-        permission_action: Union[str, PermissionAction] = PermissionAction.IGNORE,
-        binary_action: Union[str, BinaryAction] = BinaryAction.IGNORE,
+        tokenizer_model: str | None = None,
+        permission_action: str | PermissionAction = PermissionAction.IGNORE,
+        binary_action: str | BinaryAction = BinaryAction.IGNORE,
         follow_symlinks: bool = False,
     ):
         """Initialize and immediately process the entire directory.
