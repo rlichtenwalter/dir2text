@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Add check-ast pre-commit hook for Python syntax validation
 - Add deptry dependency hygiene checking with Makefile target and pre-push hook
 - Branch protection hook (no-commit-to-branch) for main and develop
 - Bandit security scanning in development workflow
