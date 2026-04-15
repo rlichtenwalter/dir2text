@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+No changes yet.
+
+## [3.2.1] - 2026-04-15
+
 ### Fixed
 - Drop Python 3.9 from the CI test matrix so it matches the declared `requires-python = ">=3.10"` floor
 
