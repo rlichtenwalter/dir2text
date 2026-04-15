@@ -7,7 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Add `make publish TAG=X.Y.Z CONFIRM=yes` target for publishing tagged releases to PyPI; the target checks out the requested tag into an isolated git worktree, rebuilds from that pristine source, verifies the built artifact versions match the tag, and uploads via `uv publish`
+
 ### Fixed
+- Prevent inode leak in `FileSystemTree` traversal when `follow_symlinks=True` encounters a permission-denied directory: the traversal now discards its inode via a `finally` block on every exit path (normal, IGNORE'd `PermissionError`, and propagating exceptions), so a later symlink pointing at the same inode is no longer falsely reported as `[loop detected]`
+- Align file-stream order with tree-render order by sorting each directory's children canonically (directories first, then files, both case-insensitive by name) after tree construction; previously `iterate_files` and `iterate_symlinks` followed raw `os.listdir` order while the tree renderer showed a sorted view, so the two could disagree on mixed-case filesystems
 - Make `make publish` actually send credentials to PyPI by reading the `[pypi]` token from `~/.pypirc` and exporting it as `UV_PUBLISH_TOKEN` for the `uv publish` call; previously the target relied on `uv` auto-reading `~/.pypirc` (a twine convention `uv` does not implement), which caused every publish attempt to fail with a missing-credentials error
 
 ## [3.2.1] - 2026-04-15
