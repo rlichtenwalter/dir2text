@@ -31,17 +31,25 @@ class OutputStrategy(ABC):
         ...     def requires_tokens_in_start(self) -> bool:
         ...         return True  # Tokens must be in opening wrapper
         ...
-        ...     def format_start(self, path: str, token_count: Optional[int] = None) -> str:
-        ...         count_str = f' tokens="{token_count}"' if token_count is not None else ""
-        ...         return f"<file path='{path}'{count_str}>\\n"
+        ...     def format_start(
+        ...         self,
+        ...         relative_path: str,
+        ...         file_type: str = "text",
+        ...         file_token_count: int | None = None,
+        ...     ) -> str:
+        ...         count_str = f' tokens="{file_token_count}"' if file_token_count is not None else ""
+        ...         return f"<file path='{relative_path}' type='{file_type}'{count_str}>\\n"
         ...
         ...     def format_content(self, content: str) -> str:
         ...         return content
         ...
-        ...     def format_end(self, token_count: Optional[int] = None) -> str:
-        ...         if token_count is not None:
+        ...     def format_end(self, file_token_count: int | None = None) -> str:
+        ...         if file_token_count is not None:
         ...             raise ValueError("Token count not allowed in format_end")
         ...         return "</file>\\n"
+        ...
+        ...     def format_symlink(self, relative_path: str, target_path: str) -> str:
+        ...         return f"<symlink path='{relative_path}' target='{target_path}' />\\n"
         ...
         ...     def get_file_extension(self) -> str:
         ...         return ".custom"
