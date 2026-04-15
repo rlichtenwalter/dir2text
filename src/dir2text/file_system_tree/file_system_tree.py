@@ -137,8 +137,23 @@ class FileSystemTree:
         # Set the root node name to the resolved directory name
         if self._tree:
             self._tree.name = self.root_path.resolve().name
+            # Establish a canonical child order so iterate_files, iterate_symlinks,
+            # and get_tree_representation all walk the tree in the same order.
+            self._sort_children_canonical(self._tree)
 
         self._count_files_and_directories()
+
+    def _sort_children_canonical(self, node: FileSystemNode) -> None:
+        """Sort a node's children in canonical order, recursively.
+
+        Canonical order: directories first, then files/symlinks, both alphabetized
+        case-insensitively by name. This matches the key used by the tree renderer
+        in `stream_tree_representation`, so every consumer of the tree sees the same
+        ordering.
+        """
+        node.children = tuple(sorted(node.children, key=lambda n: (not n.is_dir, n.name.lower())))
+        for child in node.children:
+            self._sort_children_canonical(child)
 
     def _get_file_identifier(self, path: Path) -> FileIdentifier | None:
         """Get a FileIdentifier for a file/directory based on its inode and device.
@@ -237,12 +252,16 @@ class FileSystemTree:
         if not is_dir or loop_detected:
             return node
 
-        # For directories (or followed symlinks to directories), process children
+        # For directories (or followed symlinks to directories), process children.
+        # The inode is tracked in visited_inodes for the duration of this directory's
+        # subtree so we can detect loops. The finally clause guarantees the inode is
+        # removed on every exit path (normal completion, early return on IGNORE'd
+        # permission error, or propagating exception in RAISE mode). If the inode
+        # were left behind, a later path reaching the same inode via a symlink or
+        # hardlink would be falsely flagged as a loop.
+        if file_id is not None:
+            visited_inodes.add(file_id)
         try:
-            # Add this inode to visited set if identity is known
-            if file_id is not None:
-                visited_inodes.add(file_id)
-
             try:
                 children = sorted(os.listdir(path))
             except PermissionError as e:
@@ -256,16 +275,13 @@ class FileSystemTree:
                 child_relative_path = os.path.join(relative_path, child).replace("\\", "/")
                 self._create_node(child_path, child_relative_path, visited_inodes, parent=node)
 
-            # Remove this inode from visited set when we're done with this branch
-            # This allows revisiting the same directory through different paths
-            # that aren't part of a loop
-            if file_id is not None and file_id in visited_inodes:
-                visited_inodes.remove(file_id)
-
         except (OSError, PermissionError) as e:
             if self.permission_action == PermissionAction.RAISE:
                 raise PermissionError(f"Error accessing {path}: {e}") from e
             # For IGNORE, we keep the node but skip its contents
+        finally:
+            if file_id is not None:
+                visited_inodes.discard(file_id)
 
         return node
 

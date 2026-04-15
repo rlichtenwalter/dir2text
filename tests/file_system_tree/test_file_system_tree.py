@@ -287,6 +287,134 @@ def test_symlinks_with_exclusions(temp_directory_with_symlinks):
     assert "src/utils/loop" in symlink_paths  # Still included
 
 
+def test_iterate_and_render_order_match(tmp_path):
+    """Regression (B3): file iteration order must match tree-render order.
+
+    Before the canonical-sort pass was introduced in `_build_tree`, the tree renderer
+    sorted children as (dirs-first, case-insensitive by name) while `iterate_files`
+    walked children in the case-SENSITIVE byte order produced by `sorted(os.listdir(...))`.
+    The two output surfaces of the same tool disagreed on order.
+
+    This test pins the invariant: for any directory with mixed-case names, the
+    filenames appearing in `get_tree_representation` must appear in the same order
+    as the relative paths yielded by `iterate_files`.
+    """
+    (tmp_path / "B.py").touch()
+    (tmp_path / "a.py").touch()
+    (tmp_path / "A.py").touch()
+    (tmp_path / "b.py").touch()
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    (sub / "Y.py").touch()
+    (sub / "x.py").touch()
+
+    tree = FileSystemTree(str(tmp_path))
+
+    # Extract filenames from the rendered tree in the order they appear.
+    rendered_lines = tree.get_tree_representation().splitlines()
+    rendered_files = []
+    for line in rendered_lines[1:]:  # skip the root line
+        if "── " not in line:
+            continue
+        name = line.split("── ", 1)[1]
+        if name.endswith("/"):
+            continue  # directory line
+        rendered_files.append(name)
+
+    iterated = [rel.split("/")[-1] for _abs, rel in tree.iterate_files()]
+
+    assert iterated == rendered_files, (
+        f"iterate_files order ({iterated}) disagrees with tree-render order ({rendered_files})"
+    )
+
+
+def test_canonical_child_order_mixed_case(tmp_path):
+    """Regression (B3): canonical order is dirs-first, case-insensitive by name.
+
+    Pins the exact ordering so a future refactor doesn't silently regress the
+    key. Directories (uppercase or lowercase) come before any file, and within
+    each group names are alphabetized case-insensitively.
+    """
+    (tmp_path / "Zeta").mkdir()  # directory, uppercase
+    (tmp_path / "alpha").mkdir()  # directory, lowercase
+    (tmp_path / "Beta.py").touch()  # file, uppercase
+    (tmp_path / "apple.py").touch()  # file, lowercase
+    (tmp_path / "Cherry.py").touch()
+
+    tree = FileSystemTree(str(tmp_path))
+    root = tree.get_tree()
+    assert root is not None
+    child_names = [c.name for c in root.children]
+    # Directories first (alpha, Zeta — case-insensitive), then files (apple, Beta, Cherry)
+    assert child_names == ["alpha", "Zeta", "apple.py", "Beta.py", "Cherry.py"]
+
+
+def test_inode_not_leaked_on_permission_denied(tmp_path):
+    """Regression (B1): a permission-denied directory must not leak its inode.
+
+    Before the fix, `_create_node`'s early `return node` on a listdir PermissionError
+    (IGNORE mode) skipped the `visited_inodes.remove(file_id)` cleanup. A later path
+    reaching the same inode via a symlink would be falsely flagged as `[loop detected]`.
+
+    The scenario: `forbidden/` is permission-denied; `other/link_to_forbidden` is a
+    symlink pointing at it. With `follow_symlinks=True`, the symlink is a legitimate
+    reference to the forbidden directory — NOT a loop. The fix must render it as a
+    directory, not as a loop marker.
+    """
+    # Set up the forbidden directory and a symlink pointing to it from a sibling.
+    forbidden = tmp_path / "forbidden"
+    forbidden.mkdir()
+    (forbidden / "secret.txt").write_text("nope")
+
+    other = tmp_path / "other"
+    other.mkdir()
+    try:
+        os.symlink(forbidden, other / "link_to_forbidden")
+    except (OSError, NotImplementedError):
+        pytest.skip("Symlink creation not supported on this platform")
+
+    # Revoke read/execute permission on the forbidden directory AFTER creating
+    # the symlink (permission on the symlink itself doesn't matter on Linux).
+    forbidden.chmod(0)
+
+    try:
+        tree = FileSystemTree(str(tmp_path), follow_symlinks=True)
+        root = tree.get_tree()
+        assert root is not None
+
+        # Locate the symlink node in the tree.
+        link_node = next(
+            (n for n in root.descendants if n.name == "link_to_forbidden"),
+            None,
+        )
+        assert link_node is not None, "symlink node should appear in the tree"
+
+        # Before the fix, the target's inode was leaked into visited_inodes by
+        # forbidden/'s early return on PermissionError, so when we later reached
+        # link_to_forbidden its target inode was already in the set and the
+        # node was caught by the `loop_detected and is_symlink` branch — tagged
+        # with symlink_target = "[loop detected]".
+        #
+        # With the fix, the finally clause discards the inode on every exit
+        # path, so by the time we reach link_to_forbidden the set is clean:
+        # no false loop. The node is created via the normal follow_symlinks
+        # branch (is_symlink=False, is_dir=True) with no symlink_target tag.
+        #
+        # Note: the tree renderer hides [loop detected] nodes when
+        # follow_symlinks=True, so we cannot assert on rendered text — we must
+        # inspect the node object directly.
+        symlink_target = getattr(link_node, "symlink_target", None)
+        assert symlink_target != "[loop detected]", (
+            f"Permission-denied inode was leaked; symlink falsely flagged as loop. "
+            f"Got symlink_target={symlink_target!r}"
+        )
+        assert link_node.is_dir, "Followed symlink to a directory should have is_dir=True"
+        assert not link_node.is_symlink, "Followed symlink should have is_symlink=False (replaced with target)"
+    finally:
+        # Restore permissions so pytest can clean up tmp_path.
+        forbidden.chmod(0o755)
+
+
 def test_directory_count_flat_directory(tmp_path):
     """Test directory_count is 0 (not -1) for a flat directory with only files."""
     (tmp_path / "a.txt").touch()
