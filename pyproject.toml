@@ -1,6 +1,6 @@
 [project]
 name = "dir2text"
-version = "3.2.1"
+version = "3.2.2"
 description = "A Python library and command-line tool for expressing directory structures and file contents in formats suitable for Large Language Models (LLMs). It combines directory tree visualization with file contents in a memory-efficient, streaming format."
 readme = "README.md"
 license = "MIT"

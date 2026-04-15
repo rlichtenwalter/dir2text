@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+No changes yet.
+
+## [3.2.2] - 2026-04-15
+
 ### Added
 - Add `make publish TAG=X.Y.Z CONFIRM=yes` target for publishing tagged releases to PyPI; the target checks out the requested tag into an isolated git worktree, rebuilds from that pristine source, verifies the built artifact versions match the tag, and uploads via `uv publish`
 
