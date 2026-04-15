@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# Transient worktree used by `make publish`
+.publish-worktree/
+
 # Distribution / packaging
 .Python
 build/
