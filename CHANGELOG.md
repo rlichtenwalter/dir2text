@@ -7,7 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-No changes yet.
+### Fixed
+- Make `make publish` actually send credentials to PyPI by reading the `[pypi]` token from `~/.pypirc` and exporting it as `UV_PUBLISH_TOKEN` for the `uv publish` call; previously the target relied on `uv` auto-reading `~/.pypirc` (a twine convention `uv` does not implement), which caused every publish attempt to fail with a missing-credentials error
 
 ## [3.2.1] - 2026-04-15
 
