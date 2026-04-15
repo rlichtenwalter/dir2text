@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+No changes yet.
+
+## [3.2.0] - 2026-04-15
+
 ### Added
 - Add check-ast pre-commit hook for Python syntax validation
 - Add deptry dependency hygiene checking with Makefile target and pre-push hook
@@ -17,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 - Drop Python 3.9 support (EOL October 2025) — minimum is now Python 3.10
 - Pin dev tool versions for fleet-wide consistency (ruff 0.15.8, pyright 1.1.408, bandit 1.9.4, deptry 0.25.1, pytest 9.0.2)
+
+### Fixed
+- Fix doctest failures in `BaseExclusionRules.exclude` and `OutputStrategy` caused by unresolved `Union`/`Optional` references left over from the 3.0.2 type-annotation modernization; examples now use PEP 604 union syntax and reflect current method signatures
 
 ## [3.1.0] - 2026-03-16
 

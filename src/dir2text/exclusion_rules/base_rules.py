@@ -49,18 +49,18 @@ class BaseExclusionRules(ABC):
 
         Example:
             >>> import os
-            >>> from os import PathLike
+            >>> from collections.abc import Sequence
             >>> from dir2text.types import PathType
             >>> # Define a simple implementation
             >>> class SimpleExclusionRules(BaseExclusionRules):
-            ...     def __init__(self, rules_files: Union[PathType, Sequence[PathType]]):
+            ...     def __init__(self, rules_files: PathType | Sequence[PathType]):
             ...         self._has_tmp = False
             ...         self.load_rules(rules_files)
             ...
             ...     def exclude(self, path: str) -> bool:
             ...         return self._has_tmp and path.endswith(".tmp")
             ...
-            ...     def load_rules(self, rules_files: Union[PathType, Sequence[PathType]]) -> None:
+            ...     def load_rules(self, rules_files: PathType | Sequence[PathType]) -> None:
             ...         from pathlib import Path
             ...
             ...         if isinstance(rules_files, PathType):
