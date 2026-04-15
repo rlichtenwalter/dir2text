@@ -41,6 +41,10 @@ publish: ## Publish version TAG to PyPI (TAG=X.Y.Z CONFIRM=yes required)
 	  echo "ERROR: CONFIRM=yes required. Usage: make publish TAG=X.Y.Z CONFIRM=yes"; \
 	  exit 1; \
 	}
+	@test -f "$(HOME)/.pypirc" || { \
+	  echo "ERROR: ~/.pypirc not found — cannot read PyPI token"; \
+	  exit 1; \
+	}
 	@git rev-parse "v$(TAG)" >/dev/null 2>&1 || { \
 	  echo "ERROR: git tag v$(TAG) not found"; \
 	  exit 1; \
@@ -68,7 +72,12 @@ publish: ## Publish version TAG to PyPI (TAG=X.Y.Z CONFIRM=yes required)
 	  exit 1; \
 	fi; \
 	echo "Publishing dir2text $(TAG) to PyPI from dist/..."; \
-	uv publish
+	token=$$(awk -F'[[:space:]]*=[[:space:]]*' '/^\[pypi\]/{p=1;next} /^\[/{p=0} p && $$1=="password"{print $$2; exit}' "$(HOME)/.pypirc"); \
+	if [ -z "$$token" ]; then \
+	  echo "ERROR: could not read [pypi] password from ~/.pypirc"; \
+	  exit 1; \
+	fi; \
+	UV_PUBLISH_TOKEN="$$token" uv publish
 
 clean: ## Clean build artifacts
 	rm -rf .pytest_cache .ruff_cache __pycache__ dist build *.egg-info
