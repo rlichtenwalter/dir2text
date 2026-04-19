@@ -82,3 +82,6 @@ dmypy.json
 
 # Claude Code
 .claude/
+
+# NFS temporary files (appear when files are deleted while still open over NFS)
+.nfs*
