@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Add the canonical fleet-standard Quality CI job that runs `pre-commit run --all-files` at both the pre-commit and pre-push stages via pinned `pre-commit==4.5.1`, so the full hook suite is enforced in CI and not only on developer machines
+- Add a `make hooks-install` target that installs the pinned pre-commit version and registers both commit- and push-stage hooks in one step
+- Add top-level `default_stages: [pre-commit]` to `.pre-commit-config.yaml` so every hook has an explicit stage assignment
+
+### Changed
+- Ignore NFS temporary files (`.nfs*`) in `.gitignore` so `git status` stays clean on NFS-backed workstations where deleted-but-open files surface as `.nfsNNNN…` placeholders
+
 ### Fixed
-- Skip the `no-commit-to-branch` pre-commit hook in the CI Quality job: the hook guards local commits to `main`/`develop` and fired spuriously when the workflow checked out `develop`, failing the job despite no real issue
+- Install dev + all extras in the CI Quality job so the pre-push `make test` hook has the dependencies it invokes; previously the job ran with a bare checkout and the hook failed on missing tools
+- Skip the `no-commit-to-branch` pre-commit hook in the CI Quality job: the hook guards local commits to `main`/`develop` and fired spuriously when the workflow checked out `develop`, failing the job despite no real commit
 
 ## [3.2.2] - 2026-04-15
 
