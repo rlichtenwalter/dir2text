@@ -20,6 +20,21 @@ concurrency:
 
 jobs:
   # ==========================================================================
+  # Quality (pre-commit run --all-files at both stages)
+  # ==========================================================================
+  quality:
+    name: Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv + pre-commit
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - run: uvx --with pre-commit==4.5.1 pre-commit run --all-files --hook-stage pre-commit
+      - run: uvx --with pre-commit==4.5.1 pre-commit run --all-files --hook-stage pre-push
+
+  # ==========================================================================
   # Lint & Format Check
   # ==========================================================================
   lint:

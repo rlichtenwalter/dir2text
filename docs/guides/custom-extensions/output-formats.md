@@ -19,13 +19,13 @@ class SimpleTextStrategy(OutputStrategy):
         if file_token_count is not None:
             header += f" ({file_token_count} tokens)"
         return f"{header}\n"
-    
+
     def format_content(self, content: str) -> str:
         return content
-    
+
     def format_end(self, file_token_count: Optional[int] = None) -> str:
         return "\n" + "=" * 40 + "\n"
-    
+
     def get_file_extension(self) -> str:
         return ".txt"
 
@@ -50,13 +50,13 @@ class MarkdownStrategy(OutputStrategy):
         if file_token_count is not None:
             header += f"*Tokens: {file_token_count}*\n\n"
         return f"{header}```\n"
-    
+
     def format_content(self, content: str) -> str:
         return content
-    
+
     def format_end(self, file_token_count: Optional[int] = None) -> str:
         return "```\n\n---\n\n"
-    
+
     def get_file_extension(self) -> str:
         return ".md"
 ```
@@ -76,44 +76,44 @@ class HTMLStrategy(OutputStrategy):
         self.formatter = HtmlFormatter(style='monokai')
         self.current_file = None
         self._write_css = True
-    
+
     def format_start(self, relative_path: str, file_type: str = "text",
                     file_token_count: Optional[int] = None) -> str:
         self.current_file = relative_path
         result = []
-        
+
         # Add CSS on first file
         if self._write_css:
             result.append(f"<style>{self.formatter.get_style_defs()}</style>")
             self._write_css = False
-        
+
         title = html.escape(relative_path)
         if file_type == "binary":
             title += " [binary]"
-        
+
         result.extend([
             '<div class="file-container">',
             f'<h3>{title}</h3>'
         ])
-        
+
         if file_token_count is not None:
             result.append(
                 f'<div class="token-count">Tokens: {file_token_count}</div>'
             )
-        
+
         return '\n'.join(result)
-    
+
     def format_content(self, content: str) -> str:
         try:
             lexer = get_lexer_for_filename(self.current_file)
         except:
             lexer = TextLexer()
-        
+
         return highlight(content, lexer, self.formatter)
-    
+
     def format_end(self, file_token_count: Optional[int] = None) -> str:
         return '</div>\n'
-    
+
     def get_file_extension(self) -> str:
         return '.html'
 ```

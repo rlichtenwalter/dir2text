@@ -228,7 +228,7 @@ Warning: Skipping binary file: images/photo.jpg
 </directory>
 ```
 
-**encode** 
+**encode**
 ```bash
 dir2text /path/to/project -B encode
 
