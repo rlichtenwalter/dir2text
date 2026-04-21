@@ -1,4 +1,4 @@
-.PHONY: help install format lint typecheck security deps test check build publish clean
+.PHONY: help install hooks-install format lint typecheck security deps test check build publish clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -6,6 +6,11 @@ help: ## Show this help
 
 install: ## Install dependencies
 	uv sync
+
+hooks-install: ## Install pre-commit hooks (pinned version)
+	uv tool install --force pre-commit==4.5.1
+	pre-commit install --install-hooks
+	pre-commit install --hook-type pre-push
 
 format: ## Format code
 	uv run ruff check --fix src tests

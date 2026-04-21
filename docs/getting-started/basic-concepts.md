@@ -238,7 +238,7 @@ rules.load_rules(".gitignore")
 
 # Create analyzer
 analyzer = StreamingDir2Text(
-    "/path/to/project", 
+    "/path/to/project",
     exclusion_rules=rules,
     follow_symlinks=False,  # Default behavior, don't follow symlinks
     tokenizer_model="gpt-4"  # Optional, enable token counting

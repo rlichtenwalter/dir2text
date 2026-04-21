@@ -1,3 +1,5 @@
+default_stages: [pre-commit]
+
 repos:
   # --- Commit stage: formatting + file hygiene ---
   - repo: https://github.com/pre-commit/pre-commit-hooks

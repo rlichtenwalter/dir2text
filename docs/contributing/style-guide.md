@@ -113,7 +113,7 @@ PathType = Union[str, PathLike[str]]
 # Classes
 class FileSystemTree:
     """Tree representation of filesystem."""
-    
+
     def __init__(self, root_path: PathType) -> None:
         # Instance variables
         self.root_path = root_path
@@ -160,7 +160,7 @@ T = TypeVar('T')
 
 class Processor(Protocol):
     """Protocol for content processors."""
-    
+
     def process(self, content: str) -> str:
         """Process content."""
         ...
@@ -224,7 +224,7 @@ class StreamingDir2Text:
         directory: Path to the root directory
         exclude_file: Optional path to exclusion rules file
         streaming_complete: Whether all streaming is finished
-        
+
     Example:
         >>> analyzer = StreamingDir2Text("src")
         >>> for line in analyzer.stream_tree():
@@ -242,21 +242,21 @@ def process_content(
     normalize: bool = False,
 ) -> str:
     """Process content with optional normalization.
-    
+
     This method handles content processing while ensuring proper
     character encoding and normalization.
-    
+
     Args:
         content: The content to process
         normalize: Whether to normalize whitespace (default: False)
-        
+
     Returns:
         The processed content string
-        
+
     Raises:
         ValueError: If content contains invalid characters
         UnicodeError: If content cannot be encoded
-        
+
     Example:
         >>> processor.process_content("  text  ", normalize=True)
         'text'
@@ -269,16 +269,16 @@ def process_content(
 @property
 def token_count(self) -> int:
     """Total number of tokens processed.
-    
+
     This count accumulates during streaming operations and represents
     the total number of tokens processed so far.
-    
+
     Returns:
         Current token count
-        
+
     Note:
         Returns 0 if token counting is disabled
-        
+
     Example:
         >>> analyzer.token_count
         150
@@ -296,7 +296,7 @@ class Dir2TextError(Exception):
 
 class TokenizerError(Dir2TextError):
     """Base class for tokenizer errors."""
-    
+
     def __init__(self, message: str, details: Optional[str] = None) -> None:
         """Initialize with optional details."""
         self.details = details
@@ -340,7 +340,7 @@ def process_safely(self, path: str) -> None:
 ```python
 def test_file_system_tree_initialization(temp_directory):
     """Test basic initialization of FileSystemTree.
-    
+
     This test verifies that:
     1. The tree is initialized with correct path
     2. The tree is not built until accessed
@@ -356,16 +356,16 @@ def test_file_system_tree_initialization(temp_directory):
 ```python
 class TestFileSystemTree:
     """Tests for FileSystemTree class."""
-    
+
     class TestInitialization:
         """Initialization tests."""
-        
+
         def test_basic_init(self):
             """Test basic initialization."""
-    
+
     class TestTreeBuilding:
         """Tree building tests."""
-        
+
         def test_lazy_building(self):
             """Test lazy tree building."""
 ```
