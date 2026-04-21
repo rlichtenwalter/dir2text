@@ -7,7 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-No changes yet.
+### Fixed
+- Skip the `no-commit-to-branch` pre-commit hook in the CI Quality job: the hook guards local commits to `main`/`develop` and fired spuriously when the workflow checked out `develop`, failing the job despite no real issue
 
 ## [3.2.2] - 2026-04-15
 

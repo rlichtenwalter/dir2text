@@ -33,8 +33,15 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_PATH
       - name: Install dev + all extras (needed for make test invoked by pre-push hook)
         run: uv sync --group dev --extra all
+      # SKIP no-commit-to-branch: that hook guards local commits to protected
+      # branches; in CI it fires spuriously whenever the workflow checks out
+      # develop or main.
       - run: uvx --with pre-commit==4.5.1 pre-commit run --all-files --hook-stage pre-commit
+        env:
+          SKIP: no-commit-to-branch
       - run: uvx --with pre-commit==4.5.1 pre-commit run --all-files --hook-stage pre-push
+        env:
+          SKIP: no-commit-to-branch
 
   # ==========================================================================
   # Lint & Format Check
