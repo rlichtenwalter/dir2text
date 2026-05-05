@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Add the canonical fleet-standard Quality CI job that runs `pre-commit run --all-files` at both the pre-commit and pre-push stages via pinned `pre-commit==4.5.1`, so the full hook suite is enforced in CI and not only on developer machines
 - Add a `make hooks-install` target that installs the pinned pre-commit version and registers both commit- and push-stage hooks in one step
 - Add top-level `default_stages: [pre-commit]` to `.pre-commit-config.yaml` so every hook has an explicit stage assignment
+- Gitea Actions workflow `.gitea/workflows/mirror-release-to-github.yml` that mirrors Gitea releases to GitHub on every `release: published` event. Closes the gap left by Gitea's push mirror, which only mirrors git refs and not release metadata. Includes a `workflow_dispatch` path with a `tag` input for manual testing/debugging against any existing Gitea release. Idempotent (skip-if-exists). Prepends `> Originally released YYYY-MM-DD.` to the GitHub body only when the original Gitea release date differs from today, so real-time mirrors are unannotated and backfill-style runs are clearly marked.
 
 ### Changed
 - Ignore NFS temporary files (`.nfs*`) in `.gitignore` so `git status` stays clean on NFS-backed workstations where deleted-but-open files surface as `.nfsNNNN…` placeholders
