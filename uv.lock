@@ -366,7 +366,7 @@ provides-extras = ["token-counting", "all"]
 dev = [
     { name = "bandit", extras = ["toml"], specifier = "==1.9.4" },
     { name = "deptry", specifier = "==0.25.1" },
-    { name = "pre-commit", specifier = ">=4.0.1,<5" },
+    { name = "pre-commit", specifier = "==4.5.1" },
     { name = "pyright", specifier = "==1.1.408" },
     { name = "pytest", specifier = "==9.0.2" },
     { name = "pytest-cov", specifier = ">=5.0.0,<6" },

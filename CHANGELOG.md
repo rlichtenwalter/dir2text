@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 - Ignore NFS temporary files (`.nfs*`) in `.gitignore` so `git status` stays clean on NFS-backed workstations where deleted-but-open files surface as `.nfsNNNN…` placeholders
+- Standards alignment: `.pre-commit-config.yaml` adds `args: [--fix=lf]` to the `mixed-line-ending` hook (resolves `precommit.mixed_line_ending_fix_lf`); `.gitignore` adds the `.env.*` glob with `!.env.example` allow-list (resolves `universal.gitignore_env_secrets`); `pyproject.toml` pins `pre-commit==4.5.1` (was `>=4.0.1,<5`) for fleet-wide consistency.
 
 ### Fixed
 - Install dev + all extras in the CI Quality job so the pre-push `make test` hook has the dependencies it invokes; previously the job ran with a bare checkout and the hook failed on missing tools
