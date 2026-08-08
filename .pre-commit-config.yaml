@@ -73,6 +73,13 @@ repos:
         pass_filenames: false
         stages: [pre-push]
 
+      - id: security
+        name: Security scan (via Makefile)
+        entry: make security
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
       - id: test
         name: Unit Tests
         entry: uv run pytest

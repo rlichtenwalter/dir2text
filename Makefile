@@ -1,4 +1,4 @@
-.PHONY: help install hooks-install format lint typecheck security deps test check build publish clean
+.PHONY: help install hooks-install format format-check lint typecheck security deps test check build publish clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -16,6 +16,9 @@ format: ## Format code
 	uv run ruff check --fix src tests
 	uv run ruff format src tests
 
+format-check: ## Check formatting without mutating the working tree
+	uv run ruff format --check src tests
+
 lint: ## Run linter
 	uv run ruff check src tests
 
@@ -31,7 +34,7 @@ deps: ## Check dependency hygiene with deptry
 test: ## Run tests
 	uv run pytest
 
-check: format lint typecheck security deps test ## Run all checks
+check: format-check lint typecheck security deps test ## Run all checks
 
 build: ## Build sdist and wheel into dist/
 	rm -rf dist/
