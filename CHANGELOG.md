@@ -8,20 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- Add the canonical fleet-standard Quality CI job that runs `pre-commit run --all-files` at both the pre-commit and pre-push stages via pinned `pre-commit==4.5.1`, so the full hook suite is enforced in CI and not only on developer machines
+- Add the fleet-standard Quality CI job that runs the full pre-commit hook suite at both commit and push stages
 - Add a `make hooks-install` target that installs the pinned pre-commit version and registers both commit- and push-stage hooks in one step
 - Add top-level `default_stages: [pre-commit]` to `.pre-commit-config.yaml` so every hook has an explicit stage assignment
-- Gitea Actions workflow `.gitea/workflows/mirror-release-to-github.yml` that mirrors Gitea releases to GitHub on every `release: published` event. Closes the gap left by Gitea's push mirror, which only mirrors git refs and not release metadata. Includes a `workflow_dispatch` path with a `tag` input for manual testing/debugging against any existing Gitea release. Idempotent (skip-if-exists). Prepends `> Originally released YYYY-MM-DD.` to the GitHub body only when the original Gitea release date differs from today, so real-time mirrors are unannotated and backfill-style runs are clearly marked.
+- Mirror Gitea releases to GitHub automatically on every `release: published` event
+  - Manual `workflow_dispatch` run with a `tag` input backfills any existing release
 - Run `bandit` security scanning as a push-stage pre-commit hook, so it is enforced in CI and on push instead of only when invoked by hand via `make security`
 
 ### Changed
 - Ignore NFS temporary files (`.nfs*`) in `.gitignore` so `git status` stays clean on NFS-backed workstations where deleted-but-open files surface as `.nfsNNNN…` placeholders
-- Standards alignment: `.pre-commit-config.yaml` adds `args: [--fix=lf]` to the `mixed-line-ending` hook (resolves `precommit.mixed_line_ending_fix_lf`); `.gitignore` adds the `.env.*` glob with `!.env.example` allow-list (resolves `universal.gitignore_env_secrets`); `pyproject.toml` pins `pre-commit==4.5.1` (was `>=4.0.1,<5`) for fleet-wide consistency.
+- Align with fleet standards: `mixed-line-ending` hook now forces LF, `.gitignore` ignores `.env.*` (allowing `.env.example`), and `pre-commit` is pinned to 4.5.1
 
 ### Fixed
 - `make check` now uses a non-mutating `format-check` step instead of `format`, so it can no longer paper over formatting drift by auto-fixing it before reporting success
 - Install dev + all extras in the CI Quality job so the pre-push `make test` hook has the dependencies it invokes; previously the job ran with a bare checkout and the hook failed on missing tools
-- Skip the `no-commit-to-branch` pre-commit hook in the CI Quality job: the hook guards local commits to `main`/`develop` and fired spuriously when the workflow checked out `develop`, failing the job despite no real commit
+- Skip the `no-commit-to-branch` pre-commit hook in the CI Quality job, where it fired spuriously on checked-out protected branches
 
 ## [3.2.2] - 2026-04-15
 
