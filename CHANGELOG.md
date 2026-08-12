@@ -8,30 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- Add the canonical fleet-standard Quality CI job that runs `pre-commit run --all-files` at both the pre-commit and pre-push stages via pinned `pre-commit==4.5.1`, so the full hook suite is enforced in CI and not only on developer machines
+- Add the fleet-standard Quality CI job that runs the full pre-commit hook suite at both commit and push stages
 - Add a `make hooks-install` target that installs the pinned pre-commit version and registers both commit- and push-stage hooks in one step
 - Add top-level `default_stages: [pre-commit]` to `.pre-commit-config.yaml` so every hook has an explicit stage assignment
-- Gitea Actions workflow `.gitea/workflows/mirror-release-to-github.yml` that mirrors Gitea releases to GitHub on every `release: published` event. Closes the gap left by Gitea's push mirror, which only mirrors git refs and not release metadata. Includes a `workflow_dispatch` path with a `tag` input for manual testing/debugging against any existing Gitea release. Idempotent (skip-if-exists). Prepends `> Originally released YYYY-MM-DD.` to the GitHub body only when the original Gitea release date differs from today, so real-time mirrors are unannotated and backfill-style runs are clearly marked.
+- Mirror Gitea releases to GitHub automatically on every `release: published` event
+  - Manual `workflow_dispatch` run with a `tag` input backfills any existing release
 - Run `bandit` security scanning as a push-stage pre-commit hook, so it is enforced in CI and on push instead of only when invoked by hand via `make security`
 
 ### Changed
 - Ignore NFS temporary files (`.nfs*`) in `.gitignore` so `git status` stays clean on NFS-backed workstations where deleted-but-open files surface as `.nfsNNNN…` placeholders
-- Standards alignment: `.pre-commit-config.yaml` adds `args: [--fix=lf]` to the `mixed-line-ending` hook (resolves `precommit.mixed_line_ending_fix_lf`); `.gitignore` adds the `.env.*` glob with `!.env.example` allow-list (resolves `universal.gitignore_env_secrets`); `pyproject.toml` pins `pre-commit==4.5.1` (was `>=4.0.1,<5`) for fleet-wide consistency.
+- Align with fleet standards: `mixed-line-ending` hook now forces LF, `.gitignore` covers `.env.*` secrets, and `pre-commit` is pinned to 4.5.1
 
 ### Fixed
 - `make check` now uses a non-mutating `format-check` step instead of `format`, so it can no longer paper over formatting drift by auto-fixing it before reporting success
 - Install dev + all extras in the CI Quality job so the pre-push `make test` hook has the dependencies it invokes; previously the job ran with a bare checkout and the hook failed on missing tools
-- Skip the `no-commit-to-branch` pre-commit hook in the CI Quality job: the hook guards local commits to `main`/`develop` and fired spuriously when the workflow checked out `develop`, failing the job despite no real commit
+- Skip the `no-commit-to-branch` pre-commit hook in the CI Quality job, where it fired spuriously on checked-out protected branches
 
 ## [3.2.2] - 2026-04-15
 
 ### Added
-- Add `make publish TAG=X.Y.Z CONFIRM=yes` target for publishing tagged releases to PyPI; the target checks out the requested tag into an isolated git worktree, rebuilds from that pristine source, verifies the built artifact versions match the tag, and uploads via `uv publish`
+- Add `make publish TAG=X.Y.Z CONFIRM=yes` target that rebuilds the named tag from pristine source and publishes it to PyPI
 
 ### Fixed
-- Prevent inode leak in `FileSystemTree` traversal when `follow_symlinks=True` encounters a permission-denied directory: the traversal now discards its inode via a `finally` block on every exit path (normal, IGNORE'd `PermissionError`, and propagating exceptions), so a later symlink pointing at the same inode is no longer falsely reported as `[loop detected]`
-- Align file-stream order with tree-render order by sorting each directory's children canonically (directories first, then files, both case-insensitive by name) after tree construction; previously `iterate_files` and `iterate_symlinks` followed raw `os.listdir` order while the tree renderer showed a sorted view, so the two could disagree on mixed-case filesystems
-- Make `make publish` actually send credentials to PyPI by reading the `[pypi]` token from `~/.pypirc` and exporting it as `UV_PUBLISH_TOKEN` for the `uv publish` call; previously the target relied on `uv` auto-reading `~/.pypirc` (a twine convention `uv` does not implement), which caused every publish attempt to fail with a missing-credentials error
+- Fix `FileSystemTree` inode leak on permission-denied directories that caused false `[loop detected]` reports with `follow_symlinks=True`
+- Align file-stream order with tree-render order by sorting each directory's children canonically (directories first, then files, case-insensitive by name)
+- Fix `make publish` failing with a missing-credentials error by reading the PyPI token from `~/.pypirc` and passing it to `uv publish`
 
 ## [3.2.1] - 2026-04-15
 
@@ -52,7 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Pin dev tool versions for fleet-wide consistency (ruff 0.15.8, pyright 1.1.408, bandit 1.9.4, deptry 0.25.1, pytest 9.0.2)
 
 ### Fixed
-- Fix doctest failures in `BaseExclusionRules.exclude` and `OutputStrategy` caused by unresolved `Union`/`Optional` references left over from the 3.0.2 type-annotation modernization; examples now use PEP 604 union syntax and reflect current method signatures
+- Fix doctest failures in `BaseExclusionRules.exclude` and `OutputStrategy` caused by stale `Union`/`Optional` references from the 3.0.2 type-annotation modernization
 
 ## [3.1.0] - 2026-03-16
 
