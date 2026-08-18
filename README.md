@@ -300,7 +300,7 @@ uv run pre-commit run --all-files --hook-stage pre-push  # Push-stage hooks
 
 ### CI Pipeline
 
-CI runs automatically on pushes and pull requests to `main` and `develop`:
+CI runs automatically on pushes and pull requests to `main`:
 
 1. **Lint & Format** — ruff check + format verification
 2. **Type Check** — pyright strict mode

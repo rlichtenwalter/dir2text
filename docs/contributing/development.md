@@ -46,7 +46,7 @@ git checkout -b docs/topic-name
 2. Keep your branch up to date:
 ```bash
 git fetch origin
-git rebase origin/develop
+git rebase origin/main
 ```
 
 ### Code Quality

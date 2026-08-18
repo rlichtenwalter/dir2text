@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 - Ignore NFS temporary files (`.nfs*`) in `.gitignore` so `git status` stays clean on NFS-backed workstations where deleted-but-open files surface as `.nfsNNNN…` placeholders
 - Align with fleet standards: `mixed-line-ending` hook now forces LF, `.gitignore` ignores `.env.*` (allowing `.env.example`), and `pre-commit` is pinned to 4.5.1
+- Remove retired develop branch from CI triggers, branch guards, and docs
 
 ### Fixed
 - `make check` now uses a non-mutating `format-check` step instead of `format`, so it can no longer paper over formatting drift by auto-fixing it before reporting success
