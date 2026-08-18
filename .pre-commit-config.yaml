@@ -20,7 +20,7 @@ repos:
       - id: check-ast
       - id: debug-statements
       - id: no-commit-to-branch
-        args: [--branch, main, --branch, develop]
+        args: [--branch, main]
 
   - repo: local
     hooks:
