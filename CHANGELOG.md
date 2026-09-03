@@ -24,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Restore the six `style/prettier` rules the inlined preset had dropped (`code-fence-style`, `heading-start-left`, `heading-style`, `no-blanks-blockquote`, `no-hard-tabs`, `no-multiple-space-blockquote`), and drop `trailing-spaces`, which is not a rule name and so disabled nothing
 - The command-line guide's Permission Handling section rendered as a literal code block instead of a section, hiding its heading, prose and examples
 - `make check` now uses a non-mutating `format-check` step instead of `format`, so it can no longer paper over formatting drift by auto-fixing it before reporting success
 - Install dev + all extras in the CI Quality job so the pre-push `make test` hook has the dependencies it invokes; previously the job ran with a bare checkout and the hook failed on missing tools
