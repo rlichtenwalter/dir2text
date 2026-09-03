@@ -1,6 +1,8 @@
 # Creating Custom Exclusion Rules
 
-This guide covers the creation and implementation of custom exclusion rules for dir2text. Learn how to control which files and directories are processed based on your specific needs.
+This guide covers the creation and implementation of custom exclusion rules for
+dir2text. Learn how to control which files and directories are processed based
+on your specific needs.
 
 ## Built-in Rule Types
 
@@ -165,11 +167,13 @@ rules = CustomCompositeRules([
 
 ### Supporting Multiple Rule Files
 
-When implementing custom exclusion rules, it's important to properly handle multiple rule files. Your implementation should:
+When implementing custom exclusion rules, it's important to properly handle
+multiple rule files. Your implementation should:
 
 1. Accept either a single file path or a list of file paths in `load_rules`
 2. Process each file according to your rule logic
-3. Determine how rules from multiple files interact (e.g., most restrictive wins, last rule wins)
+3. Determine how rules from multiple files interact (e.g., most restrictive
+   wins, last rule wins)
 
 Example pattern for handling multiple files:
 
@@ -213,6 +217,7 @@ class CachedExclusionRules(BaseExclusionRules):
 ## Best Practices
 
 ### 1. Rule Design
+
 - Keep rules focused and single-purpose
 - Use composition for complex rules
 - Implement clear error handling
@@ -220,17 +225,20 @@ class CachedExclusionRules(BaseExclusionRules):
 - Support multiple rule files
 
 ### 2. Performance
+
 - Cache expensive operations
 - Optimize pattern matching
 - Use fast checks first
 - Monitor memory usage
 
 ### 3. Error Handling
+
 - Handle file system errors gracefully
 - Provide meaningful error messages
 - Fail safely (don't exclude on errors)
 
 ### 4. Multiple Rule Files
+
 - Define clear precedence rules when combining multiple files
 - Document how rules interact when using multiple sources
 - Consider order-dependent behavior for negation patterns

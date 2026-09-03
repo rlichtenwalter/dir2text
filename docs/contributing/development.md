@@ -5,24 +5,28 @@
 ### Prerequisites
 
 - Python 3.9.1 or later
-- [uv](https://docs.astral.sh/uv/getting-started/installation/) for dependency management
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) for dependency
+  management
 - Git for version control
 - A Rust compiler and Cargo (for token counting development)
 
 ### Initial Setup
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/rlichtenwalter/dir2text.git
 cd dir2text
 ```
 
 2. Install dependencies (creates virtual environment automatically):
+
 ```bash
 uv sync --group dev --extra all
 ```
 
 3. Install pre-commit hooks:
+
 ```bash
 uv run pre-commit install --hook-type pre-commit --hook-type pre-push
 ```
@@ -32,6 +36,7 @@ uv run pre-commit install --hook-type pre-commit --hook-type pre-push
 ### Branch Management
 
 1. Create a feature branch:
+
 ```bash
 # For new features
 git checkout -b feature/your-feature-name
@@ -44,6 +49,7 @@ git checkout -b docs/topic-name
 ```
 
 2. Keep your branch up to date:
+
 ```bash
 git fetch origin
 git rebase origin/main
@@ -90,7 +96,7 @@ uv run pytest tests/integration/test_cli.py --run-cli-tests
 
 ## Project Structure
 
-```
+```text
 dir2text/
 ├── src/
 │   └── dir2text/
@@ -108,6 +114,7 @@ dir2text/
 ### Code Style
 
 1. Follow PEP 8 with these adjustments:
+
 ```python
 # Maximum line length is 120 characters
 from typing import (
@@ -124,6 +131,7 @@ my_list = [
 ```
 
 2. Use type hints:
+
 ```python
 from typing import Optional, Sequence
 
@@ -139,6 +147,7 @@ def process_items(
 ### Documentation
 
 1. Module Documentation:
+
 ```python
 """Module description.
 
@@ -154,6 +163,7 @@ Example:
 ```
 
 2. Class Documentation:
+
 ```python
 class ExampleClass:
     """Class purpose and behavior.
@@ -171,6 +181,7 @@ class ExampleClass:
 ```
 
 3. Method Documentation:
+
 ```python
 def example_method(self, param: str) -> bool:
     """Short description.
@@ -196,6 +207,7 @@ def example_method(self, param: str) -> bool:
 ### Error Handling
 
 1. Exception Hierarchy:
+
 ```python
 # In exceptions.py
 class TokenizerError(Dir2TextError):
@@ -210,6 +222,7 @@ class TokenizerNotAvailableError(TokenizerError):
 ### Test Organization
 
 1. Test File Structure:
+
 ```python
 """Tests for module_name."""
 
@@ -236,6 +249,7 @@ class TestTestedClass:
 ```
 
 2. Test Categories:
+
 ```python
 # Unit tests (test_*.py)
 def test_individual_function():
@@ -245,6 +259,7 @@ def test_individual_function():
 ### Writing Tests
 
 1. Arrange-Act-Assert Pattern:
+
 ```python
 def test_file_processing():
     # Arrange
@@ -262,6 +277,7 @@ def test_file_processing():
 ```
 
 2. Using Fixtures:
+
 ```python
 @pytest.fixture
 def test_directory(tmp_path):
@@ -283,18 +299,21 @@ def test_tree_building(test_directory):
    - Update CHANGELOG.md
 
 2. Create Release Commit:
+
 ```bash
 git add pyproject.toml CHANGELOG.md
 git commit -m "chore: release version X.Y.Z"
 ```
 
 3. Tag Release:
+
 ```bash
 git tag -a vX.Y.Z -m "Version X.Y.Z"
 git push origin vX.Y.Z
 ```
 
 4. Build and Publish:
+
 ```bash
 # Build distribution
 uv build
