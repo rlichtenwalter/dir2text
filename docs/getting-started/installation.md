@@ -1,6 +1,7 @@
 # Installation Guide
 
-This guide covers installation methods for dir2text and its optional token counting feature.
+This guide covers installation methods for dir2text and its optional token
+counting feature.
 
 ## Prerequisites
 
@@ -21,17 +22,20 @@ pip install "dir2text[token_counting]"
 ## Token Counting Support
 
 The token counting feature requires additional dependencies:
+
 - tiktoken library
 - Rust compiler (for tiktoken installation)
 
 ### Installing Rust (for token counting)
 
-#### Linux/macOS:
+#### Linux/macOS
+
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-#### Windows:
+#### Windows
+
 1. Download and run [rustup-init.exe](https://win.rustup.rs/)
 2. Follow the installation prompts
 
@@ -82,6 +86,7 @@ except ImportError:
 ### Token Counter Not Available
 
 If you see "TokenizerNotAvailableError":
+
 1. Install with token counting support:
    ```bash
    pip install "dir2text[token_counting]"
@@ -92,6 +97,7 @@ If you see "TokenizerNotAvailableError":
 ### Permission Errors
 
 If you encounter permission errors:
+
 1. On Unix-like systems:
    - Use `sudo` or install in a virtual environment
 2. On Windows:
@@ -127,7 +133,9 @@ pip uninstall dir2text
 ## Getting Help
 
 If you encounter installation issues:
+
 1. Check the error message carefully
 2. Verify prerequisites are met
 3. Try the solutions in Common Issues
-4. Create an issue in the [GitHub repository](https://github.com/rlichtenwalter/dir2text)
+4. Create an issue in the
+   [GitHub repository](https://github.com/rlichtenwalter/dir2text)

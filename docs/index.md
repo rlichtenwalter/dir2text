@@ -1,6 +1,10 @@
 # dir2text Documentation
 
-`dir2text` is a Python library and command-line tool for converting directory structures into human and machine-readable text representations. It's particularly useful for preparing codebases for Large Language Model (LLM) analysis, creating documentation, or archiving directory structures with content.
+`dir2text` is a Python library and command-line tool for converting directory
+structures into human and machine-readable text representations. It's
+particularly useful for preparing codebases for Large Language Model (LLM)
+analysis, creating documentation, or archiving directory structures with
+content.
 
 ## Quick Start
 
@@ -26,17 +30,20 @@ dir2text /path/to/directory --tokenizer gpt-4
 - Directory tree visualization similar to the Unix `tree` command
 - Complete file content extraction with XML or JSON formatting
 - GitIgnore-style pattern exclusions
-- Optional token counting for LLM context management (with `token_counting` extra)
+- Optional token counting for LLM context management (with `token_counting`
+  extra)
 - Python API for programmatic use
 
 ## Common Use Cases
 
 1. **LLM Code Analysis**
+
    ```bash
    dir2text /path/to/project -e .gitignore --tokenizer gpt-4 > project.txt
    ```
 
 2. **Project Documentation**
+
    ```bash
    dir2text /path/to/project --no-contents > structure.txt
    ```

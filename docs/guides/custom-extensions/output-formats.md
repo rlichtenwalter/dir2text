@@ -1,6 +1,8 @@
 # Creating Custom Output Formats
 
-This guide covers how to create custom output formats in dir2text by implementing the `OutputStrategy` interface. Learn how to format directory content in ways that suit your specific needs.
+This guide covers how to create custom output formats in dir2text by
+implementing the `OutputStrategy` interface. Learn how to format directory
+content in ways that suit your specific needs.
 
 ## Basic Implementation
 
@@ -39,7 +41,7 @@ printer = FileContentPrinter(fs_tree, SimpleTextStrategy())
 
 ### Markdown Format
 
-```python
+````python
 class MarkdownStrategy(OutputStrategy):
     def format_start(self, relative_path: str, file_type: str = "text",
                     file_token_count: Optional[int] = None) -> str:
@@ -59,7 +61,7 @@ class MarkdownStrategy(OutputStrategy):
 
     def get_file_extension(self) -> str:
         return ".md"
-```
+````
 
 ## Advanced Implementations
 

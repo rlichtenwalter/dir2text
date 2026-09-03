@@ -1,6 +1,11 @@
+<!-- markdownlint-disable-file MD034 -->
+
 # dir2text
 
-A Python library and command-line tool for expressing directory structures and file contents in formats suitable for Large Language Models (LLMs). It combines directory tree visualization with file contents in a memory-efficient, streaming format.
+A Python library and command-line tool for expressing directory structures and
+file contents in formats suitable for Large Language Models (LLMs). It combines
+directory tree visualization with file contents in a memory-efficient, streaming
+format.
 
 ## Features
 
@@ -24,17 +29,21 @@ pip install dir2text
 ### Optional Features
 
 Install with token counting support (for LLM context management):
+
 ```bash
 pip install "dir2text[token_counting]"
 ```
 
-**Note:** The `token_counting` feature requires the `tiktoken` package, which needs a Rust compiler (e.g., `rustc`) and Cargo to be available during installation.
+**Note:** The `token_counting` feature requires the `tiktoken` package, which
+needs a Rust compiler (e.g., `rustc`) and Cargo to be available during
+installation.
 
 ## Usage
 
 ### Command Line Interface
 
 Basic usage:
+
 ```bash
 dir2text /path/to/project
 
@@ -76,7 +85,8 @@ By default, symbolic links are represented as symlinks without following them:
 dir2text /path/to/project
 ```
 
-This shows symlinks clearly marked with their targets in the tree output, and as separate elements in content output.
+This shows symlinks clearly marked with their targets in the tree output, and as
+separate elements in content output.
 
 To follow symbolic links during traversal (similar to Unix `find -L`):
 
@@ -84,11 +94,14 @@ To follow symbolic links during traversal (similar to Unix `find -L`):
 dir2text -L /path/to/project
 ```
 
-This includes the content that symlinks point to, while still protecting against symlink loops.
+This includes the content that symlinks point to, while still protecting against
+symlink loops.
 
 ### Summary Reporting
 
-Dir2text can generate a summary describing the processed directory including file counts, line counts, and optionally token counts. You can control where this information is displayed:
+Dir2text can generate a summary describing the processed directory including
+file counts, line counts, and optionally token counts. You can control where
+this information is displayed:
 
 ```bash
 # Print summary to stderr
@@ -104,11 +117,14 @@ dir2text -s file -o output.txt /path/to/project
 dir2text -s stderr -t gpt-4 /path/to/project
 ```
 
-Summary includes counts of directories, files, symlinks, lines, and characters. Token counts are only included when a tokenizer model is specified with the `-t` option.
+Summary includes counts of directories, files, symlinks, lines, and characters.
+Token counts are only included when a tokenizer model is specified with the `-t`
+option.
 
 ### Python API
 
 Basic usage:
+
 ```python
 from dir2text import StreamingDir2Text
 from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
@@ -136,6 +152,7 @@ print(f"Found {analyzer.symlink_count} symbolic links")
 ```
 
 Memory-efficient processing with token counting:
+
 ```python
 from dir2text import StreamingDir2Text
 from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
@@ -173,6 +190,7 @@ print(f"Characters: {analyzer.character_count}")
 ```
 
 Immediate processing (for smaller directories):
+
 ```python
 from dir2text import Dir2Text
 from dir2text.exclusion_rules.git_rules import GitIgnoreExclusionRules
@@ -197,6 +215,7 @@ print(analyzer.content_string)
 ## Output Formats
 
 ### XML Format
+
 ```xml
 <file path="relative/path/to/file.py" content_type="text" tokens="150">
 def example():
@@ -206,6 +225,7 @@ def example():
 ```
 
 ### JSON Format
+
 ```json
 {
   "type": "file",
@@ -223,12 +243,17 @@ def example():
 
 ## Signal Handling
 
-When using dir2text as a command-line tool, it handles system signals gracefully to ensure proper resource management and clean exits:
+When using dir2text as a command-line tool, it handles system signals gracefully
+to ensure proper resource management and clean exits:
 
-- **SIGPIPE**: When piping output to programs like `head`, `less`, or `grep` that may terminate before reading all input, dir2text detects the closed pipe and exits cleanly without error messages.
-- **SIGINT** (Ctrl+C): Properly handles user interruption, ensuring all resources are cleaned up.
+- **SIGPIPE**: When piping output to programs like `head`, `less`, or `grep`
+  that may terminate before reading all input, dir2text detects the closed pipe
+  and exits cleanly without error messages.
+- **SIGINT** (Ctrl+C): Properly handles user interruption, ensuring all
+  resources are cleaned up.
 
-This means you can safely pipe dir2text output to other commands without worrying about error messages when those commands exit:
+This means you can safely pipe dir2text output to other commands without
+worrying about error messages when those commands exit:
 
 ```bash
 # The first 10 lines of output
@@ -243,7 +268,8 @@ dir2text /path/to/project | grep "function"
 ### Prerequisites
 
 - Python 3.9.1 or later
-- [uv](https://docs.astral.sh/uv/getting-started/installation/) for dependency management
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) for dependency
+  management
 - Git for version control
 - Optional: Rust compiler and Cargo (for token counting feature)
 
@@ -289,7 +315,8 @@ uv run pytest tests/integration/test_cli.py --run-cli-tests
 The project uses a two-tier hook strategy:
 
 - **On commit**: Auto-formatting with ruff (fix + format)
-- **On push**: Linting, format check, type checking, unit tests, and integration tests
+- **On push**: Linting, format check, type checking, unit tests, and integration
+  tests
 
 Hooks run automatically after setup. To run all hooks manually:
 
@@ -326,13 +353,17 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
+for details.
 
 ## Acknowledgments
 
-- This project uses [anytree](https://github.com/c0fec0de/anytree) for tree data structures
-- .gitignore pattern matching uses [pathspec](https://github.com/cpburnz/python-pathspec)
-- Token counting functionality is provided by OpenAI's [tiktoken](https://github.com/openai/tiktoken)
+- This project uses [anytree](https://github.com/c0fec0de/anytree) for tree data
+  structures
+- .gitignore pattern matching uses
+  [pathspec](https://github.com/cpburnz/python-pathspec)
+- Token counting functionality is provided by OpenAI's
+  [tiktoken](https://github.com/openai/tiktoken)
 
 ## Project Status
 
@@ -340,45 +371,64 @@ This project is actively maintained. Issues and pull requests are welcome.
 
 ## FAQ
 
-**Q: Why use streaming processing?**
-A: Streaming allows processing of large directories and files with constant memory usage, making it suitable for processing repositories of any size.
+**Q: Why use streaming processing?** A: Streaming allows processing of large
+directories and files with constant memory usage, making it suitable for
+processing repositories of any size.
 
-**Q: How does dir2text handle symbolic links?**
-A: By default, dir2text represents symlinks as symbolic links in both tree and content output without following them. With the `-L` option, it follows symlinks similar to Unix tools like `find -L`. In both modes, symlink loop detection prevents infinite recursion.
+**Q: How does dir2text handle symbolic links?** A: By default, dir2text
+represents symlinks as symbolic links in both tree and content output without
+following them. With the `-L` option, it follows symlinks similar to Unix tools
+like `find -L`. In both modes, symlink loop detection prevents infinite
+recursion.
 
-**Q: Can I use this with binary files?**
-A: Yes! dir2text provides flexible binary file handling with the `-B/--binary-action` option:
+**Q: Can I use this with binary files?** A: Yes! dir2text provides flexible
+binary file handling with the `-B/--binary-action` option:
+
 - `ignore` (default): Skip binary files silently
 - `warn`: Skip binary files with warnings to stderr
 - `encode`: Include binary files as base64-encoded content
 - `fail`: Stop processing when a binary file is encountered
 
-You can also exclude binary files entirely using the exclusion rules feature for better performance.
+You can also exclude binary files entirely using the exclusion rules feature for
+better performance.
 
-**Q: What models are supported for token counting?**
-A: The token counting feature uses OpenAI's tiktoken library with the following primary models and encodings:
+**Q: What models are supported for token counting?** A: The token counting
+feature uses OpenAI's tiktoken library with the following primary models and
+encodings:
+
 - cl100k_base encoding:
   - GPT-4 models (gpt-4, gpt-4-32k)
   - GPT-3.5-Turbo models (gpt-3.5-turbo)
 - p50k_base encoding:
   - Text Davinci models (text-davinci-003)
 
-For other language models, using a similar model's tokenizer (like gpt-4) can provide useful approximations of token counts. While the counts may not exactly match your target model's tokenization, they can give a good general estimate. The default model is "gpt-4", which uses cl100k_base encoding and provides a good general-purpose tokenization.
+For other language models, using a similar model's tokenizer (like gpt-4) can
+provide useful approximations of token counts. While the counts may not exactly
+match your target model's tokenization, they can give a good general estimate.
+The default model is "gpt-4", which uses cl100k_base encoding and provides a
+good general-purpose tokenization.
 
-**Q: What happens if I specify a model that doesn't have a dedicated tokenizer?**
-A: The library will suggest using a well-supported model like 'gpt-4' or 'text-davinci-003' for token counting. While token counts may not exactly match your target model, they can provide useful approximations for most modern language models.
+**Q: What happens if I specify a model that doesn't have a dedicated
+tokenizer?** A: The library will suggest using a well-supported model like
+'gpt-4' or 'text-davinci-003' for token counting. While token counts may not
+exactly match your target model, they can provide useful approximations for most
+modern language models.
 
-**Q: How can I control where summary information is displayed?**
-A: Use the `-s/--summary` option to control where summary information is displayed:
-  - `-s stderr`: Print summary to stderr
-  - `-s stdout`: Print summary to stdout
-  - `-s file`: Include summary in the output file (requires `-o`)
+**Q: How can I control where summary information is displayed?** A: Use the
+`-s/--summary` option to control where summary information is displayed:
 
-**Q: Is token counting required for summary reporting?**
-A: No. Basic statistics (e.g., file count, directory count, etc.,) are available without token counting. Including token counts in summary requires the `-t/--tokenizer` option to be specified along with `-s/--summary`.
+- `-s stderr`: Print summary to stderr
+- `-s stdout`: Print summary to stdout
+- `-s file`: Include summary in the output file (requires `-o`)
+
+**Q: Is token counting required for summary reporting?** A: No. Basic statistics
+(e.g., file count, directory count, etc.,) are available without token counting.
+Including token counts in summary requires the `-t/--tokenizer` option to be
+specified along with `-s/--summary`.
 
 ## Contact
 
 Ryan N. Lichtenwalter - rlichtenwalter@gmail.com
 
-Project Link: [https://github.com/rlichtenwalter/dir2text](https://github.com/rlichtenwalter/dir2text)
+Project Link:
+[https://github.com/rlichtenwalter/dir2text](https://github.com/rlichtenwalter/dir2text)

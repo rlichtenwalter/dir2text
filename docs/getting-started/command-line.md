@@ -2,7 +2,8 @@
 
 ## Overview
 
-The `dir2text` command-line interface converts directory structures into text representations suitable for analysis or LLM processing.
+The `dir2text` command-line interface converts directory structures into text
+representations suitable for analysis or LLM processing.
 
 ## Basic Usage
 
@@ -12,21 +13,21 @@ dir2text [OPTIONS] DIRECTORY
 
 ## Options
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| `-V, --version` | Show version information and exit | `dir2text --version` |
-| `-o, --output FILE` | Output file path | `dir2text dir -o output.txt` |
-| `-e, --exclude FILE` | Path to exclusion file (can be specified multiple times) | `dir2text dir -e .gitignore -e .npmignore` |
-| `-i, --ignore PATTERN` | Individual pattern to exclude (can be specified multiple times) | `dir2text dir -i "*.pyc" -i "node_modules/"` |
-| `-L, --follow-symlinks` | Follow symbolic links during traversal | `dir2text dir -L` |
-| `-f, --format FORMAT` | Output format (xml/json) | `dir2text dir -f json` |
-| `-T, --no-tree` | Skip directory tree | `dir2text dir -T` |
-| `-C, --no-contents` | Skip file contents | `dir2text dir -C` |
-| `-s, --summary` | Print summary report (stderr, stdout, or file) | `dir2text dir -s stderr` |
-| `-t, --tokenizer MODEL` | Model for token counting | `dir2text dir -t gpt-4` |
-| `-P, --permission-action ACTION` | Permission error handling | `dir2text dir -P warn` |
-| `-B, --binary-action ACTION` | Binary file handling | `dir2text dir -B encode` |
-| `-M, --max-file-size SIZE` | Maximum file size to include | `dir2text dir -M 50MB` |
+| Option                           | Description                                                     | Example                                      |
+| -------------------------------- | --------------------------------------------------------------- | -------------------------------------------- |
+| `-V, --version`                  | Show version information and exit                               | `dir2text --version`                         |
+| `-o, --output FILE`              | Output file path                                                | `dir2text dir -o output.txt`                 |
+| `-e, --exclude FILE`             | Path to exclusion file (can be specified multiple times)        | `dir2text dir -e .gitignore -e .npmignore`   |
+| `-i, --ignore PATTERN`           | Individual pattern to exclude (can be specified multiple times) | `dir2text dir -i "*.pyc" -i "node_modules/"` |
+| `-L, --follow-symlinks`          | Follow symbolic links during traversal                          | `dir2text dir -L`                            |
+| `-f, --format FORMAT`            | Output format (xml/json)                                        | `dir2text dir -f json`                       |
+| `-T, --no-tree`                  | Skip directory tree                                             | `dir2text dir -T`                            |
+| `-C, --no-contents`              | Skip file contents                                              | `dir2text dir -C`                            |
+| `-s, --summary`                  | Print summary report (stderr, stdout, or file)                  | `dir2text dir -s stderr`                     |
+| `-t, --tokenizer MODEL`          | Model for token counting                                        | `dir2text dir -t gpt-4`                      |
+| `-P, --permission-action ACTION` | Permission error handling                                       | `dir2text dir -P warn`                       |
+| `-B, --binary-action ACTION`     | Binary file handling                                            | `dir2text dir -B encode`                     |
+| `-M, --max-file-size SIZE`       | Maximum file size to include                                    | `dir2text dir -M 50MB`                       |
 
 ## Version Information
 
@@ -37,11 +38,13 @@ dir2text --version
 dir2text X.X.X
 ```
 
-When the version flag is used, the program prints the version and exits immediately, ignoring any other flags.
+When the version flag is used, the program prints the version and exits
+immediately, ignoring any other flags.
 
 ## Output Formats
 
 ### XML Format (Default)
+
 ```bash
 dir2text /path/to/project
 
@@ -54,6 +57,7 @@ def main():
 ```
 
 ### JSON Format
+
 ```bash
 dir2text /path/to/project -f json
 
@@ -86,7 +90,8 @@ By default, symbolic links are represented as symlinks without following them:
 dir2text /path/to/project
 ```
 
-This shows symlinks clearly marked with their targets in the tree output, and as separate elements in content output.
+This shows symlinks clearly marked with their targets in the tree output, and as
+separate elements in content output.
 
 To follow symbolic links during traversal (similar to Unix `find -L`):
 
@@ -94,11 +99,13 @@ To follow symbolic links during traversal (similar to Unix `find -L`):
 dir2text -L /path/to/project
 ```
 
-This includes the content that symlinks point to, while still protecting against symlink loops.
+This includes the content that symlinks point to, while still protecting against
+symlink loops.
 
 ## File Selection
 
 ### Using Exclusion Files
+
 ```bash
 # Use single exclusion file
 dir2text /path/to/project -e .gitignore
@@ -107,9 +114,12 @@ dir2text /path/to/project -e .gitignore
 dir2text /path/to/project -e .gitignore -e .npmignore -e custom.ignore
 ```
 
-When using multiple exclusion files, they are processed in the order specified on the command line. This is important when using negation patterns (starting with `!`), because later rules can override earlier ones.
+When using multiple exclusion files, they are processed in the order specified
+on the command line. This is important when using negation patterns (starting
+with `!`), because later rules can override earlier ones.
 
 Common exclusion patterns:
+
 ```gitignore
 # Python artifacts
 __pycache__/
@@ -149,16 +159,19 @@ dir2text /path/to/project -e .gitignore -M 100MB
 ```
 
 Supported size formats:
+
 - **Decimal units**: KB, MB, GB, TB, PB (powers of 1000)
 - **Binary units**: KiB, MiB, GiB, TiB, PiB (powers of 1024)
 - **Raw bytes**: Any integer number
 - **Decimal values**: 1.5MB, 2.75GB, etc.
 - **With spaces**: "1 GB", "500 MB"
 
-Files exceeding the size limit are completely excluded from both the directory tree and file contents output. Directories are never excluded based on size limits.
+Files exceeding the size limit are completely excluded from both the directory
+tree and file contents output. Directories are never excluded based on size
+limits.
 
-For symbolic links, the size of the target file is checked (not the symlink itself), so large files remain excluded even when accessed through symlinks.
-```
+For symbolic links, the size of the target file is checked (not the symlink
+itself), so large files remain excluded even when accessed through symlinks.
 
 ## Permission Handling
 
@@ -195,17 +208,22 @@ dir2text /path/to/project -B fail
 
 ### Binary File Detection
 
-Files are automatically detected as binary using a two-phase approach for optimal performance:
+Files are automatically detected as binary using a two-phase approach for
+optimal performance:
 
-1. **Fast extension-based detection**: Common extensions like `.jpg`, `.png`, `.mp4`, `.exe` are immediately classified as binary without reading file content
-2. **Content analysis fallback**: Files with unknown extensions are analyzed by reading a small chunk to detect:
+1. **Fast extension-based detection**: Common extensions like `.jpg`, `.png`,
+   `.mp4`, `.exe` are immediately classified as binary without reading file
+   content
+2. **Content analysis fallback**: Files with unknown extensions are analyzed by
+   reading a small chunk to detect:
    - Null bytes (strong binary indicator)
    - Text encoding compatibility (UTF-8, Latin-1, CP1252, UTF-16)
    - Control character ratios
 
 ### Binary File Actions
 
-**ignore (default)**
+#### ignore (default)
+
 ```bash
 dir2text /path/to/project -B ignore
 
@@ -216,7 +234,8 @@ dir2text /path/to/project -B ignore
 </directory>
 ```
 
-**warn**
+#### warn
+
 ```bash
 dir2text /path/to/project -B warn
 
@@ -228,7 +247,8 @@ Warning: Skipping binary file: images/photo.jpg
 </directory>
 ```
 
-**encode**
+#### encode
+
 ```bash
 dir2text /path/to/project -B encode
 
@@ -240,7 +260,8 @@ AAALEgAACxIB0t1+/AAAABZ0RVh0Q3JlYXRpb24gVGltZQAwMS8yOS8xMC7F9wAABaJJREFUOMtV
 </file>
 ```
 
-**fail**
+#### fail
+
 ```bash
 dir2text /path/to/project -B fail
 
@@ -253,9 +274,12 @@ Use --binary-action to specify how binary files should be handled.
 
 The binary detection system is optimized for performance:
 
-- **Extension-based fast-path**: Files with known extensions (`.py`, `.js`, `.jpg`, `.mp4`) are classified instantly without file I/O
-- **Streaming base64 encoding**: When using `-B encode`, binary files are processed in optimized chunks to maintain constant memory usage
-- **Token counting consistency**: Base64-encoded binary files support token counting with the same streaming approach as text files
+- **Extension-based fast-path**: Files with known extensions (`.py`, `.js`,
+  `.jpg`, `.mp4`) are classified instantly without file I/O
+- **Streaming base64 encoding**: When using `-B encode`, binary files are
+  processed in optimized chunks to maintain constant memory usage
+- **Token counting consistency**: Base64-encoded binary files support token
+  counting with the same streaming approach as text files
 
 ## Token Counting
 
@@ -276,13 +300,16 @@ def main():
 ```
 
 Supported models:
+
 - `gpt-4` (recommended default)
 - `gpt-3.5-turbo`
 - `text-davinci-003`
 
 ## Summary Reporting
 
-The summary always includes directory, file, symlink, line, and character counts. Token counts are only included when a tokenizer model is specified with `-t`.
+The summary always includes directory, file, symlink, line, and character
+counts. Token counts are only included when a tokenizer model is specified with
+`-t`.
 
 Control where summary information is displayed:
 
@@ -301,7 +328,8 @@ dir2text -s stderr -t gpt-4 /path/to/project
 ```
 
 Example summary output:
-```
+
+```text
 Directories: 5
 Files: 12
 Symlinks: 2
@@ -313,6 +341,7 @@ Characters: 12450
 ## Common Use Cases
 
 ### Project Documentation
+
 ```bash
 # Generate directory structure only
 dir2text /path/to/project --no-contents > structure.txt
@@ -324,6 +353,7 @@ dir2text /path/to/project \
 ```
 
 ### LLM Analysis
+
 ```bash
 # Prepare for LLM with token counting and size limits (skip binary files)
 dir2text \
@@ -364,6 +394,7 @@ dir2text \
 ```
 
 ### Binary File Processing
+
 ```bash
 # Skip binary files silently (fastest, most common)
 dir2text /path/to/project -B ignore
@@ -379,6 +410,7 @@ dir2text /path/to/project -B fail
 ```
 
 ### Including External Content via Symlinks
+
 ```bash
 # Follow symbolic links to include external content
 dir2text -L /path/to/project -o project_with_linked_content.txt
@@ -386,24 +418,26 @@ dir2text -L /path/to/project -o project_with_linked_content.txt
 
 ## Exit Codes
 
-| Code | Meaning |
-|------|---------|
-| 0 | Success |
-| 1 | Runtime error |
-| 2 | Command-line syntax error |
-| 126 | Permission denied |
-| 130 | Interrupted by SIGINT (Ctrl+C) |
-| 141 | Broken pipe (SIGPIPE) on Unix-like systems |
+| Code | Meaning                                    |
+| ---- | ------------------------------------------ |
+| 0    | Success                                    |
+| 1    | Runtime error                              |
+| 2    | Command-line syntax error                  |
+| 126  | Permission denied                          |
+| 130  | Interrupted by SIGINT (Ctrl+C)             |
+| 141  | Broken pipe (SIGPIPE) on Unix-like systems |
 
 ## Error Handling
 
 ### Permission Errors
+
 ```bash
 # Use appropriate permission action
 dir2text /path/to/project -P warn
 ```
 
 ### Binary File Errors
+
 ```bash
 # Handle binary files based on your needs
 dir2text /path/to/project -B warn    # Show warnings but continue
@@ -412,8 +446,11 @@ dir2text /path/to/project -B encode  # Include as base64
 ```
 
 ### Token Counting Errors
-If token counting is requested but tiktoken is not available, a helpful error message is displayed:
-```
+
+If token counting is requested but tiktoken is not available, a helpful error
+message is displayed:
+
+```text
 Error: Token counting was requested with -t/--tokenizer, but the required tiktoken library is not installed.
 To enable token counting, install dir2text with the 'token_counting' extra:
     pip install "dir2text[token_counting]"
