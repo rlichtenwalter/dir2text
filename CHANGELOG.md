@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Ignore NFS temporary files (`.nfs*`) in `.gitignore` so `git status` stays clean on NFS-backed workstations where deleted-but-open files surface as `.nfsNNNN…` placeholders
 - Align with fleet standards: `mixed-line-ending` hook now forces LF, `.gitignore` ignores `.env.*` (allowing `.env.example`), and `pre-commit` is pinned to 4.5.1
 - Remove retired develop branch from CI triggers, branch guards, and docs
+- Collapse the padded comment alignment in `.markdownlint.jsonc` so it matches the fleet canon and survives `biome format`; no rule behaviour changes
 
 ### Fixed
 
