@@ -1,3 +1,5 @@
+.DEFAULT_GOAL := help
+
 .PHONY: help install hooks-install format format-check lint typecheck security deps test check build publish clean
 
 help: ## Show this help

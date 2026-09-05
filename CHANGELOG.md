@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Mirror Gitea releases to GitHub automatically on every `release: published` event
   - Manual `workflow_dispatch` run with a `tag` input backfills any existing release
 - Run `bandit` security scanning as a push-stage pre-commit hook, so it is enforced in CI and on push instead of only when invoked by hand via `make security`
+- Scan for hardcoded secrets with gitleaks at the commit stage
 
 ### Changed
 
@@ -34,6 +35,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `make check` now uses a non-mutating `format-check` step instead of `format`, so it can no longer paper over formatting drift by auto-fixing it before reporting success
 - Install dev + all extras in the CI Quality job so the pre-push `make test` hook has the dependencies it invokes; previously the job ran with a bare checkout and the hook failed on missing tools
 - Skip the `no-commit-to-branch` pre-commit hook in the CI Quality job, where it fired spuriously on checked-out protected branches
+- `make` with no arguments now shows the help text instead of running whichever target happens to be defined first
 
 ## [3.2.2] - 2026-04-15
 
