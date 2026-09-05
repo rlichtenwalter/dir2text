@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+No changes yet.
+
+## [3.3.0] - 2026-09-05
+
 ### Added
 
 - Markdown formatting is enforced by prettier and semantic linting by markdownlint-cli2, wired into pre-commit (format) and pre-push (lint)
