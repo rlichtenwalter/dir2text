@@ -1,5 +1,3 @@
-<!-- markdownlint-disable-file MD034 -->
-
 # dir2text
 
 A Python library and command-line tool for expressing directory structures and
@@ -428,7 +426,7 @@ specified along with `-s/--summary`.
 
 ## Contact
 
-Ryan N. Lichtenwalter - rlichtenwalter@gmail.com
+Ryan N. Lichtenwalter - <rlichtenwalter@gmail.com>
 
 Project Link:
 [https://github.com/rlichtenwalter/dir2text](https://github.com/rlichtenwalter/dir2text)

@@ -29,6 +29,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Write the contact email as an autolink and drop the file-wide MD034 suppression, which rested on a claim about Gitea that is not true
 - Restore the six `style/prettier` rules the inlined preset had dropped (`code-fence-style`, `heading-start-left`, `heading-style`, `no-blanks-blockquote`, `no-hard-tabs`, `no-multiple-space-blockquote`), and drop `trailing-spaces`, which is not a rule name and so disabled nothing
 - The command-line guide's Permission Handling section rendered as a literal code block instead of a section, hiding its heading, prose and examples
 - `make check` now uses a non-mutating `format-check` step instead of `format`, so it can no longer paper over formatting drift by auto-fixing it before reporting success
