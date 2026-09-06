@@ -6,7 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-No changes yet.
+### Added
+
+- A `secret-scan` CI job that scans the tree with a pinned gitleaks — the commit-stage hook scans only staged changes, so it scans nothing on a clean CI checkout
+
+### Fixed
+
+- The gitleaks crypt-hash rule no longer captures a group, which made `--redact` print the hash it had just caught and entropy read zero
 
 ## [3.3.0] - 2026-09-05
 
