@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+No changes yet.
+
+## [3.4.0] - 2026-09-08
+
 ### Added
 
 - A `secret-scan` CI job that scans the tree with a pinned gitleaks — the commit-stage hook scans only staged changes, so it scans nothing on a clean CI checkout
