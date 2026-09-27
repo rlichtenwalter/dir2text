@@ -3,11 +3,9 @@
 from collections.abc import Sequence
 from os import PathLike
 from pathlib import Path
-from typing import cast
 
 from pathspec import PathSpec
-from pathspec.pattern import Pattern
-from pathspec.patterns import GitWildMatchPattern  # type: ignore[import-untyped]
+from pathspec.patterns.gitignore.spec import GitIgnoreSpecPattern
 
 from dir2text.types import PathType
 
@@ -89,7 +87,7 @@ class GitIgnoreExclusionRules(BaseExclusionRules):
             >>> os.unlink(f2.name)
         """
         # Initialize with empty spec
-        self.spec = PathSpec.from_lines(GitWildMatchPattern, [])
+        self.spec: PathSpec[GitIgnoreSpecPattern] = PathSpec.from_lines(GitIgnoreSpecPattern, [])
 
         # Load rules if provided
         if rules_files is not None:
@@ -181,14 +179,10 @@ class GitIgnoreExclusionRules(BaseExclusionRules):
             with open(path) as f:
                 gitignore_content = f.read().splitlines()
 
-            # Add these patterns to our existing spec
-            new_patterns = PathSpec.from_lines(GitWildMatchPattern, gitignore_content).patterns
-
-            # Ensure patterns is a list that supports extend
-            if not hasattr(self.spec.patterns, "extend"):
-                self.spec.patterns = list(self.spec.patterns)
-
-            cast(list[Pattern], self.spec.patterns).extend(new_patterns)
+            # Append these patterns to the existing spec. `+=` rebuilds the
+            # spec's matching backend; mutating `spec.patterns` in place would
+            # leave the compiled backend stale (pathspec >= 1.0).
+            self.spec += PathSpec.from_lines(GitIgnoreSpecPattern, gitignore_content)
 
     def add_rule(self, rule: str) -> None:
         """Add a single .gitignore pattern directly.
@@ -218,11 +212,5 @@ class GitIgnoreExclusionRules(BaseExclusionRules):
             >>> rules.exclude("build/output.txt")
             True
         """
-        # Create a new pattern from the rule and add it to the existing patterns
-        new_pattern = GitWildMatchPattern(rule)
-
-        # Ensure patterns is a list that supports append
-        if not hasattr(self.spec.patterns, "append"):
-            self.spec.patterns = list(self.spec.patterns)
-
-        cast(list[Pattern], self.spec.patterns).append(new_pattern)
+        # Append the pattern; `+=` rebuilds the spec's matching backend.
+        self.spec += PathSpec([GitIgnoreSpecPattern(rule)])
