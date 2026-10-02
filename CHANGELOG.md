@@ -6,7 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-No changes yet.
+### Fixed
+
+- `make install` now syncs the dev group and the `all` extra, matching CI.
 
 ## [3.4.0] - 2026-09-08
 

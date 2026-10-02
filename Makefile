@@ -7,7 +7,7 @@ help: ## Show this help
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
 install: ## Install dependencies
-	uv sync
+	uv sync --group dev --extra all
 
 hooks-install: ## Install pre-commit hooks (pinned version)
 	uv tool install --force pre-commit==4.5.1
