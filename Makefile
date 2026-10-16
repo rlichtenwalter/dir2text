@@ -10,7 +10,7 @@ install: ## Install dependencies
 	uv sync --group dev --extra all
 
 hooks-install: ## Install pre-commit hooks (pinned version)
-	uv tool install --force pre-commit==4.5.1
+	uv tool install --force pre-commit==4.7.0
 	pre-commit install --install-hooks
 	pre-commit install --hook-type pre-push
 
