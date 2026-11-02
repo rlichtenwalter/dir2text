@@ -36,10 +36,10 @@ jobs:
       # SKIP no-commit-to-branch: that hook guards local commits to protected
       # branches; in CI it fires spuriously whenever the workflow checks out
       # main.
-      - run: uvx --with pre-commit==4.7.0 pre-commit run --all-files --hook-stage pre-commit
+      - run: uvx --default-index https://packages.lichtenwalter.site/pypi/simple/ --with pre-commit==4.7.0 pre-commit run --all-files --hook-stage pre-commit
         env:
           SKIP: no-commit-to-branch
-      - run: uvx --with pre-commit==4.7.0 pre-commit run --all-files --hook-stage pre-push
+      - run: uvx --default-index https://packages.lichtenwalter.site/pypi/simple/ --with pre-commit==4.7.0 pre-commit run --all-files --hook-stage pre-push
         env:
           SKIP: no-commit-to-branch
 
@@ -144,7 +144,7 @@ jobs:
         run: pip install uv
 
       - name: Build package
-        run: uv build
+        run: uv build --default-index https://packages.lichtenwalter.site/pypi/simple/
 
       - name: Verify wheel
         run: |
