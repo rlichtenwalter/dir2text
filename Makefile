@@ -10,7 +10,7 @@ install: ## Install dependencies
 	uv sync --group dev --extra all
 
 hooks-install: ## Install pre-commit hooks (pinned version)
-	uv tool install --force pre-commit==4.7.0
+	uv tool install --default-index https://packages.lichtenwalter.site/pypi/simple/ --force pre-commit==4.7.0
 	pre-commit install --install-hooks
 	pre-commit install --hook-type pre-push
 
@@ -40,7 +40,7 @@ check: format-check lint typecheck security deps test ## Run all checks
 
 build: ## Build sdist and wheel into dist/
 	rm -rf dist/
-	uv build
+	uv build --default-index https://packages.lichtenwalter.site/pypi/simple/
 
 publish: ## Publish version TAG to PyPI (TAG=X.Y.Z CONFIRM=yes required)
 	@test -n "$(TAG)" || { \
@@ -75,7 +75,7 @@ publish: ## Publish version TAG to PyPI (TAG=X.Y.Z CONFIRM=yes required)
 	  echo "ERROR: pyproject.toml at v$(TAG) declares version=$$tag_version, expected $(TAG)"; \
 	  exit 1; \
 	fi; \
-	(cd .publish-worktree && uv build --out-dir ../dist); \
+	(cd .publish-worktree && uv build --default-index https://packages.lichtenwalter.site/pypi/simple/ --out-dir ../dist); \
 	if ! ls dist/dir2text-$(TAG)-*.whl >/dev/null 2>&1 || ! ls dist/dir2text-$(TAG).tar.gz >/dev/null 2>&1; then \
 	  echo "ERROR: built artifacts in dist/ do not match version $(TAG):"; \
 	  ls -la dist/ || true; \
