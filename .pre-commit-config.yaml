@@ -40,6 +40,7 @@ repos:
         args: [--maxkb=1000]
       - id: detect-private-key
       - id: check-merge-conflict
+        args: [--assume-in-merge]
       - id: check-case-conflict
       - id: mixed-line-ending
         args: [--fix=lf]
