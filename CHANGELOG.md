@@ -201,7 +201,9 @@ No changes yet.
 - Streaming architecture for large file support without high memory consumption
 - Feature-rich CLI exposing the bulk of API functionality
 
-[Unreleased]: https://git.lichtenwalter.site/rlichten/dir2text/compare/v3.2.2...main
+[Unreleased]: https://git.lichtenwalter.site/rlichten/dir2text/compare/v3.4.0...main
+[3.4.0]: https://git.lichtenwalter.site/rlichten/dir2text/compare/v3.3.0...v3.4.0
+[3.3.0]: https://git.lichtenwalter.site/rlichten/dir2text/compare/v3.2.2...v3.3.0
 [3.2.2]: https://git.lichtenwalter.site/rlichten/dir2text/compare/v3.2.1...v3.2.2
 [3.2.1]: https://git.lichtenwalter.site/rlichten/dir2text/compare/v3.2.0...v3.2.1
 [3.2.0]: https://git.lichtenwalter.site/rlichten/dir2text/compare/v3.1.0...v3.2.0
