@@ -6,9 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-### Fixed
-
-- `make install` now syncs the dev group and the `all` extra, matching CI.
+No changes yet.
 
 ## [3.4.0] - 2026-09-08
 
@@ -203,16 +201,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Streaming architecture for large file support without high memory consumption
 - Feature-rich CLI exposing the bulk of API functionality
 
-[Unreleased]: https://git.lichtenwalter.site/rlichten/dir2text/compare/v3.4.0...main
-[3.4.0]: https://git.lichtenwalter.site/rlichten/dir2text/compare/v3.3.0...v3.4.0
-[3.3.0]: https://git.lichtenwalter.site/rlichten/dir2text/compare/v3.2.2...v3.3.0
-[3.2.2]: https://git.lichtenwalter.site/rlichten/dir2text/compare/v3.2.1...v3.2.2
-[3.2.1]: https://git.lichtenwalter.site/rlichten/dir2text/compare/v3.2.0...v3.2.1
-[3.2.0]: https://git.lichtenwalter.site/rlichten/dir2text/compare/v3.1.0...v3.2.0
-[3.1.0]: https://git.lichtenwalter.site/rlichten/dir2text/compare/v3.0.2...v3.1.0
-[3.0.2]: https://git.lichtenwalter.site/rlichten/dir2text/compare/v3.0.1...v3.0.2
-[3.0.1]: https://git.lichtenwalter.site/rlichten/dir2text/compare/v3.0.0...v3.0.1
-[3.0.0]: https://git.lichtenwalter.site/rlichten/dir2text/compare/v2.0.0...v3.0.0
-[2.0.0]: https://git.lichtenwalter.site/rlichten/dir2text/compare/v1.0.1...v2.0.0
-[1.0.1]: https://git.lichtenwalter.site/rlichten/dir2text/compare/v1.0.0...v1.0.1
-[1.0.0]: https://git.lichtenwalter.site/rlichten/dir2text/releases/tag/v1.0.0
+[Unreleased]: https://github.com/rlichtenwalter/dir2text/compare/v3.4.0...main
+[3.4.0]: https://github.com/rlichtenwalter/dir2text/compare/v3.3.0...v3.4.0
+[3.3.0]: https://github.com/rlichtenwalter/dir2text/compare/v3.2.2...v3.3.0
+[3.2.2]: https://github.com/rlichtenwalter/dir2text/compare/v3.2.1...v3.2.2
+[3.2.1]: https://github.com/rlichtenwalter/dir2text/compare/v3.2.0...v3.2.1
+[3.2.0]: https://github.com/rlichtenwalter/dir2text/compare/v3.1.0...v3.2.0
+[3.1.0]: https://github.com/rlichtenwalter/dir2text/compare/v3.0.2...v3.1.0
+[3.0.2]: https://github.com/rlichtenwalter/dir2text/compare/v3.0.1...v3.0.2
+[3.0.1]: https://github.com/rlichtenwalter/dir2text/compare/v3.0.0...v3.0.1
+[3.0.0]: https://github.com/rlichtenwalter/dir2text/compare/v2.0.0...v3.0.0
+[2.0.0]: https://github.com/rlichtenwalter/dir2text/compare/v1.0.1...v2.0.0
+[1.0.1]: https://github.com/rlichtenwalter/dir2text/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/rlichtenwalter/dir2text/releases/tag/v1.0.0
