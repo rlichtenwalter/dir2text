@@ -280,8 +280,8 @@ cd dir2text
 # Install all dependencies (creates virtual environment automatically)
 uv sync --group dev --extra all
 
-# Install pre-commit hooks
-uv run pre-commit install --hook-type pre-commit --hook-type pre-push
+# Install pre-commit hooks (pre-commit is a pinned uv tool, not a project dependency)
+make hooks-install
 ```
 
 ### Quality Checks
@@ -319,8 +319,8 @@ The project uses a two-tier hook strategy:
 Hooks run automatically after setup. To run all hooks manually:
 
 ```bash
-uv run pre-commit run --all-files          # Commit-stage hooks
-uv run pre-commit run --all-files --hook-stage pre-push  # Push-stage hooks
+pre-commit run --all-files          # Commit-stage hooks
+pre-commit run --all-files --hook-stage pre-push  # Push-stage hooks
 ```
 
 ### CI Pipeline
