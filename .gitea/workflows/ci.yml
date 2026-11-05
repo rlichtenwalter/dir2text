@@ -32,10 +32,10 @@ jobs:
       # SKIP no-commit-to-branch: that hook guards local commits to protected
       # branches; in CI it fires spuriously whenever the workflow checks out
       # main.
-      - run: uvx --with pre-commit==4.7.0 pre-commit run --all-files --hook-stage pre-commit
+      - run: make check-commit
         env:
           SKIP: no-commit-to-branch
-      - run: uvx --with pre-commit==4.7.0 pre-commit run --all-files --hook-stage pre-push
+      - run: make check-push
         env:
           SKIP: no-commit-to-branch
 

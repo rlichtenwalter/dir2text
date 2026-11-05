@@ -319,8 +319,8 @@ The project uses a two-tier hook strategy:
 Hooks run automatically after setup. To run all hooks manually:
 
 ```bash
-pre-commit run --all-files          # Commit-stage hooks
-pre-commit run --all-files --hook-stage pre-push  # Push-stage hooks
+make check-commit   # Commit-stage hooks
+make check-push     # Push-stage hooks
 ```
 
 ### CI Pipeline

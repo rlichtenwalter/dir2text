@@ -1,1 +1,1 @@
-Drop pre-commit from the dev group so the project's Python 3.10 floor resolves with pre-commit 4.7.0
+Pin pre-commit once as the Makefile PRE_COMMIT_VERSION, run CI hooks through make check-commit and check-push, and drop it from the dev group
