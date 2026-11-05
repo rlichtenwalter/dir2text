@@ -1,6 +1,12 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install hooks-install format format-check lint typecheck security deps test check build publish clean
+# pre-commit is a developer tool installed outside the project, not a project
+# dependency; this variable is its only pin (Renovate deps-preset regex manager
+# owns it). CI and make targets run it ephemerally via uvx; `hooks-install`
+# installs it persistently.
+PRE_COMMIT_VERSION := 4.7.0
+
+.PHONY: help install hooks-install check-commit check-push format format-check lint typecheck security deps test check build publish clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -10,9 +16,19 @@ install: ## Install dependencies
 	uv sync --group dev --extra all
 
 hooks-install: ## Install pre-commit hooks (pinned version)
-	uv tool install --force pre-commit==4.7.0
+	@# TRAP: `pre-commit install` embeds the installing interpreter's path in
+	@# .git/hooks, and a uvx cache environment can be pruned, so hooks
+	@# installed from uvx break later. Install the tool persistently with
+	@# `uv tool install` first and run the hooks from that, never from uvx.
+	uv tool install --force pre-commit==$(PRE_COMMIT_VERSION)
 	pre-commit install --install-hooks
 	pre-commit install --hook-type pre-push
+
+check-commit: ## Run commit-stage hooks on all files (matches CI quality job)
+	uvx pre-commit@$(PRE_COMMIT_VERSION) run --all-files --hook-stage pre-commit
+
+check-push: ## Run push-stage hooks on all files (matches CI quality job)
+	uvx pre-commit@$(PRE_COMMIT_VERSION) run --all-files --hook-stage pre-push
 
 format: ## Format code
 	uv run ruff check --fix src tests
