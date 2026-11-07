@@ -8,6 +8,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 No changes yet.
 
+## [3.5.0] - 2026-11-07
+
+### Changed
+
+- Bump actions/checkout to v7
+- Bump actions/setup-python digest to 6d4fd22
+- Bump actions/setup-python to v7
+- Bump non-major dependencies and lock file (#97, #99)
+- Bump pre-commit hooks (#88, #95, #98, #100)
+- Bump pytest-cov to v7
+- Pin CI and dev dependencies
+- Pin pre-commit once as the Makefile PRE_COMMIT_VERSION, run CI hooks through make check-commit and check-push, and drop it from the dev group
+- Require pathspec 1.1 (was 0.12), updating the git-ignore rule handling to match
+
+### Fixed
+
+- Refresh the CHANGELOG version comparison links
+- `make install` now syncs the dev group and the `all` extra, matching CI.
+
 ## [3.4.0] - 2026-09-08
 
 ### Added
@@ -201,7 +220,8 @@ No changes yet.
 - Streaming architecture for large file support without high memory consumption
 - Feature-rich CLI exposing the bulk of API functionality
 
-[Unreleased]: https://github.com/rlichtenwalter/dir2text/compare/v3.4.0...main
+[Unreleased]: https://github.com/rlichtenwalter/dir2text/compare/v3.5.0...main
+[3.5.0]: https://github.com/rlichtenwalter/dir2text/compare/v3.4.0...v3.5.0
 [3.4.0]: https://github.com/rlichtenwalter/dir2text/compare/v3.3.0...v3.4.0
 [3.3.0]: https://github.com/rlichtenwalter/dir2text/compare/v3.2.2...v3.3.0
 [3.2.2]: https://github.com/rlichtenwalter/dir2text/compare/v3.2.1...v3.2.2
