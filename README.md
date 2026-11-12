@@ -265,7 +265,7 @@ dir2text /path/to/project | grep "function"
 
 ### Prerequisites
 
-- Python 3.9.1 or later
+- Python 3.11 or later
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) for dependency
   management
 - Git for version control
@@ -329,7 +329,7 @@ CI runs automatically on pushes and pull requests to `main`:
 
 1. **Lint & Format** — ruff check + format verification
 2. **Type Check** — pyright strict mode
-3. **Test Matrix** — pytest across Python 3.9, 3.10, 3.11, 3.12, 3.13
+3. **Test Matrix** — pytest across Python 3.11, 3.12, 3.13, 3.14
 4. **Build** — package build + wheel verification
 
 ## Contributing
@@ -346,7 +346,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Requirements
 
-- Python 3.9.1+
+- Python 3.11+
 - Optional: Rust compiler and Cargo (for token counting feature)
 
 ## License

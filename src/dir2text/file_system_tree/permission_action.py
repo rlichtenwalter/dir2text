@@ -1,9 +1,9 @@
 """Permission action enum for handling permission errors during directory traversal."""
 
-from enum import Enum
+from enum import StrEnum
 
 
-class PermissionAction(str, Enum):
+class PermissionAction(StrEnum):
     """Action to take when encountering permission errors during directory traversal.
 
     Values:
