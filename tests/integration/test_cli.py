@@ -13,10 +13,10 @@ This integration test suite covers various aspects of the CLI functionality incl
 
 import os
 import platform
+import signal
 import subprocess
 import sys
 import tempfile
-import time
 from pathlib import Path
 
 import pytest
@@ -439,22 +439,21 @@ def test_cli_sigpipe_handling(temp_project):
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            start_new_session=True,
         )
 
-        # Give it a moment to run
-        time.sleep(1)
-
-        # Get return code
-        return_code = process.poll()
-
-        # If process is still running, kill it
-        if return_code is None:
-            process.terminate()
-            process.wait(timeout=5)
-            return_code = process.returncode
-
-        # Output should be limited by head, and process should exit cleanly
-        _stdout, stderr = process.communicate()
+        # Wait for the pipeline to finish rather than sleeping a fixed second:
+        # interpreter startup alone can exceed that on a loaded host, and
+        # terminating a still-starting process reports -15, not a SIGPIPE result.
+        # The pipeline's status is head's, so a clean run reports 0.
+        try:
+            _stdout, stderr = process.communicate(timeout=60)
+        except subprocess.TimeoutExpired:
+            # A hang is a failure, and must not leak the shell and its children.
+            os.killpg(process.pid, signal.SIGKILL)
+            process.communicate()
+            pytest.fail("SIGPIPE pipeline did not finish within 60 seconds")
+        return_code = process.returncode
 
         # Process should exit without error message
         assert not stderr or not stderr.strip()
@@ -463,7 +462,7 @@ def test_cli_sigpipe_handling(temp_project):
         # but we'll also accept 0 as "clean exit"
         assert return_code in (0, 141)
 
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError):
+    except subprocess.SubprocessError:
         # If something goes wrong, skip the test rather than fail
         pytest.skip("Signal handling test encountered an error")
 
