@@ -431,40 +431,35 @@ def test_cli_sigpipe_handling(temp_project):
     """Test handling of SIGPIPE signal."""
     # This is a limited test that can only be run on Unix-like systems
 
+    # Create a subprocess that pipes output through 'head'
+    # This will cause a SIGPIPE when head closes the pipe
+    process = subprocess.Popen(
+        f"{sys.executable} -m dir2text.cli.main {temp_project!s} | head -n 5",
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        start_new_session=True,
+    )
+
+    # Wait for the pipeline to finish rather than sleeping a fixed second:
+    # interpreter startup alone can exceed that on a loaded host, and
+    # terminating a still-starting process reports -15, not a SIGPIPE result.
+    # The pipeline's status is head's, so a clean run reports 0.
     try:
-        # Create a subprocess that pipes output through 'head'
-        # This will cause a SIGPIPE when head closes the pipe
-        process = subprocess.Popen(
-            f"{sys.executable} -m dir2text.cli.main {temp_project!s} | head -n 5",
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            start_new_session=True,
-        )
+        _stdout, stderr = process.communicate(timeout=60)
+    except subprocess.TimeoutExpired:
+        # A hang is a failure, and must not leak the shell and its children.
+        os.killpg(process.pid, signal.SIGKILL)
+        process.communicate()
+        pytest.fail("SIGPIPE pipeline did not finish within 60 seconds")
+    return_code = process.returncode
 
-        # Wait for the pipeline to finish rather than sleeping a fixed second:
-        # interpreter startup alone can exceed that on a loaded host, and
-        # terminating a still-starting process reports -15, not a SIGPIPE result.
-        # The pipeline's status is head's, so a clean run reports 0.
-        try:
-            _stdout, stderr = process.communicate(timeout=60)
-        except subprocess.TimeoutExpired:
-            # A hang is a failure, and must not leak the shell and its children.
-            os.killpg(process.pid, signal.SIGKILL)
-            process.communicate()
-            pytest.fail("SIGPIPE pipeline did not finish within 60 seconds")
-        return_code = process.returncode
+    # Process should exit without error message
+    assert not stderr or not stderr.strip()
 
-        # Process should exit without error message
-        assert not stderr or not stderr.strip()
-
-        # In Unix systems, SIGPIPE typically results in exit code 141
-        # but we'll also accept 0 as "clean exit"
-        assert return_code in (0, 141)
-
-    except subprocess.SubprocessError:
-        # If something goes wrong, skip the test rather than fail
-        pytest.skip("Signal handling test encountered an error")
+    # In Unix systems, SIGPIPE typically results in exit code 141
+    # but we'll also accept 0 as "clean exit"
+    assert return_code in (0, 141)
 
 
 def test_cli_summary_options(temp_project):
