@@ -1,9 +1,9 @@
 """Binary action enum for handling binary files during directory traversal."""
 
-from enum import Enum
+from enum import StrEnum
 
 
-class BinaryAction(str, Enum):
+class BinaryAction(StrEnum):
     """Action to take when encountering binary files during directory traversal.
 
     Values:

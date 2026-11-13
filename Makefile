@@ -6,6 +6,11 @@
 # installs it persistently.
 PRE_COMMIT_VERSION := 4.7.0
 
+# Operator-supplied variables reach recipes through the environment, read only
+# as "$$TAG" and "$$CONFIRM" (shell syntax): a Make-expanded value carrying a quote or $() would
+# run as shell (skills/makefile-deploy-contract, "Operator-supplied variables").
+export TAG CONFIRM
+
 .PHONY: help install hooks-install check-commit check-push format format-check lint typecheck security deps test check build publish clean
 
 help: ## Show this help
@@ -59,20 +64,22 @@ build: ## Build sdist and wheel into dist/
 	uv build
 
 publish: ## Publish version TAG to PyPI (TAG=X.Y.Z CONFIRM=yes required)
-	@test -n "$(TAG)" || { \
+	@test -n "$$TAG" || { \
 	  echo "ERROR: TAG=X.Y.Z required. Usage: make publish TAG=X.Y.Z CONFIRM=yes"; \
 	  exit 1; \
 	}
-	@test "$(CONFIRM)" = "yes" || { \
+	@test "$$CONFIRM" = "yes" || { \
 	  echo "ERROR: CONFIRM=yes required. Usage: make publish TAG=X.Y.Z CONFIRM=yes"; \
 	  exit 1; \
 	}
+	@case "$$TAG" in ''|*[!0-9.]*|.*|*.|*..*) echo "ERROR: TAG must be X.Y.Z"; exit 1;; esac; \
+	printf '%s\n' "$$TAG" | grep -Eqx '(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*)){2}' || { echo "ERROR: TAG must be X.Y.Z"; exit 1; }
 	@test -f "$(HOME)/.pypirc" || { \
 	  echo "ERROR: ~/.pypirc not found — cannot read PyPI token"; \
 	  exit 1; \
 	}
-	@git rev-parse "v$(TAG)" >/dev/null 2>&1 || { \
-	  echo "ERROR: git tag v$(TAG) not found"; \
+	@git rev-parse "v$$TAG" >/dev/null 2>&1 || { \
+	  echo "ERROR: git tag v$$TAG not found"; \
 	  exit 1; \
 	}
 	@# Clean up any leftovers from a prior failed run
@@ -84,20 +91,20 @@ publish: ## Publish version TAG to PyPI (TAG=X.Y.Z CONFIRM=yes required)
 	@# pyproject.toml version at the tag and the built wheel version
 	@# both match TAG before we call uv publish.
 	@set -e; \
-	git worktree add --detach .publish-worktree "v$(TAG)"; \
+	git worktree add --detach .publish-worktree "v$$TAG"; \
 	trap 'git worktree remove --force .publish-worktree 2>/dev/null; git worktree prune' EXIT; \
 	tag_version=$$(grep '^version = ' .publish-worktree/pyproject.toml | head -1 | sed 's/.*"\(.*\)".*/\1/'); \
-	if [ "$$tag_version" != "$(TAG)" ]; then \
-	  echo "ERROR: pyproject.toml at v$(TAG) declares version=$$tag_version, expected $(TAG)"; \
+	if [ "$$tag_version" != "$$TAG" ]; then \
+	  echo "ERROR: pyproject.toml at v$$TAG declares version=$$tag_version, expected $$TAG"; \
 	  exit 1; \
 	fi; \
 	(cd .publish-worktree && uv build --out-dir ../dist); \
-	if ! ls dist/dir2text-$(TAG)-*.whl >/dev/null 2>&1 || ! ls dist/dir2text-$(TAG).tar.gz >/dev/null 2>&1; then \
-	  echo "ERROR: built artifacts in dist/ do not match version $(TAG):"; \
+	if ! ls dist/dir2text-$$TAG-*.whl >/dev/null 2>&1 || ! ls dist/dir2text-$$TAG.tar.gz >/dev/null 2>&1; then \
+	  echo "ERROR: built artifacts in dist/ do not match version $$TAG:"; \
 	  ls -la dist/ || true; \
 	  exit 1; \
 	fi; \
-	echo "Publishing dir2text $(TAG) to PyPI from dist/..."; \
+	echo "Publishing dir2text $$TAG to PyPI from dist/..."; \
 	token=$$(awk -F'[[:space:]]*=[[:space:]]*' '/^\[pypi\]/{p=1;next} /^\[/{p=0} p && $$1=="password"{print $$2; exit}' "$(HOME)/.pypirc"); \
 	if [ -z "$$token" ]; then \
 	  echo "ERROR: could not read [pypi] password from ~/.pypirc"; \
