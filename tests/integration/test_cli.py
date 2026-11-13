@@ -13,7 +13,6 @@ This integration test suite covers various aspects of the CLI functionality incl
 
 import os
 import platform
-import signal
 import subprocess
 import sys
 import tempfile
@@ -427,39 +426,41 @@ def is_tiktoken_available():
 
 
 @pytest.mark.skipif(platform.system() == "Windows", reason="Signal testing not reliable on Windows")
-def test_cli_sigpipe_handling(temp_project):
-    """Test handling of SIGPIPE signal."""
-    # This is a limited test that can only be run on Unix-like systems
+def test_cli_sigpipe_handling(tmp_path):
+    """The CLI stops quietly with status 141 when its reader closes the pipe mid-output."""
+    # Several megabytes, far more than a pipe buffer holds (64 KiB on Linux), so
+    # the CLI is still writing when the reader goes away. A small project would
+    # finish writing before the pipe closed and never raise SIGPIPE.
+    for index in range(4):
+        (tmp_path / f"big{index}.txt").write_text("a line of text\n" * 100_000)
 
-    # Create a subprocess that pipes output through 'head'
-    # This will cause a SIGPIPE when head closes the pipe
+    # No shell and no `head`: this test is the reader, so it decides exactly when
+    # the pipe closes, and it sees the CLI's own exit status, not a pipeline's.
     process = subprocess.Popen(
-        f"{sys.executable} -m dir2text.cli.main {temp_project!s} | head -n 5",
-        shell=True,
+        [sys.executable, "-m", "dir2text.cli.main", str(tmp_path)],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        start_new_session=True,
     )
-
-    # Wait for the pipeline to finish rather than sleeping a fixed second:
-    # interpreter startup alone can exceed that on a loaded host, and
-    # terminating a still-starting process reports -15, not a SIGPIPE result.
-    # The pipeline's status is head's, so a clean run reports 0.
+    assert process.stdout is not None
+    assert process.stderr is not None
     try:
-        _stdout, stderr = process.communicate(timeout=60)
+        # The CLI has started writing; now leave without reading the rest.
+        assert process.stdout.read(1)
+        process.stdout.close()
+        return_code = process.wait(timeout=60)
+        stderr = process.stderr.read()
     except subprocess.TimeoutExpired:
-        # A hang is a failure, and must not leak the shell and its children.
-        os.killpg(process.pid, signal.SIGKILL)
-        process.communicate()
-        pytest.fail("SIGPIPE pipeline did not finish within 60 seconds")
-    return_code = process.returncode
+        pytest.fail("the CLI did not exit within 60 seconds of its reader closing the pipe")
+    finally:
+        # Reap the child however the test ends, so a failure cannot leak it.
+        process.kill()
+        process.wait()
+        process.stderr.close()
 
-    # Process should exit without error message
-    assert not stderr or not stderr.strip()
-
-    # In Unix systems, SIGPIPE typically results in exit code 141
-    # but we'll also accept 0 as "clean exit"
-    assert return_code in (0, 141)
+    # SIGPIPE is the reader's doing, not an error: nothing is printed, and the
+    # CLI reports it with the conventional 128 + SIGPIPE status.
+    assert stderr == b""
+    assert return_code == 141
 
 
 def test_cli_summary_options(temp_project):
