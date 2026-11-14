@@ -25,7 +25,7 @@ hooks-install: ## Install pre-commit hooks (pinned version)
 	@# .git/hooks, and a uvx cache environment can be pruned, so hooks
 	@# installed from uvx break later. Install the tool persistently with
 	@# `uv tool install` first and run the hooks from that, never from uvx.
-	uv tool install --force pre-commit==$(PRE_COMMIT_VERSION)
+	uv tool install pre-commit==$(PRE_COMMIT_VERSION)
 	pre-commit install --install-hooks
 	pre-commit install --hook-type pre-push
 
