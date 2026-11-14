@@ -445,16 +445,21 @@ def test_cli_sigpipe_handling(tmp_path):
     assert process.stderr is not None
     try:
         # The CLI has started writing; now leave without reading the rest.
-        assert process.stdout.read(1)
+        if not process.stdout.read(1):
+            # EOF before any output: the CLI died early, so say why.
+            process.wait(timeout=60)
+            pytest.fail(f"the CLI wrote nothing (status {process.returncode}): {process.stderr.read()!r}")
         process.stdout.close()
         return_code = process.wait(timeout=60)
         stderr = process.stderr.read()
     except subprocess.TimeoutExpired:
-        pytest.fail("the CLI did not exit within 60 seconds of its reader closing the pipe")
+        pytest.fail("the CLI did not finish within 60 seconds")
     finally:
-        # Reap the child however the test ends, so a failure cannot leak it.
+        # Reap the child and close both pipes however the test ends, so a
+        # failure leaks neither a process nor a file object.
         process.kill()
         process.wait()
+        process.stdout.close()
         process.stderr.close()
 
     # SIGPIPE is the reader's doing, not an error: nothing is printed, and the
