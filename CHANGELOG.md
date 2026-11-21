@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 No changes yet.
 
+## [3.6.0] - 2026-11-20
+
+### Changed
+
+- Bump pre-commit hooks: prettier 3.9.10 → 3.10.1, markdownlint-cli2 0.24.0 → 0.24.1; bump ruff 0.17.3 → 0.17.5
+- Drop --force from the pre-commit install in the Makefile so a same-version run leaves the shared tool env alone.
+- Make `BinaryAction` and `PermissionAction` `StrEnum` classes, so `str()` of a member is its value.
+- Read TAG and CONFIRM from the environment in `make publish` and require a strict X.Y.Z tag.
+- Require Python 3.11 or newer (3.10 is end-of-life) and declare support for 3.11 through 3.14.
+
+### Fixed
+
+- The SIGPIPE test now closes a real pipe mid-output and checks the CLI's own exit status with no timing sleep, so it fails if SIGPIPE handling breaks.
+
 ## [3.5.0] - 2026-11-07
 
 ### Changed
@@ -220,7 +234,8 @@ No changes yet.
 - Streaming architecture for large file support without high memory consumption
 - Feature-rich CLI exposing the bulk of API functionality
 
-[Unreleased]: https://github.com/rlichtenwalter/dir2text/compare/v3.5.0...main
+[Unreleased]: https://github.com/rlichtenwalter/dir2text/compare/v3.6.0...main
+[3.6.0]: https://github.com/rlichtenwalter/dir2text/compare/v3.5.0...v3.6.0
 [3.5.0]: https://github.com/rlichtenwalter/dir2text/compare/v3.4.0...v3.5.0
 [3.4.0]: https://github.com/rlichtenwalter/dir2text/compare/v3.3.0...v3.4.0
 [3.3.0]: https://github.com/rlichtenwalter/dir2text/compare/v3.2.2...v3.3.0
